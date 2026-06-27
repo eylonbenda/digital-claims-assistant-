@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-06-26**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-06-27**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -17,10 +17,10 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 | # | Step | State |
 |---|---|---|
 | 1 | Scaffold (Next 16 + TS + Tailwind v4, RTL) | ✅ done — `web/`. **Not yet deployed to Vercel.** |
-| 2 | Data model + agent Auth + claim creation + link | ✅ **done** (pending Supabase provisioning) — schema + RLS in `web/db/schema.sql`; migration in `web/db/migrations/001_agent_setup.sql`; auth routes + middleware + dashboard written. **Needs real Supabase keys in `web/.env.local`.** |
+| 2 | Data model + agent Auth + claim creation + link | ✅ **done** (pending Supabase provisioning) — schema + RLS in `web/db/schema.sql`; migrations in `web/db/migrations/` (001 agent setup, 002 PostgREST grants); auth routes + middleware + dashboard written. **Needs real Supabase keys in `web/.env.local`.** |
 | 3 | Collection web-app | ✅ done — `web/src/components/collection/CollectionWizard.tsx` (9-step RTL wizard). Submit now calls `POST /api/claims/submit` for real persistence. |
 | 4 | AI processing | ✅ done — `POST /api/analyze` → `web/src/lib/ai/analyze.ts`. Wired into the wizard's review step. |
-| 5 | Form overlay fill | ✅ engine + templates done — preview routes `GET /api/forms/hachshara\|migdal` verified end-to-end. **Not yet written to `generated_forms`** (needs persistence). Remaining insurer templates + OCR for הפניקס/איילון deferred. |
+| 5 | Form overlay fill | ✅ engine + templates done — dynamic `GET /api/forms/[insurer]` previews a filled PDF (demo claim) + `POST` fills from a claim body; insurers wired: הכשרה, מגדל, מנורה (verified end-to-end). **Not yet written to `generated_forms`** (needs persistence). Remaining insurer templates + OCR for הפניקס/איילון deferred. |
 | 6 | Static per-track checklist | ❌ not started |
 | 7 | Basic dashboard | ✅ **done** — `web/src/app/dashboard/page.tsx`: claims list + new-claim form + logout. Feeds from Supabase RLS. **Needs Supabase keys to go live.** |
 | 8 | UX polish + run with design partner | ❌ not started |
@@ -53,7 +53,7 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Run `web/db/schema.sql` in the SQL editor
-3. Run `web/db/migrations/001_agent_setup.sql` (agent trigger + insert policy)
+3. Run `web/db/migrations/001_agent_setup.sql` (agent trigger + insert policy), then `web/db/migrations/002_grants.sql` (PostgREST grants — without these, writes fail even with the service-role key)
 4. Copy keys into `web/.env.local`:
    ```
    NEXT_PUBLIC_SUPABASE_URL=...
