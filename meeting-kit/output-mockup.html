@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>מוקאפ output — טיוטה</title>
+<style>
+  @page { size: A4; margin: 8mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a1a; font-size: 9.5px; line-height: 1.35; margin: 0; }
+  .ribbon { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .ribbon .draft { border:1.5px dashed #b00020; color:#b00020; font-size:10px; padding:2px 8px; border-radius:4px; transform:rotate(-2deg); }
+  .ribbon h1 { font-size:14px; margin:0; }
+  .wrap { display:flex; gap:7px; align-items:flex-start; }
+  .form { flex: 1.35; }
+  .aside { flex: 1; }
+  .formhead { display:flex; justify-content:space-between; align-items:center; border:1px solid #c8c8c2; border-bottom:none; border-radius:6px 6px 0 0; padding:5px 8px; background:#fafaf6; }
+  .ins { background:#009a44; color:#fff; font-weight:700; font-size:11px; padding:2px 8px; border-radius:4px; }
+  .formhead .t { font-weight:700; font-size:11px; }
+  .formhead .sub { font-size:8px; color:#777; }
+  .sec { border:1px solid #d2d2cc; border-top:none; padding:4px 7px; }
+  .sec:last-child { border-radius:0 0 6px 6px; }
+  .sec h3 { font-size:9.5px; margin:0 0 3px; color:#333; }
+  .bl { background:#333; color:#fff; border-radius:3px; padding:0 4px; margin-left:4px; font-size:8.5px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(78px,1fr)); gap:3px; }
+  .f { border:0.5px solid #e6e6e0; border-radius:3px; padding:2px 4px; }
+  .f.full { grid-column:1/-1; }
+  .l { font-size:7.5px; color:#999; display:block; }
+  .v { color:#185fa5; font-weight:600; font-size:10px; }
+  .chk { font-size:9px; }
+  .mark { color:#185fa5; font-weight:700; }
+  .card { border:1.5px dashed #999; border-radius:8px; padding:6px 8px; background:#fcfcfa; }
+  .card h2 { font-size:11px; margin:0 0 2px; }
+  .meta { font-size:8.5px; color:#666; margin:0 0 5px; }
+  .block { border-top:1px solid #ececec; padding-top:4px; margin-top:5px; }
+  .block .h { font-size:9px; font-weight:700; color:#444; margin-bottom:2px; }
+  .pill { display:inline-block; background:#e6f1fb; color:#0c447c; font-weight:700; border-radius:4px; padding:1px 7px; font-size:9.5px; }
+  .btn { display:inline-block; border:0.5px solid #bbb; border-radius:4px; padding:0 6px; font-size:8.5px; color:#555; margin-right:3px; }
+  .ai { background:#f5f5f0; border-right:3px solid #888; border-radius:0 4px 4px 0; padding:4px 6px; font-size:9px; }
+  ul { margin:2px 0 0; padding:0; list-style:none; }
+  li { margin-bottom:1.5px; }
+  .ok { color:#3b6d11; font-weight:700; }
+  .no { color:#a32d2d; font-weight:700; }
+  .pend { color:#999; }
+  .next { background:#eaf3de; border-radius:4px; padding:3px 6px; margin-top:3px; font-size:9px; }
+  .ask { margin-top:7px; border-top:2px solid #222; padding-top:5px; font-size:10.5px; font-weight:700; }
+</style>
+</head>
+<body>
+  <div class="ribbon">
+    <h1>מה נוחת על השולחן שלך</h1>
+    <span class="draft">מוקאפ · נתוני דמה · לא מוצר</span>
+  </div>
+
+  <div class="wrap">
+    <!-- FILLED FORM -->
+    <div class="form">
+      <div class="formhead">
+        <span class="ins">הראל</span>
+        <div style="text-align:center;"><div class="t">הודעה על תאונת רכב (110.0)</div><div class="sub">מולא אוטומטית מתוך מה שהלקוח שלח</div></div>
+        <span style="font-size:8px;color:#999;">מסמך 14602</span>
+      </div>
+
+      <div class="sec">
+        <h3><span class="bl">א</span> פרטי המבוטח והפוליסה</h3>
+        <div class="grid">
+          <div class="f"><span class="l">שם המבוטח</span><span class="v">ישראל ישראלי</span></div>
+          <div class="f"><span class="l">מס' ת.ז.</span><span class="v">312345678</span></div>
+          <div class="f"><span class="l">מס' הפוליסה</span><span class="v">305-99-12345</span></div>
+          <div class="f"><span class="l">סוג הביטוח</span><span class="v">מקיף</span></div>
+          <div class="f"><span class="l">שם הסוכן</span><span class="v">א. כהן</span></div>
+          <div class="f"><span class="l">מס' רישוי</span><span class="v">12-345-67</span></div>
+          <div class="f"><span class="l">תוצר ודגם</span><span class="v">טויוטה קורולה</span></div>
+          <div class="f"><span class="l">שנת ייצור</span><span class="v">2021</span></div>
+          <div class="f"><span class="l">סוג הרכב</span><span class="v">פרטי</span></div>
+          <div class="f"><span class="l">טלפון נייד</span><span class="v">052-1234567</span></div>
+          <div class="f"><span class="l">דוא"ל</span><span class="v">israel@example.com</span></div>
+          <div class="f"><span class="l">כתובת</span><span class="v">הרצל 10, ת"א</span></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3><span class="bl">ב</span> פרטי הנהג</h3>
+        <div class="grid">
+          <div class="f"><span class="l">שם הנהג</span><span class="v">ישראל ישראלי</span></div>
+          <div class="f"><span class="l">תאריך לידה</span><span class="v">14/03/1985</span></div>
+          <div class="f"><span class="l">מין</span><span class="v">ז</span></div>
+          <div class="f"><span class="l">מס' רישיון נהיגה</span><span class="v">31234567</span></div>
+          <div class="f"><span class="l">סוג רישיון</span><span class="v">B</span></div>
+          <div class="f"><span class="l">שנת הוצאה</span><span class="v">2003</span></div>
+          <div class="f"><span class="l">נהג ברשות מבוטח</span><span class="v">כן</span></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3><span class="bl">ג</span> פרטי התאונה</h3>
+        <div class="grid">
+          <div class="f"><span class="l">תאריך</span><span class="v">22/06/2026</span></div>
+          <div class="f"><span class="l">שעה</span><span class="v">08:30</span></div>
+          <div class="f"><span class="l">משטרה</span><span class="v">לא</span></div>
+          <div class="f"><span class="l">מקום / אתר התאונה</span><span class="v">צומת אבן גבירול/ארלוזורוב, ת"א</span></div>
+          <div class="f full"><span class="l">תיאור הנזק ברכב המבוטח</span><span class="v">פגוש אחורי + דלת תא מטען</span></div>
+          <div class="f full"><span class="l">תיאור מפורט של התאונה (מובנה ע"י AI מהקלטת הלקוח)</span><span class="v">עצרתי ברמזור אדום בצומת; רכב מסחרי מאחור לא בלם בזמן ופגע בחלק האחורי. ללא נפגעים.</span></div>
+        </div>
+        <div class="chk" style="margin-top:3px;">המקרה אירע: <span class="mark">☑</span> בדרך לעבודה &nbsp;·&nbsp; גרר: לא &nbsp;·&nbsp; <b>מי אשם</b> (נאסף תמיד): אני ☐ &nbsp; צד ג' <span class="mark">☑</span> &nbsp; לא יודע ☐</div>
+      </div>
+
+      <div class="sec">
+        <h3><span class="bl">ד</span> פרטי המעורב — צד ג'</h3>
+        <div class="grid">
+          <div class="f"><span class="l">מס' רישוי</span><span class="v">98-765-43</span></div>
+          <div class="f"><span class="l">סוג רכב</span><span class="v">קל</span></div>
+          <div class="f"><span class="l">שם בעל/נהג</span><span class="v">דוד כהן</span></div>
+          <div class="f"><span class="l">מס' ת.ז.</span><span class="v">305566778</span></div>
+          <div class="f"><span class="l">טלפון</span><span class="v">054-7654321</span></div>
+          <div class="f"><span class="l">חברת ביטוח</span><span class="v">מנורה</span></div>
+          <div class="f"><span class="l">מס' פוליסה</span><span class="v">778-44-221</span></div>
+          <div class="f"><span class="l">תיאור הנזק לצד ג'</span><span class="v">חזית</span></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3><span class="bl">ה</span> הצהרת המבוטח</h3>
+        <div class="chk">תביעת צד ג' שתוגש נגדי תטופל ע"י החברה: כן ☐ &nbsp; לא <span class="mark">☑</span> &nbsp;&nbsp;|&nbsp;&nbsp; תאריך מילוי: <span class="v">22/06/2026</span> &nbsp;|&nbsp; חתימה: <span class="v">נחתם דיגיטלית 08:54</span></div>
+      </div>
+    </div>
+
+    <!-- CASE CARD -->
+    <div class="aside">
+      <div class="card">
+        <h2>תיק #1042 — ישראל ישראלי</h2>
+        <p class="meta">טויוטה קורולה 2021 · נפתח 22/06 08:54 · דחיפות: רגיל (אין נפגעים)</p>
+
+        <div class="block">
+          <div class="h">סיווג — AI הציע · אתה מאשר</div>
+          <span class="pill">צד ג' — דוח פרטי</span>
+          <span class="btn">אשר</span><span class="btn">שנה</span>
+          <div style="font-size:8px;color:#888;margin-top:2px;">מבוסס על "מי אשם = צד ג'" + צד ג' מזוהה</div>
+        </div>
+
+        <div class="block">
+          <div class="h">סיכום אירוע (AI)</div>
+          <div class="ai">פגיעה מאחור בצומת, 22/06 08:30. הלקוח עצר ברמזור; רכב צד ג' (מסחרי) פגע מאחור. אשם: צד ג'. ללא נפגעים. נזק: אחורי.</div>
+        </div>
+
+        <div class="block">
+          <div class="h">מסמכים שנאספו</div>
+          <ul>
+            <li><span class="ok">✓</span> תיאור אירוע (הקלטה→טקסט)</li>
+            <li><span class="ok">✓</span> צילומי רכב מבוטח (4)</li>
+            <li><span class="ok">✓</span> רישיון נהיגה · <span class="ok">✓</span> רישיון רכב</li>
+            <li><span class="ok">✓</span> פרטי צד ג'</li>
+            <li><span class="no">✗</span> צילום רכב/רישיון צד ג'</li>
+          </ul>
+        </div>
+
+        <div class="block">
+          <div class="h">צ'קליסט — מסלול דוח פרטי</div>
+          <div style="font-size:8px;color:#888;">מסמכים (נאספים אחרי התיקון):</div>
+          <ul>
+            <li><span class="pend">○</span> חשבונית תיקון · <span class="pend">○</span> דו"ח שמאי</li>
+            <li><span class="pend">○</span> אישור אי-הגשת תביעה · <span class="pend">○</span> עבר ביטוחי</li>
+            <li><span class="pend">○</span> טופס דרישה</li>
+          </ul>
+          <div style="font-size:8px;color:#888;margin-top:2px;">אבני דרך (טיק ידני):</div>
+          <ul>
+            <li>☐ רכב במוסך · ☐ הוגש למבטח צד ג' · ☐ התקבל תשלום</li>
+          </ul>
+          <div class="next"><b>הצעד הבא:</b> תיאום מוסך + פתיחת פנייה למבטח צד ג' (מנורה)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ask">← מה לא נכון כאן? איזה שדה היית ממלא אחרת? ומה מזה היה חוסך לך הכי הרבה זמן?</div>
+</body>
+</html>

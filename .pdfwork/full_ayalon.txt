@@ -1,0 +1,5 @@
+EXTRACTED_TEXT_CHARS: 0
+FILE: C:\Users\eylon\digital-claims-assistant\docs\accidentStatementPdf\איילון_טופס_תאונה.pdf
+PAGES: 1
+
+===== PAGE 1 =====

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>סקיצת flow — טיוטה</title>
+<style>
+  @page { size: A4; margin: 14mm; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; color: #222; margin: 0; }
+  h1 { font-size: 19px; margin: 0 0 1px; }
+  .draft { display: inline-block; border: 1.5px dashed #b00020; color: #b00020; font-size: 11px; padding: 2px 8px; border-radius: 4px; transform: rotate(-3deg); margin-right: 8px; }
+  .sub { color: #777; font-size: 12px; margin: 2px 0 16px; }
+  .lane { font-size: 12px; color: #555; font-weight: 600; margin: 12px 0 7px; border-bottom: 1px solid #ddd; padding-bottom: 2px; max-width: 540px; }
+  .step { border: 1.5px dashed #999; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; background: #fcfcfa; max-width: 540px; }
+  .n { display: inline-block; min-width: 18px; color: #999; font-weight: 700; }
+  .arrow { text-align: center; color: #bbb; font-size: 17px; line-height: 1; margin: 3px 0; max-width: 540px; }
+  .multi { color: #444; font-size: 11.5px; }
+  .ask { margin-top: 18px; border-top: 2px solid #222; padding-top: 8px; font-size: 14px; font-weight: 600; max-width: 540px; }
+</style>
+</head>
+<body>
+  <h1>איך זה יעבוד <span class="draft">טיוטה — לא מוצר</span></h1>
+  <p class="sub">סקיצה גסה לדיון. מה לא מדויק כאן? מה חסר?</p>
+
+  <div class="lane">צד הלקוח · בנייד</div>
+  <div class="step"><span class="n">1</span> הסוכן יוצר קישור אישי ושולח בוואטסאפ</div>
+  <div class="arrow">↓</div>
+  <div class="step"><span class="n">2</span> הלקוח פותח בנייד + מאשר פרטיות</div>
+  <div class="arrow">↓</div>
+  <div class="step"><span class="n">3</span> <b>יש פצועים?</b> — אם כן: הנחיית חירום + התראה דחופה לסוכן</div>
+  <div class="arrow">↓</div>
+  <div class="step"><span class="n">4</span> <b>איסוף מודרך</b>, מסך אחר מסך:<br><span class="multi">מתי/איפה · תיאור (טקסט או הקלטה) · צילומי רכב · רישיון נהיגה · רישיון רכב · פרטי צד ג' · מי אשם</span></div>
+  <div class="arrow">↓</div>
+  <div class="step"><span class="n">5</span> <b>AI:</b> סיכום אירוע + מה עוד חסר + הצעת סוג תביעה</div>
+  <div class="arrow">↓</div>
+  <div class="step"><span class="n">6</span> הלקוח מאשר ושולח</div>
+
+  <div class="lane">צד הסוכן · דאשבורד</div>
+  <div class="step"><span class="n">7</span> התיק נכנס לדאשבורד (סטטוס: הוגש)</div>
+  <div class="arrow">↓</div>
+  <div class="step"><span class="n">8</span> הסוכן <b>מאשר סוג תביעה</b>: פוליסה / דוח פרטי / הסדר / לא ידוע</div>
+  <div class="arrow">↓</div>
+  <div class="step"><span class="n">9</span> <b>מילוי אוטומטי</b> של טופס "הודעה על תאונה"</div>
+  <div class="arrow">↓</div>
+  <div class="step"><span class="n">10</span> <b>צ'קליסט לפי מסלול</b> (מה חסר + הצעד הבא) + תיק מסודר</div>
+
+  <div class="ask">← מה לא יעבוד אצלך? מה חסר כאן?</div>
+</body>
+</html>
