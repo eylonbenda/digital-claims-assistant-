@@ -1,0 +1,7 @@
+# QA scratch — render PNGs, extracted coordinates, fill previews, temp files.
+# The coordinate lab regenerates these on demand; they don't belong in git.
+*.png
+*.pdf
+*_coords.json
+*_qa*
+_*
