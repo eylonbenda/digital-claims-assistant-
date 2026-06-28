@@ -22,7 +22,7 @@ Use this to know which code to diff a doc against. (Re-derive from the "Docs ind
 | `architecture.md` | `web/src/` structure, `web/db/schema.sql` + migrations, `web/src/lib/ai/`, `next.config.ts` |
 | `flow.md` | `web/src/components/collection/`, claim state handling, API routes under `web/src/app/api/` |
 | `claim-management.md` | claim-type logic, `web/src/lib/ai/analyze.ts`, classification code, task workflows |
-| `form-field-map.md` | `web/src/lib/formfill/` (`types.ts`, `engine.ts`, `templates/*`), `.pdfwork/formfill/`, `*_coords.json` |
+| `form-field-map.md` | `web/src/lib/formfill/` (`types.ts`, `engine.ts`, `labels.ts`, `templates/*`); `.pdfwork/` coordinate lab |
 | `mvp-scope.md` | the build-order list vs. what actually exists in `web/` |
 | `status.md` | **all of the above** — it summarizes current state |
 | `validation-guide.md`, `assumptions-canvas.md` | customer/validation artifacts — only touch if the user changed them; not code-derived |

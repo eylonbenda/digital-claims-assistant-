@@ -1,6 +1,6 @@
 export const meta = {
   name: 'map-insurer-forms',
-  description: 'Map each remaining Israeli insurer accident-notice PDF to a formfill coordinate template, then independently render-verify each filled form.',
+  description: 'Create the app coordinate template for each remaining Israeli insurer accident-notice PDF, then independently render-verify each filled form.',
   phases: [
     { title: 'Map', detail: 'one pdf-form-mapper agent per insurer' },
     { title: 'Verify', detail: 'independent render-QA of each filled form' },
@@ -9,10 +9,10 @@ export const meta = {
 
 const PDF_DIR = 'C:/Users/eylon/digital-claims-assistant/docs/accidentStatementPdf'
 
-// Already mapped (excluded): hachshara, migdal, menora.
-// Text-extractable -> map now:
+// Already in the app (excluded): hachshara, migdal, menora.
+// Text-extractable -> create now:
 const TODO = [
-  { slug: 'shlomo', insurer: 'שלמה',  pdf: PDF_DIR + '/שלמה_ביטוח_טופס_הודעה.pdf', note: 'layout is close to מנורה — use templates/menora.mjs as a starting reference' },
+  { slug: 'shlomo', insurer: 'שלמה',  pdf: PDF_DIR + '/שלמה_ביטוח_טופס_הודעה.pdf', note: 'layout is close to מנורה — use templates/menora.ts as a starting reference' },
   { slug: 'libra',  insurer: 'ליברה', pdf: PDF_DIR + '/הודעה-על-תאונה-ליברה.pdf', note: 'thin/modern digital form; includes odometer + detailed area_type (עירוני/בין-עירוני/חניון/צומת)' },
   { slug: 'harel',  insurer: 'הראל',  pdf: PDF_DIR + '/הראל_טופס_הודעה.pdf' },
   { slug: 'aig',    insurer: 'AIG',   pdf: PDF_DIR + '/טופס-הודעה-על-תאונה-aig.pdf', note: 'כלל-group template; includes bank_account fields' },
@@ -61,30 +61,31 @@ const VERDICT_SCHEMA = {
   },
 }
 
-log(`Mapping ${TODO.length} text-extractable insurers. ${OCR_FIRST.length} need OCR first (skipped): ${OCR_FIRST.map(o => o.insurer).join(', ')}.`)
+log(`Creating app templates for ${TODO.length} text-extractable insurers. ${OCR_FIRST.length} need OCR first (skipped): ${OCR_FIRST.map(o => o.insurer).join(', ')}.`)
 
 // Pipeline, not a barrier: each insurer flows map -> verify on its own. A slow form
 // doesn't hold up the others, and a verify starts the moment its own mapping lands.
 const results = await pipeline(
   TODO,
-  // Stage 1 — map. agentType wires this to .claude/agents/pdf-form-mapper.md
+  // Stage 1 — create the app template. agentType wires this to .claude/agents/pdf-form-mapper.md
   (item) => agent(
-    `Map insurer "${item.insurer}" (slug: ${item.slug}) into a formfill template.\n` +
+    `CREATE the app template for insurer "${item.insurer}" (slug: ${item.slug}).\n` +
     `Source PDF: ${item.pdf}\n` +
     (item.note ? `IMPORTANT: ${item.note}\n` : '') +
-    `Follow your full method: ground on the reference templates + sample-claim, run coords/boxdetect, ` +
-    `write .pdfwork/formfill/templates/${item.slug}.mjs, then run the fill+render QA loop until aligned. ` +
+    `Full create mode per your instructions: copy the source PDF to web/src/lib/formfill/assets/${item.slug}.pdf, ` +
+    `write web/src/lib/formfill/templates/${item.slug}.ts (ground on the app types.ts + reference templates), ` +
+    `register it in web/src/lib/formfill/index.ts, then run the fill+render QA loop until aligned. ` +
     `If the PDF is a scanned image with no extractable text, STOP and return ocr_needed=true.`,
     { label: `map:${item.slug}`, phase: 'Map', schema: MAP_SCHEMA, agentType: 'pdf-form-mapper' }
   ),
-  // Stage 2 — independent verify (skipped if mapping bailed for OCR)
+  // Stage 2 — independent verify via the APP engine (skipped if mapping bailed for OCR)
   (mapping, item) => {
     if (!mapping || mapping.ocr_needed) return mapping
     return agent(
       `Independently verify the filled form for "${item.insurer}" (slug: ${item.slug}). Do NOT edit anything.\n` +
-      `Run:    node .pdfwork/formfill/run.mjs ${item.slug} .pdfwork/${item.slug}_VERIFY.pdf\n` +
-      `Render: node .pdfwork/render.mjs .pdfwork/${item.slug}_VERIFY.pdf .pdfwork/${item.slug}_verify.png 1\n` +
-      `Read the PNG. Check every value sits in the correct blank, Hebrew RTL ordering is correct, ` +
+      `Fill (app engine): cd C:/Users/eylon/digital-claims-assistant/web && npx tsx scripts/fill.ts ${item.slug} C:/Users/eylon/digital-claims-assistant/.pdfwork/${item.slug}_verify.pdf\n` +
+      `Render each page: node C:/Users/eylon/digital-claims-assistant/.pdfwork/render.mjs C:/Users/eylon/digital-claims-assistant/.pdfwork/${item.slug}_verify.pdf C:/Users/eylon/digital-claims-assistant/.pdfwork/${item.slug}_verify_p<N>.png <N> 4 <yTop> <yBot>\n` +
+      `Read the PNGs. Check every value sits in the correct blank, Hebrew RTL ordering is correct, ` +
       `and each checkbox X is centred. Report per-field verdicts and an overall pass/partial/fail.`,
       { label: `verify:${item.slug}`, phase: 'Verify', schema: VERDICT_SCHEMA }
     ).then((verify) => ({ ...mapping, verify }))
