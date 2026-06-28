@@ -3,6 +3,15 @@
 import { useState } from "react";
 import type { ClaimData, Fault } from "@/lib/formfill/types";
 import type { ClaimAnalysis } from "@/lib/ai/analyze";
+import { compressImage } from "@/lib/images/compress";
+
+type DocType = "car_photo" | "drivers_license" | "vehicle_reg";
+type UploadedDoc = {
+  localId: string;
+  type: DocType;
+  name: string;
+  status: "uploading" | "done" | "error";
+};
 
 export type State = {
   consent: boolean;
@@ -12,6 +21,7 @@ export type State = {
   accident: { date: string; time: string; location: string; description: string };
   fault: Fault | null;
   thirdParty: { present: boolean | null; name: string; phone: string; plate: string; insurer: string };
+  documents: UploadedDoc[];
 };
 
 const EMPTY: State = {
@@ -22,6 +32,7 @@ const EMPTY: State = {
   accident: { date: "", time: "", location: "", description: "" },
   fault: null,
   thirdParty: { present: null, name: "", phone: "", plate: "", insurer: "" },
+  documents: [],
 };
 
 // Prefill allows partial nested objects (e.g. only mobile pre-filled from the claim).
@@ -56,6 +67,7 @@ const STEP_TITLES = [
   "מה קרה",
   "מי אשם",
   "הצד השני",
+  "מסמכים ותמונות",
   "סיכום ושליחה",
 ];
 
@@ -178,6 +190,7 @@ export default function CollectionWizard({
 
   const last = STEP_TITLES.length - 1;
   const set = (patch: Partial<State>) => setS((p) => ({ ...p, ...patch }));
+  const docDone = s.documents.filter((d) => d.status === "done").length;
 
   const filled = (v: string) => v.trim().length > 0;
 
@@ -283,6 +296,41 @@ export default function CollectionWizard({
       setSubmitError("שגיאת רשת");
     } finally {
       setSubmitBusy(false);
+    }
+  }
+
+  function onPickDocs(type: DocType, files: FileList) {
+    Array.from(files).forEach((file) => uploadDoc(type, file));
+  }
+
+  function removeDoc(localId: string) {
+    setS((p) => ({ ...p, documents: p.documents.filter((d) => d.localId !== localId) }));
+  }
+
+  async function uploadDoc(type: DocType, file: File) {
+    const localId = crypto.randomUUID();
+    setS((p) => ({
+      ...p,
+      documents: [...p.documents, { localId, type, name: file.name, status: "uploading" }],
+    }));
+    try {
+      const compressed = await compressImage(file);
+      const fd = new FormData();
+      fd.append("token", token);
+      fd.append("type", type);
+      fd.append("file", compressed);
+      const res = await fetch("/api/claims/documents", { method: "POST", body: fd });
+      setS((p) => ({
+        ...p,
+        documents: p.documents.map((d) =>
+          d.localId === localId ? { ...d, status: res.ok ? "done" : "error" } : d
+        ),
+      }));
+    } catch {
+      setS((p) => ({
+        ...p,
+        documents: p.documents.map((d) => (d.localId === localId ? { ...d, status: "error" } : d)),
+      }));
     }
   }
 
@@ -443,6 +491,18 @@ export default function CollectionWizard({
         )}
 
         {step === 8 && (
+          <div className="space-y-3">
+            <h2 className="text-xl font-bold">מסמכים ותמונות</h2>
+            <p className="text-sm text-zinc-500">
+              לא חובה, אבל זה מאיץ את הטיפול — אפשר לצלם עכשיו או לצרף אחר כך.
+            </p>
+            <DocField label="תמונות הרכב והנזק" hint="כמה זוויות של הנזק" type="car_photo" multiple docs={s.documents} onPick={onPickDocs} onRemove={removeDoc} />
+            <DocField label="רישיון נהיגה" type="drivers_license" docs={s.documents} onPick={onPickDocs} onRemove={removeDoc} />
+            <DocField label="רישיון רכב" type="vehicle_reg" docs={s.documents} onPick={onPickDocs} onRemove={removeDoc} />
+          </div>
+        )}
+
+        {step === 9 && (
           <div>
             <h2 className="text-xl font-bold">סיכום</h2>
             <dl className="mt-3 divide-y divide-zinc-200 rounded-xl border border-zinc-200 text-sm">
@@ -452,6 +512,7 @@ export default function CollectionWizard({
               <Row k="איפה" v={s.accident.location || "—"} />
               <Row k="מי אשם" v={s.fault === "me" ? "אני" : s.fault === "third_party" ? "הצד השני" : "לא בטוח"} />
               <Row k="נפגעים" v={s.injuries ? "כן" : "לא"} />
+              <Row k="מסמכים" v={docDone ? `${docDone} צורפו` : "—"} />
             </dl>
 
             <div className="mt-5 rounded-xl border border-zinc-200 p-4">
@@ -559,6 +620,66 @@ export default function CollectionWizard({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function DocField({
+  label,
+  hint,
+  type,
+  multiple,
+  docs,
+  onPick,
+  onRemove,
+}: {
+  label: string;
+  hint?: string;
+  type: DocType;
+  multiple?: boolean;
+  docs: UploadedDoc[];
+  onPick: (type: DocType, files: FileList) => void;
+  onRemove: (localId: string) => void;
+}) {
+  const mine = docs.filter((d) => d.type === type);
+  return (
+    <div className="rounded-xl border border-zinc-200 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium">{label}</span>
+        <label className="shrink-0 cursor-pointer rounded-lg border border-blue-600 px-3 py-1.5 text-sm text-blue-700">
+          {mine.length ? "הוסף/י" : "צילום / קובץ"}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple={multiple}
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.length) onPick(type, e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </div>
+      {hint && <p className="mt-1 text-xs text-zinc-500">{hint}</p>}
+      {mine.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {mine.map((d) => (
+            <li key={d.localId} className="flex items-center justify-between gap-2 text-sm">
+              <span className="truncate">
+                {d.status === "uploading" ? "⏳" : d.status === "done" ? "✅" : "⚠️"} {d.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => onRemove(d.localId)}
+                className="shrink-0 text-xs text-zinc-400 hover:text-red-600"
+              >
+                הסר
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
