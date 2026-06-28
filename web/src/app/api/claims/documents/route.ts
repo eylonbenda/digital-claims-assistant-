@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
+import { sniffFileType, SNIFF_MIME, SNIFF_EXT } from "@/lib/files/sniff";
 
 export const runtime = "nodejs"; // needs the service client + Storage upload
 
@@ -36,6 +37,18 @@ export async function POST(request: Request) {
     return Response.json({ error: "file too large (max 8MB)" }, { status: 413 });
   }
 
+  // Magic-byte sniff — the client-declared MIME is untrusted. Reject anything that isn't a real
+  // photo or PDF (screenshots-as-text, mislabeled binaries, etc.), and store the *detected* type.
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const kind = sniffFileType(bytes);
+  if (!kind) {
+    return Response.json(
+      { error: "סוג קובץ לא נתמך — צרפו תמונה (JPG/PNG/HEIC) או PDF" },
+      { status: 415 }
+    );
+  }
+  const mime = SNIFF_MIME[kind];
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     // Supabase not configured — succeed silently so the wizard works in demo mode (no real upload).
     return Response.json({ ok: true, demo: true });
@@ -54,20 +67,18 @@ export async function POST(request: Request) {
     return Response.json({ error: "already submitted" }, { status: 409 });
   }
 
-  const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
-  const path = `${claim.id}/${type}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const bytes = new Uint8Array(await file.arrayBuffer());
+  const path = `${claim.id}/${type}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${SNIFF_EXT[kind]}`;
 
   const { error: upErr } = await svc.storage
     .from(BUCKET)
-    .upload(path, bytes, { contentType: file.type || "application/octet-stream", upsert: false });
+    .upload(path, bytes, { contentType: mime, upsert: false });
   if (upErr) {
     return Response.json({ error: `upload failed: ${upErr.message}` }, { status: 500 });
   }
 
   const { data: doc, error: dbErr } = await svc
     .from("claim_documents")
-    .insert({ claim_id: claim.id, type, storage_path: path, mime: file.type || null })
+    .insert({ claim_id: claim.id, type, storage_path: path, mime })
     .select("id")
     .single();
   if (dbErr) {

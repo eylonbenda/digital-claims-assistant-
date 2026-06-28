@@ -11,6 +11,7 @@ type UploadedDoc = {
   type: DocType;
   name: string;
   status: "uploading" | "done" | "error";
+  error?: string;
 };
 
 export type State = {
@@ -320,10 +321,13 @@ export default function CollectionWizard({
       fd.append("type", type);
       fd.append("file", compressed);
       const res = await fetch("/api/claims/documents", { method: "POST", body: fd });
+      const err = res.ok
+        ? undefined
+        : (((await res.json().catch(() => ({}))) as { error?: string }).error ?? "ההעלאה נכשלה");
       setS((p) => ({
         ...p,
         documents: p.documents.map((d) =>
-          d.localId === localId ? { ...d, status: res.ok ? "done" : "error" } : d
+          d.localId === localId ? { ...d, status: res.ok ? "done" : "error", error: err } : d
         ),
       }));
     } catch {
@@ -665,17 +669,22 @@ function DocField({
       {mine.length > 0 && (
         <ul className="mt-2 space-y-1">
           {mine.map((d) => (
-            <li key={d.localId} className="flex items-center justify-between gap-2 text-sm">
-              <span className="truncate">
-                {d.status === "uploading" ? "⏳" : d.status === "done" ? "✅" : "⚠️"} {d.name}
-              </span>
-              <button
-                type="button"
-                onClick={() => onRemove(d.localId)}
-                className="shrink-0 text-xs text-zinc-400 hover:text-red-600"
-              >
-                הסר
-              </button>
+            <li key={d.localId} className="text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate">
+                  {d.status === "uploading" ? "⏳" : d.status === "done" ? "✅" : "⚠️"} {d.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemove(d.localId)}
+                  className="shrink-0 text-xs text-zinc-400 hover:text-red-600"
+                >
+                  הסר
+                </button>
+              </div>
+              {d.status === "error" && d.error && (
+                <p className="mt-0.5 text-xs text-red-600">{d.error}</p>
+              )}
             </li>
           ))}
         </ul>
