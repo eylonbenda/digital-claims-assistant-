@@ -1,0 +1,75 @@
+name: doc-sync
+
+# Runs the doc-sync skill whenever a PR is opened, so docs/ stays consistent
+# with the code the PR introduces. If docs drift, the bot commits the fixes to
+# the PR branch and posts a summary comment.
+on:
+  pull_request:
+    types: [opened, reopened]
+
+# Needed to push the docs commit back to the PR branch and to comment.
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: doc-sync-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  doc-sync:
+    # Skip fork PRs (no secret access) and bot-authored PRs (avoid loops).
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          # Check out the PR head so we can commit/push back to it.
+          ref: ${{ github.event.pull_request.head.ref }}
+          # Full history so doc-sync can diff against the base branch.
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "doc-sync[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Run doc-sync
+        uses: anthropics/claude-code-action@v1
+        env:
+          # Authenticate the `gh` CLI for posting the PR comment.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Pin a model with `--model claude-opus-4-8` here if your key supports it.
+          claude_args: >-
+            --allowedTools "Bash,Read,Edit,Write,Glob,Grep,Skill"
+          prompt: |
+            You are running headless in CI on pull request #${{ github.event.pull_request.number }}.
+            Base branch: "${{ github.event.pull_request.base.ref }}". Head branch: "${{ github.event.pull_request.head.ref }}".
+
+            Run the project's **doc-sync** skill to reconcile docs/ with the code this PR changes. Follow the skill's procedure and EVERY guardrail (code is authoritative, never fabricate, minimal edits, English-tech / Hebrew-domain doc conventions).
+
+            Override the skill's "last docs commit" sync point with the PR base:
+
+                git fetch origin ${{ github.event.pull_request.base.ref }}
+                git diff origin/${{ github.event.pull_request.base.ref }}...HEAD --stat -- web/ poc/ .pdfwork/
+
+            Use that diff to decide what code changed, then:
+
+            1. Apply MINIMAL doc fixes (docs/ + docs/status.md + the CLAUDE.md "Docs index" only). Never edit code, tests, config, or anything outside that scope.
+            2. If any doc files changed, stage ONLY those doc files and commit:
+                   docs: sync with code (<short scope>)
+
+                   Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+               then push to the PR branch:
+                   git push origin HEAD:${{ github.event.pull_request.head.ref }}
+            3. Post a PR comment summarizing the run (Synced / Flagged / Clean):
+                   gh pr comment ${{ github.event.pull_request.number }} --body "<summary>"
+               If nothing drifted, comment exactly: "✅ doc-sync: docs already in sync with this PR."
+
+            Do not open a new PR, do not modify code, and do not touch files outside docs/ and the CLAUDE.md Docs index.
