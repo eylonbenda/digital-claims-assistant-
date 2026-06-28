@@ -65,16 +65,21 @@ function Text({
   onChange,
   type = "text",
   placeholder,
+  required = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
   placeholder?: string;
+  required?: boolean;
 }) {
   return (
     <label className="block">
-      <span className="text-sm text-zinc-600">{label}</span>
+      <span className="text-sm text-zinc-600">
+        {label}
+        {required && <span className="text-red-500"> *</span>}
+      </span>
       <input
         type={type}
         value={value}
@@ -174,16 +179,37 @@ export default function CollectionWizard({
   const last = STEP_TITLES.length - 1;
   const set = (patch: Partial<State>) => setS((p) => ({ ...p, ...patch }));
 
+  const filled = (v: string) => v.trim().length > 0;
+
   const canNext = (): boolean => {
     switch (step) {
       case 0:
         return s.consent;
       case 1:
         return s.injuries !== null;
+      case 2:
+        return (
+          filled(s.insured.first_name) &&
+          filled(s.insured.last_name) &&
+          filled(s.insured.id_number) &&
+          filled(s.insured.mobile) &&
+          filled(s.insured.city)
+        );
+      case 3:
+        return filled(s.vehicle.plate) && filled(s.vehicle.manufacturer) && filled(s.vehicle.year);
+      case 4:
+        return filled(s.accident.date) && filled(s.accident.time) && filled(s.accident.location);
+      case 5:
+        return filled(s.accident.description);
       case 6:
         return s.fault !== null;
       case 7:
-        return s.thirdParty.present !== null;
+        // present must be chosen; if a third party is involved, require its key identifiers.
+        return (
+          s.thirdParty.present !== null &&
+          (!s.thirdParty.present ||
+            (filled(s.thirdParty.name) && filled(s.thirdParty.plate) && filled(s.thirdParty.insurer)))
+        );
       default:
         return true;
     }
@@ -332,35 +358,37 @@ export default function CollectionWizard({
         {step === 2 && (
           <div className="space-y-3">
             <h2 className="text-xl font-bold">הפרטים שלך</h2>
-            <Text label="שם פרטי" value={s.insured.first_name} onChange={(v) => set({ insured: { ...s.insured, first_name: v } })} />
-            <Text label="שם משפחה" value={s.insured.last_name} onChange={(v) => set({ insured: { ...s.insured, last_name: v } })} />
-            <Text label="תעודת זהות" value={s.insured.id_number} onChange={(v) => set({ insured: { ...s.insured, id_number: v } })} />
-            <Text label="טלפון נייד" type="tel" value={s.insured.mobile} onChange={(v) => set({ insured: { ...s.insured, mobile: v } })} />
-            <Text label="עיר מגורים" value={s.insured.city} onChange={(v) => set({ insured: { ...s.insured, city: v } })} />
+            <Text required label="שם פרטי" value={s.insured.first_name} onChange={(v) => set({ insured: { ...s.insured, first_name: v } })} />
+            <Text required label="שם משפחה" value={s.insured.last_name} onChange={(v) => set({ insured: { ...s.insured, last_name: v } })} />
+            <Text required label="תעודת זהות" value={s.insured.id_number} onChange={(v) => set({ insured: { ...s.insured, id_number: v } })} />
+            <Text required label="טלפון נייד" type="tel" value={s.insured.mobile} onChange={(v) => set({ insured: { ...s.insured, mobile: v } })} />
+            <Text required label="עיר מגורים" value={s.insured.city} onChange={(v) => set({ insured: { ...s.insured, city: v } })} />
           </div>
         )}
 
         {step === 3 && (
           <div className="space-y-3">
             <h2 className="text-xl font-bold">הרכב שלך</h2>
-            <Text label="מספר רישוי" value={s.vehicle.plate} onChange={(v) => set({ vehicle: { ...s.vehicle, plate: v } })} />
-            <Text label="יצרן ודגם" value={s.vehicle.manufacturer} onChange={(v) => set({ vehicle: { ...s.vehicle, manufacturer: v } })} placeholder="לדוגמה: טויוטה קורולה" />
-            <Text label="שנת ייצור" value={s.vehicle.year} onChange={(v) => set({ vehicle: { ...s.vehicle, year: v } })} />
+            <Text required label="מספר רישוי" value={s.vehicle.plate} onChange={(v) => set({ vehicle: { ...s.vehicle, plate: v } })} />
+            <Text required label="יצרן ודגם" value={s.vehicle.manufacturer} onChange={(v) => set({ vehicle: { ...s.vehicle, manufacturer: v } })} placeholder="לדוגמה: טויוטה קורולה" />
+            <Text required label="שנת ייצור" value={s.vehicle.year} onChange={(v) => set({ vehicle: { ...s.vehicle, year: v } })} />
           </div>
         )}
 
         {step === 4 && (
           <div className="space-y-3">
             <h2 className="text-xl font-bold">מתי ואיפה קרתה התאונה?</h2>
-            <Text label="תאריך" type="date" value={s.accident.date} onChange={(v) => set({ accident: { ...s.accident, date: v } })} />
-            <Text label="שעה" type="time" value={s.accident.time} onChange={(v) => set({ accident: { ...s.accident, time: v } })} />
-            <Text label="מיקום" value={s.accident.location} onChange={(v) => set({ accident: { ...s.accident, location: v } })} placeholder="צומת / כתובת / כביש" />
+            <Text required label="תאריך" type="date" value={s.accident.date} onChange={(v) => set({ accident: { ...s.accident, date: v } })} />
+            <Text required label="שעה" type="time" value={s.accident.time} onChange={(v) => set({ accident: { ...s.accident, time: v } })} />
+            <Text required label="מיקום" value={s.accident.location} onChange={(v) => set({ accident: { ...s.accident, location: v } })} placeholder="צומת / כתובת / כביש" />
           </div>
         )}
 
         {step === 5 && (
           <div>
-            <h2 className="text-xl font-bold">מה קרה?</h2>
+            <h2 className="text-xl font-bold">
+              מה קרה?<span className="text-red-500"> *</span>
+            </h2>
             <p className="mt-1 text-sm text-zinc-500">תאר/י בקצרה את האירוע במילים שלך.</p>
             <textarea
               value={s.accident.description}
@@ -405,10 +433,10 @@ export default function CollectionWizard({
             </div>
             {s.thirdParty.present && (
               <div className="mt-4 space-y-3">
-                <Text label="שם הנהג השני" value={s.thirdParty.name} onChange={(v) => set({ thirdParty: { ...s.thirdParty, name: v } })} />
+                <Text required label="שם הנהג השני" value={s.thirdParty.name} onChange={(v) => set({ thirdParty: { ...s.thirdParty, name: v } })} />
                 <Text label="טלפון" type="tel" value={s.thirdParty.phone} onChange={(v) => set({ thirdParty: { ...s.thirdParty, phone: v } })} />
-                <Text label="מספר רישוי" value={s.thirdParty.plate} onChange={(v) => set({ thirdParty: { ...s.thirdParty, plate: v } })} />
-                <Text label="חברת הביטוח שלו" value={s.thirdParty.insurer} onChange={(v) => set({ thirdParty: { ...s.thirdParty, insurer: v } })} />
+                <Text required label="מספר רישוי" value={s.thirdParty.plate} onChange={(v) => set({ thirdParty: { ...s.thirdParty, plate: v } })} />
+                <Text required label="חברת הביטוח שלו" value={s.thirdParty.insurer} onChange={(v) => set({ thirdParty: { ...s.thirdParty, insurer: v } })} />
               </div>
             )}
           </div>
@@ -473,6 +501,7 @@ export default function CollectionWizard({
                 >
                   <option value="migdal">מגדל</option>
                   <option value="hachshara">הכשרה</option>
+                  <option value="menora">מנורה</option>
                 </select>
                 <button
                   type="button"
@@ -493,6 +522,12 @@ export default function CollectionWizard({
           </div>
         )}
       </div>
+
+      {step < last && [2, 3, 4, 5, 7].includes(step) && !canNext() && (
+        <p className="mt-3 text-center text-xs text-amber-600">
+          יש למלא את שדות החובה המסומנים בכוכבית (*)
+        </p>
+      )}
 
       {/* footer nav */}
       <div className="mt-6 flex items-center justify-between gap-3">
