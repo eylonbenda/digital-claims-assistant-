@@ -1,4 +1,10 @@
 import { createServiceClient } from "@/lib/supabase/service";
+import { templates, fillForm } from "@/lib/formfill";
+import { toClaimData, type State } from "@/lib/collection/claim-state";
+
+export const runtime = "nodejs"; // form-fill reads the template PDF + font from disk
+
+const BUCKET = "claim-docs";
 
 const TERMINAL_STATUSES = new Set([
   "submitted",
@@ -36,6 +42,7 @@ export async function POST(request: Request) {
 
   const insured = (collected?.insured ?? {}) as Record<string, string>;
   const thirdParty = (collected?.thirdParty ?? {}) as Record<string, unknown>;
+  const policyInsurer = (collected?.policyInsurer as string) || null;
 
   const clientName =
     [insured.first_name, insured.last_name].filter(Boolean).join(" ") || null;
@@ -48,10 +55,43 @@ export async function POST(request: Request) {
       submitted_at: new Date().toISOString(),
       client_name: clientName,
       client_phone: insured.mobile || null,
+      policy_insurer: policyInsurer,
       fault: (collected?.fault as string) || null,
       summary_json: { collected },
     })
     .eq("id", claim.id);
+
+  // Auto-generate the accident-notice form once, here, when we have a coordinate
+  // template for the claimant's insurer. Stored in the case file so the agent never
+  // regenerates it. Best-effort: a fill failure must not fail the submission.
+  if (policyInsurer && policyInsurer in templates) {
+    try {
+      const template = templates[policyInsurer as keyof typeof templates];
+      const pdf = await fillForm(template, toClaimData(collected as unknown as State));
+      const formPath = `${claim.id}/forms/${policyInsurer}-${Date.now()}.pdf`;
+      const { error: upErr } = await svc.storage
+        .from(BUCKET)
+        .upload(formPath, new Uint8Array(pdf), {
+          contentType: "application/pdf",
+          upsert: false,
+        });
+      if (!upErr) {
+        await svc.from("generated_forms").insert({
+          claim_id: claim.id,
+          kind: "accident_notice",
+          insurer: policyInsurer,
+          storage_path: formPath,
+        });
+        await svc.from("claim_events").insert({
+          claim_id: claim.id,
+          type: "form_generated",
+          payload_json: { insurer: policyInsurer },
+        });
+      }
+    } catch {
+      // Swallow — the agent can still fill on demand from the dashboard.
+    }
+  }
 
   if (thirdParty.present) {
     await svc.from("third_parties").insert({

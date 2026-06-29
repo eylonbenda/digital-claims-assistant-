@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // serverless function for the form route, so it works when deployed.
   outputFileTracingIncludes: {
     "/api/forms/[insurer]": ["./src/lib/formfill/assets/**"],
+    "/api/claims/[id]/form/[insurer]": ["./src/lib/formfill/assets/**"],
+    "/api/claims/submit": ["./src/lib/formfill/assets/**"],
   },
 };
 

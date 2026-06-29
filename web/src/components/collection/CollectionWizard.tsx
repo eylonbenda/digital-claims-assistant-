@@ -1,33 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import type { ClaimData, Fault } from "@/lib/formfill/types";
+import type { Fault } from "@/lib/formfill/types";
 import type { ClaimAnalysis } from "@/lib/ai/analyze";
 import { compressImage } from "@/lib/images/compress";
+import { type State, type DocType, type UploadedDoc, toClaimData, INSURERS } from "@/lib/collection/claim-state";
 
-type DocType = "car_photo" | "drivers_license" | "vehicle_reg";
-type UploadedDoc = {
-  localId: string;
-  type: DocType;
-  name: string;
-  status: "uploading" | "done" | "error";
-  error?: string;
-};
-
-export type State = {
-  consent: boolean;
-  injuries: boolean | null;
-  insured: { first_name: string; last_name: string; id_number: string; mobile: string; city: string };
-  vehicle: { plate: string; manufacturer: string; year: string };
-  accident: { date: string; time: string; location: string; description: string };
-  fault: Fault | null;
-  thirdParty: { present: boolean | null; name: string; phone: string; plate: string; insurer: string };
-  documents: UploadedDoc[];
-};
+export type { State };
 
 const EMPTY: State = {
   consent: false,
   injuries: null,
+  policyInsurer: "",
   insured: { first_name: "", last_name: "", id_number: "", mobile: "", city: "" },
   vehicle: { plate: "", manufacturer: "", year: "" },
   accident: { date: "", time: "", location: "", description: "" },
@@ -40,6 +24,7 @@ const EMPTY: State = {
 type StatePrefill = Partial<{
   consent: boolean;
   injuries: boolean | null;
+  policyInsurer: string;
   insured: Partial<State["insured"]>;
   vehicle: Partial<State["vehicle"]>;
   accident: Partial<State["accident"]>;
@@ -131,46 +116,6 @@ function Choice<T extends string>({
   );
 }
 
-function toClaimData(s: State): ClaimData {
-  return {
-    insured: {
-      first_name: s.insured.first_name,
-      last_name: s.insured.last_name,
-      id_number: s.insured.id_number,
-      mobile: s.insured.mobile,
-      city: s.insured.city,
-    },
-    vehicle: {
-      plate: s.vehicle.plate,
-      manufacturer: s.vehicle.manufacturer,
-      year: s.vehicle.year,
-      type: "private",
-    },
-    accident: {
-      date: s.accident.date,
-      time: s.accident.time,
-      location: s.accident.location,
-      description: s.accident.description,
-    },
-    fault: s.fault ?? "unknown",
-    // Third-party block — only when the claimant reported one. Was previously dropped here,
-    // so it never reached the PDF or the AI analysis.
-    ...(s.thirdParty.present
-      ? {
-          third_parties: [
-            {
-              owner_name: s.thirdParty.name,
-              driver_name: s.thirdParty.name,
-              phone: s.thirdParty.phone,
-              vehicle_plate: s.thirdParty.plate,
-              insurer: s.thirdParty.insurer,
-            },
-          ],
-        }
-      : {}),
-  };
-}
-
 export default function CollectionWizard({
   token,
   prefill,
@@ -181,7 +126,7 @@ export default function CollectionWizard({
   const [s, setS] = useState<State>(() => mergeWithEmpty(prefill));
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
-  const [insurer, setInsurer] = useState("migdal");
+  const insurerTemplated = INSURERS.find((i) => i.key === s.policyInsurer)?.templated ?? false;
   const [busy, setBusy] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -207,7 +152,8 @@ export default function CollectionWizard({
           filled(s.insured.last_name) &&
           filled(s.insured.id_number) &&
           filled(s.insured.mobile) &&
-          filled(s.insured.city)
+          filled(s.insured.city) &&
+          filled(s.policyInsurer)
         );
       case 3:
         return filled(s.vehicle.plate) && filled(s.vehicle.manufacturer) && filled(s.vehicle.year);
@@ -232,7 +178,7 @@ export default function CollectionWizard({
   async function downloadForm() {
     setBusy(true);
     try {
-      const res = await fetch(`/api/forms/${insurer}`, {
+      const res = await fetch(`/api/forms/${s.policyInsurer}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(toClaimData(s)),
@@ -241,7 +187,7 @@ export default function CollectionWizard({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${insurer}-הודעה-על-תאונה.pdf`;
+      a.download = `${s.policyInsurer}-הודעה-על-תאונה.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -415,6 +361,23 @@ export default function CollectionWizard({
             <Text required label="תעודת זהות" value={s.insured.id_number} onChange={(v) => set({ insured: { ...s.insured, id_number: v } })} />
             <Text required label="טלפון נייד" type="tel" value={s.insured.mobile} onChange={(v) => set({ insured: { ...s.insured, mobile: v } })} />
             <Text required label="עיר מגורים" value={s.insured.city} onChange={(v) => set({ insured: { ...s.insured, city: v } })} />
+            <label className="block">
+              <span className="text-sm text-zinc-600">
+                חברת הביטוח שלך<span className="text-red-500"> *</span>
+              </span>
+              <select
+                value={s.policyInsurer}
+                onChange={(e) => set({ policyInsurer: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-base outline-none focus:border-blue-500"
+              >
+                <option value="">בחר/י חברת ביטוח…</option>
+                {INSURERS.map((i) => (
+                  <option key={i.key} value={i.key}>
+                    {i.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         )}
 
@@ -556,27 +519,21 @@ export default function CollectionWizard({
 
             <div className="mt-5 rounded-xl border border-zinc-200 p-4">
               <p className="text-sm text-zinc-600">
-                תצוגה מקדימה: יצירת טופס &quot;הודעה על תאונה&quot; ממולא מהפרטים שמסרת.
+                תצוגה מקדימה: טופס &quot;הודעה על תאונה&quot; ממולא מהפרטים שמסרת
+                {insurerTemplated ? "." : " — הסוכן יכין את הטופס עבור חברת הביטוח שלך."}
               </p>
-              <div className="mt-2 flex items-center gap-2">
-                <select
-                  value={insurer}
-                  onChange={(e) => setInsurer(e.target.value)}
-                  className="rounded-lg border border-zinc-300 px-2 py-2 text-sm"
-                >
-                  <option value="migdal">מגדל</option>
-                  <option value="hachshara">הכשרה</option>
-                  <option value="menora">מנורה</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={downloadForm}
-                  disabled={busy}
-                  className="rounded-lg border border-blue-600 px-3 py-2 text-sm text-blue-700 disabled:opacity-50"
-                >
-                  {busy ? "מייצר…" : "צור טופס ממולא"}
-                </button>
-              </div>
+              {insurerTemplated && (
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={downloadForm}
+                    disabled={busy}
+                    className="rounded-lg border border-blue-600 px-3 py-2 text-sm text-blue-700 disabled:opacity-50"
+                  >
+                    {busy ? "מייצר…" : "צור טופס ממולא"}
+                  </button>
+                </div>
+              )}
             </div>
 
             {submitError && (
