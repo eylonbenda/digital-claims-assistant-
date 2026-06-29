@@ -70,6 +70,7 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 - **Form persistence**: auto-filled at submit + on-demand via the agent route; written to `generated_forms` + Storage.
 - **Agent surfacing**: `/dashboard/[id]` shows uploaded docs (signed URLs) + the filled form.
 - Shared `web/src/lib/collection/claim-state.ts` (State + `toClaimData`) so submit reuses the wizard mapping server-side.
+- **`GET /api/version`** — reports the running app name + version (`npm_package_version`, default `0.1.0`); sibling of `GET /api/health`, handy for verifying deploys.
 
 ### Remaining work
 - **AI doc-validation** (spec only — `docs/ai-doc-validation.md`): is the uploaded file actually a driver's license? Phase 1 = classify-only warning.
