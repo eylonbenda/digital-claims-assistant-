@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-06-27**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-06-29**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -18,14 +18,14 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 |---|---|---|
 | 1 | Scaffold (Next 16 + TS + Tailwind v4, RTL) | ✅ done — `web/`. **Not yet deployed to Vercel.** |
 | 2 | Data model + agent Auth + claim creation + link | ✅ **done** (pending Supabase provisioning) — schema + RLS in `web/db/schema.sql`; migrations in `web/db/migrations/` (001 agent setup, 002 PostgREST grants); auth routes + middleware + dashboard written. **Needs real Supabase keys in `web/.env.local`.** |
-| 3 | Collection web-app | ✅ done — `web/src/components/collection/CollectionWizard.tsx` (9-step RTL wizard). Submit now calls `POST /api/claims/submit` for real persistence. |
+| 3 | Collection web-app | ✅ done — `web/src/components/collection/CollectionWizard.tsx` (10-step RTL wizard, incl. **own-insurer select** + **document-upload step**). Submit calls `POST /api/claims/submit`. |
 | 4 | AI processing | ✅ done — `POST /api/analyze` → `web/src/lib/ai/analyze.ts`. Wired into the wizard's review step. |
-| 5 | Form overlay fill | ✅ engine + templates done — dynamic `GET /api/forms/[insurer]` previews a filled PDF (demo claim) + `POST` fills from a claim body; insurers wired: הכשרה, מגדל, מנורה (verified end-to-end). **Not yet written to `generated_forms`** (needs persistence). Remaining insurer templates + OCR for הפניקס/איילון deferred. |
+| 5 | Form overlay fill | ✅ **done + persisted** — `GET/POST /api/forms/[insurer]` (preview/fill). Insurers wired: הכשרה, מגדל, מנורה. **Now written to `generated_forms` + Storage**: auto-filled at submit from the claimant's insurer, and `GET /api/claims/[id]/form/[insurer]` (agent, RLS-gated) regenerates on demand (latest-per-insurer). Remaining insurer templates + OCR for הפניקס/איילון deferred. |
 | 6 | Static per-track checklist | ❌ not started |
-| 7 | Basic dashboard | ✅ **done** — `web/src/app/dashboard/page.tsx`: claims list + new-claim form + logout. Feeds from Supabase RLS. **Needs Supabase keys to go live.** |
+| 7 | Basic dashboard | ✅ **done** — `web/src/app/dashboard/page.tsx` (claims list) + **`/dashboard/[id]` claim detail**: uploaded docs (signed-URL previews + zoom) and the filled accident-notice form. Feeds from Supabase RLS. **Needs Supabase keys to go live.** |
 | 8 | UX polish + run with design partner | ❌ not started |
 
-**In one line:** everything is built end-to-end. The system is blocked only on Supabase provisioning.
+**In one line:** everything is built end-to-end incl. document upload + form persistence + agent-side document/form surfacing. Blocked only on Supabase provisioning (incl. the `claim-docs` bucket — migration `003`).
 
 ---
 
@@ -53,7 +53,7 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Run `web/db/schema.sql` in the SQL editor
-3. Run `web/db/migrations/001_agent_setup.sql` (agent trigger + insert policy), then `web/db/migrations/002_grants.sql` (PostgREST grants — without these, writes fail even with the service-role key)
+3. Run `web/db/migrations/001_agent_setup.sql` (agent trigger + insert policy), then `web/db/migrations/002_grants.sql` (PostgREST grants — without these, writes fail even with the service-role key), then `web/db/migrations/003_storage.sql` (creates the private `claim-docs` bucket — without it, document upload + form persistence fail with "Bucket not found")
 4. Copy keys into `web/.env.local`:
    ```
    NEXT_PUBLIC_SUPABASE_URL=...
@@ -64,11 +64,18 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 5. Create a test agent user in Supabase Auth (Dashboard → Authentication → Users → Invite / Add user)
 6. `cd web && npm run dev` → go to `/login` → create a claim → send link → fill wizard → see it appear in dashboard
 
-### After Supabase is live — remaining work
-- **Form persistence**: write generated PDFs to `generated_forms` table + Supabase Storage
-- **Photo upload**: wire the wizard's photo step to Supabase Storage
-- **Per-track checklist** (step 6): `claim_type` → required docs/steps config
-- **UX polish** (step 8): design partner run
+### Done since last sync (2026-06-28 → 29)
+- **Document upload** (wizard step 9): `POST /api/claims/documents` → private `claim-docs` bucket, with magic-byte sniffing (`web/src/lib/files/sniff.ts`) + client-side compression.
+- **Capture own-insurer** in the wizard (`policy_insurer`) — drives which form template fills.
+- **Form persistence**: auto-filled at submit + on-demand via the agent route; written to `generated_forms` + Storage.
+- **Agent surfacing**: `/dashboard/[id]` shows uploaded docs (signed URLs) + the filled form.
+- Shared `web/src/lib/collection/claim-state.ts` (State + `toClaimData`) so submit reuses the wizard mapping server-side.
+
+### Remaining work
+- **AI doc-validation** (spec only — `docs/ai-doc-validation.md`): is the uploaded file actually a driver's license? Phase 1 = classify-only warning.
+- **Per-track checklist** (step 6): `claim_type` → required docs/steps config (auto-checks against `claim_documents` now that uploads exist).
+- **Remaining insurer templates**: shlomo/libra/harel/aig (+ OCR for הפניקס/איילון) via the `pdf-form-mapper` agent.
+- **UX polish** (step 8): design partner run.
 
 ---
 

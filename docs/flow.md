@@ -46,13 +46,16 @@ Each step = one screen, one action. Auto-save after each step (resumable).
 - Produces: a **structured event summary** + a **missing-info checklist** + a **proposed `claim_type`**.
 - If critical info is missing → the client is asked to complete it before submitting.
 
+> **Implemented:** the wizard also captures the client's **own insurer** (`policy_insurer`) on the identity step — this is what selects the per-insurer form template. Photos / license / registration uploads persist to the private `claim-docs` Storage bucket via `POST /api/claims/documents` (magic-byte sniffed).
+
 ### Step 4 — Confirm & submit
 - The client sees a readable summary, confirms/edits, and submits.
 - Receives a confirmation message + (optional) a status-tracking link.
+- **On submit** (`POST /api/claims/submit`), if a template exists for the client's insurer, the "הודעה על תאונה" form is filled **once** and stored in the case file (`generated_forms` + `form_generated` event). Best-effort — a fill error never blocks submission.
 
 ### Step 5 — At the agent
-- The claim appears in the dashboard with status `submitted`.
-- The agent **confirms/adjusts the claim type** (or leaves it `unknown`), the system fills the "הודעה על תאונה" form, and shows the **per-track checklist**.
+- The claim appears in the dashboard with status `submitted`. Opening it (`/dashboard/[id]`) shows the **uploaded documents** (signed-URL previews) and the **pre-filled accident-notice form**.
+- The agent **confirms/adjusts the claim type** (or leaves it `unknown`) and works the **per-track checklist**. The agent can also regenerate / fill a different insurer's form on demand (which re-persists, replacing the prior copy per insurer).
 
 ---
 

@@ -55,8 +55,9 @@ tasks           (id, claim_id → claims, title, track, status,
                  due_at, assignee, created_at)
                  -- track: own_policy | third_party_report | third_party_settlement
                  -- status: todo | in_progress | blocked | done
-generated_forms (id, claim_id → claims, kind, storage_path, created_at)
+generated_forms (id, claim_id → claims, kind, insurer, storage_path, created_at)
                  -- kind: accident_notice (הודעה על תאונה) | ...
+                 -- insurer: migdal | menora | hachshara | ... (which template was filled)
 claim_events    (id, claim_id → claims, type, payload_json, created_at)
                  -- audit log: consent_given, step_completed,
                  --   classified, form_generated, status_changed ...
