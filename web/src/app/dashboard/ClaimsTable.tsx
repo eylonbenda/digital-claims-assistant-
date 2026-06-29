@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 interface Claim {
@@ -89,7 +90,11 @@ export default function ClaimsTable({ claims }: { claims: Claim[] }) {
             <tr key={c.id} className="hover:bg-zinc-50">
               <td className="px-4 py-3 font-medium text-zinc-900">
                 {c.urgent && <span className="ml-1 text-red-500">⚑</span>}
-                {c.client_name ?? <span className="text-zinc-400">ללא שם</span>}
+                <Link href={`/dashboard/${c.id}`} className="hover:underline">
+                  {c.client_name ?? (
+                    <span className="text-zinc-400">ללא שם</span>
+                  )}
+                </Link>
                 {c.client_phone && (
                   <div className="text-xs text-zinc-400">{c.client_phone}</div>
                 )}
