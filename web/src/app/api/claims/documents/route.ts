@@ -9,13 +9,9 @@ const MAX_BYTES = 8 * 1024 * 1024; // 8MB safety cap (images are compressed clie
 // Claimant-facing subset of the doc_type enum. Prevents a client from writing agent-only types.
 const ALLOWED_TYPES = new Set(["car_photo", "drivers_license", "vehicle_reg", "third_party_doc"]);
 
-const TERMINAL_STATUSES = new Set([
-  "submitted",
-  "classified",
-  "form_generated",
-  "checklist_active",
-  "closed",
-]);
+// Uploads are accepted right up until the claim is closed — clients routinely add
+// documents after the initial submit (the agent asks for more, or they forgot one).
+const UPLOAD_BLOCKED_STATUSES = new Set(["closed"]);
 
 // POST multipart { token, type, file } -> uploads to private Storage + inserts a claim_documents row.
 export async function POST(request: Request) {
@@ -63,9 +59,10 @@ export async function POST(request: Request) {
     .single();
 
   if (!claim) return Response.json({ error: "invalid token" }, { status: 404 });
-  if (TERMINAL_STATUSES.has(claim.status)) {
-    return Response.json({ error: "already submitted" }, { status: 409 });
+  if (UPLOAD_BLOCKED_STATUSES.has(claim.status)) {
+    return Response.json({ error: "claim is closed" }, { status: 409 });
   }
+  const isLateUpload = claim.status !== "created" && claim.status !== "in_progress";
 
   const path = `${claim.id}/${type}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${SNIFF_EXT[kind]}`;
 
@@ -84,6 +81,16 @@ export async function POST(request: Request) {
   if (dbErr) {
     await svc.storage.from(BUCKET).remove([path]); // don't leave an orphaned object
     return Response.json({ error: `could not record document: ${dbErr.message}` }, { status: 500 });
+  }
+
+  // Surface late uploads in the audit log so the agent notices documents added
+  // after the claim was already submitted.
+  if (isLateUpload) {
+    await svc.from("claim_events").insert({
+      claim_id: claim.id,
+      type: "document_uploaded",
+      payload_json: { type, after_submit: true },
+    });
   }
 
   return Response.json({ ok: true, id: doc.id, type, path });
