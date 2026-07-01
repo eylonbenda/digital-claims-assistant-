@@ -18,6 +18,9 @@ Next.js + TypeScript + Supabase (Postgres/Auth/Storage) + Anthropic Claude SDK +
 - **When building:** English code identifiers + Hebrew UI strings.
 - Primary developer is a senior backend dev — keep explanations concise and peer-level.
 
+## Workflow (Claude sessions)
+Standing rule for this repo: **branch + PR per change — never commit to `main` directly.** For each feature/fix you complete, cut a branch off `main` (`feat/…` · `fix/…` · `docs/…` · `chore/…`), commit there, push, and open a PR with `gh pr create`. This is **pre-authorized** — do it without asking each time (`gh` is authed as `eylonbenda`; remote `origin` = `eylonbenda/digital-claims-assistant-`). Opening a PR triggers the **doc-sync** Action, which auto-syncs docs and comments on the PR. **Leave the PR for the user to review/merge — don't self-merge unless asked.** Scope commits tightly; end messages with the `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` trailer.
+
 ## Domain essentials
 A claim has 4 tracks (`claim_type`): `own_policy`, `third_party_report` ("דוח פרטי"), `third_party_settlement` ("הסדר"), and `unknown` (default, revisable). AI proposes the classification, the agent confirms. Third-party is the sharpest differentiation. Accident-notice forms are per-insurer but ~80% shared fields, and are flat PDFs (no AcroForm) → fill via **text overlay at coordinates**, not field-fill. Details in `docs/claim-management.md` + `docs/form-field-map.md`.
 
