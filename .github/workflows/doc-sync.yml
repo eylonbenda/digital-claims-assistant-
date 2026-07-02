@@ -3,9 +3,17 @@ name: doc-sync
 # Runs the doc-sync skill whenever a PR is opened, so docs/ stays consistent
 # with the code the PR introduces. If docs drift, the bot commits the fixes to
 # the PR branch and posts a summary comment.
+#
+# `paths` gate: only run when the PR actually touches code. On a docs-only PR the
+# base-vs-head code diff is empty, so doc-sync has nothing to reconcile against and
+# would wrongly "correct" docs to look unbuilt — skip it entirely in that case.
 on:
   pull_request:
     types: [opened, reopened]
+    paths:
+      - 'web/**'
+      - 'poc/**'
+      - '.pdfwork/**'
 
 # Needed to push the docs commit back to the PR branch and to comment.
 permissions:
