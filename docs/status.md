@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-06-29**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-02**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -19,13 +19,13 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 | 1 | Scaffold (Next 16 + TS + Tailwind v4, RTL) | ✅ done — `web/`. **Not yet deployed to Vercel.** |
 | 2 | Data model + agent Auth + claim creation + link | ✅ **done** (pending Supabase provisioning) — schema + RLS in `web/db/schema.sql`; migrations in `web/db/migrations/` (001 agent setup, 002 PostgREST grants); auth routes + middleware + dashboard written. **Needs real Supabase keys in `web/.env.local`.** |
 | 3 | Collection web-app | ✅ done — `web/src/components/collection/CollectionWizard.tsx` (10-step RTL wizard, incl. **own-insurer select** + **document-upload step**). Submit calls `POST /api/claims/submit`. |
-| 4 | AI processing | ✅ done — `POST /api/analyze` → `web/src/lib/ai/analyze.ts`. Wired into the wizard's review step. |
+| 4 | AI processing | ✅ done — `POST /api/analyze` → `web/src/lib/ai/analyze.ts`. **Now a two-layer classifier**: the LLM emits narrative signals only; a deterministic `web/src/lib/claims/classify.ts` owns the track + confidence. Analysis cached in `summary_json.analysis`. Wired into the wizard's review step + agent detail page. |
 | 5 | Form overlay fill | ✅ **done + persisted** — `GET/POST /api/forms/[insurer]` (preview/fill). Insurers wired: הכשרה, מגדל, מנורה. **Now written to `generated_forms` + Storage**: auto-filled at submit from the claimant's insurer, and `GET /api/claims/[id]/form/[insurer]` (agent, RLS-gated) regenerates on demand (latest-per-insurer). Remaining insurer templates + OCR for הפניקס/איילון deferred. |
-| 6 | Static per-track checklist | ❌ not started |
-| 7 | Basic dashboard | ✅ **done** — `web/src/app/dashboard/page.tsx` (claims list) + **`/dashboard/[id]` claim detail**: uploaded docs (signed-URL previews + zoom) and the filled accident-notice form. Feeds from Supabase RLS. **Needs Supabase keys to go live.** |
+| 6 | Per-track checklist | ✅ **done** — dynamic per-track config `web/src/lib/claims/checklist.ts` (base/late/conditional/milestone sections; doc items auto-check from `claim_documents`, milestones tick via `PATCH /api/claims/[id]/checklist`, conditional items driven by circumstance flags — migration `004`). Agent uploads later docs via `POST /api/claims/[id]/documents`; confirms track via `PATCH /api/claims/[id]/classify`. Rendered on `/dashboard/[id]`. |
+| 7 | Basic dashboard | ✅ **done** — `web/src/app/dashboard/page.tsx` (claims list) + **`/dashboard/[id]` claim detail**: proposed classification (confidence + rationale), uploaded docs (signed-URL previews + zoom), the checklist panel, agent doc upload, and the filled accident-notice form. Feeds from Supabase RLS. **Needs Supabase keys to go live.** |
 | 8 | UX polish + run with design partner | ❌ not started |
 
-**In one line:** everything is built end-to-end incl. document upload + form persistence + agent-side document/form surfacing. Blocked only on Supabase provisioning (incl. the `claim-docs` bucket — migration `003`).
+**In one line:** the full pipeline is built end-to-end — collection + upload + two-layer classification + form persistence + dynamic per-track checklist + agent surfacing. Blocked only on Supabase provisioning (run migrations `001`–`004`, incl. the `claim-docs` bucket).
 
 ---
 
@@ -53,7 +53,7 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Run `web/db/schema.sql` in the SQL editor
-3. Run `web/db/migrations/001_agent_setup.sql` (agent trigger + insert policy), then `web/db/migrations/002_grants.sql` (PostgREST grants — without these, writes fail even with the service-role key), then `web/db/migrations/003_storage.sql` (creates the private `claim-docs` bucket — without it, document upload + form persistence fail with "Bucket not found")
+3. Run `web/db/migrations/001_agent_setup.sql` (agent trigger + insert policy), then `web/db/migrations/002_grants.sql` (PostgREST grants — without these, writes fail even with the service-role key), then `web/db/migrations/003_storage.sql` (creates the private `claim-docs` bucket — without it, document upload + form persistence fail with "Bucket not found"), then `web/db/migrations/004_doc_types_and_claim_flags.sql` (expands the `doc_type` enum + adds the circumstance-flag columns the checklist reads)
 4. Copy keys into `web/.env.local`:
    ```
    NEXT_PUBLIC_SUPABASE_URL=...
@@ -72,9 +72,14 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 - Shared `web/src/lib/collection/claim-state.ts` (State + `toClaimData`) so submit reuses the wizard mapping server-side.
 - **`GET /api/version`** — reports the running app name + version (`npm_package_version`, default `0.1.0`); sibling of `GET /api/health`, handy for verifying deploys.
 
+### Done since last sync (2026-06-29 → 07-02)
+- **Two-layer classifier** (`web/src/lib/claims/classify.ts`): LLM emits narrative signals only; a deterministic pure function owns the track + confidence + report-vs-settlement recommendation + viability/fault-mismatch warnings. `analyze.ts` reworked to signals-only; analysis lazily cached in `summary_json.analysis` (`analysis-cache.ts`).
+- **Dynamic per-track checklist** (`web/src/lib/claims/checklist.ts`): sectioned config, doc auto-check, flag-driven conditional items, manual milestone ticks. Rendered on `/dashboard/[id]` (`ChecklistPanel`, `ClaimTypeConfirm`, `AgentDocUpload`).
+- **New API routes:** `PATCH /api/claims/[id]/classify`, `PATCH /api/claims/[id]/checklist`, `POST /api/claims/[id]/documents` (agent upload).
+- **Migration 004:** expands the `doc_type` enum + adds circumstance-flag columns. Wizard now also captures `insurance_type` on the identity step.
+
 ### Remaining work
 - **AI doc-validation** (spec only — `docs/ai-doc-validation.md`): is the uploaded file actually a driver's license? Phase 1 = classify-only warning.
-- **Per-track checklist** (step 6): `claim_type` → required docs/steps config (auto-checks against `claim_documents` now that uploads exist).
 - **Remaining insurer templates**: shlomo/libra/harel/aig (+ OCR for הפניקס/איילון) via the `pdf-form-mapper` agent.
 - **UX polish** (step 8): design partner run.
 

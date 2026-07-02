@@ -10,12 +10,30 @@ export type DocView = {
   url: string | null; // short-lived signed URL, or null if signing failed
 };
 
-// Hebrew labels + display order for the claimant-uploaded document types.
+// Hebrew labels + display order for all document types (claimant + agent uploads).
 const DOC_META: { type: string; label: string; icon: string }[] = [
-  { type: "drivers_license", label: "רישיון נהיגה", icon: "🪪" },
-  { type: "vehicle_reg", label: "רישיון רכב", icon: "📄" },
-  { type: "car_photo", label: "תמונות הרכב / התאונה", icon: "📷" },
-  { type: "third_party_doc", label: "מסמכי צד ג'", icon: "🚗" },
+  { type: "drivers_license",          label: "רישיון נהיגה",                    icon: "🪪" },
+  { type: "vehicle_reg",              label: "רישיון רכב",                      icon: "📄" },
+  { type: "id_card",                  label: "תעודת זהות",                      icon: "🪪" },
+  { type: "car_photo",                label: "תמונות הרכב / התאונה",             icon: "📷" },
+  { type: "third_party_doc",          label: "מסמכי צד ג'",                     icon: "🚗" },
+  { type: "police_report",            label: "אישור משטרה",                      icon: "👮" },
+  { type: "appraiser_report",         label: "דוח שמאי",                        icon: "📋" },
+  { type: "assessor_fee_invoice",     label: 'חשבון שכ"ט שמאי',                icon: "🧾" },
+  { type: "assessor_fee_receipt",     label: 'קבלה שכ"ט שמאי',                 icon: "💳" },
+  { type: "garage_invoice",           label: "חשבונית תיקון",                   icon: "🧾" },
+  { type: "repair_receipt",           label: "קבלה על תשלום",                   icon: "💳" },
+  { type: "demand_form",              label: "מכתב דרישה",                      icon: "📝" },
+  { type: "no_claim_confirmation",    label: "אישור אי-הגשת תביעה",             icon: "✉️" },
+  { type: "loss_confirmation",        label: "אישור הפסדים",                    icon: "✉️" },
+  { type: "bank_details",             label: "פרטי חשבון בנק",                  icon: "🏦" },
+  { type: "insurance_history",        label: "עבר ביטוחי",                      icon: "📂" },
+  { type: "lien_release",             label: "אישור הסרת שיעבוד",               icon: "🔓" },
+  { type: "info_consent",             label: "הסכמה למשרד הרישוי",              icon: "📝" },
+  { type: "power_of_attorney",        label: "ייפוי כוח",                       icon: "📜" },
+  { type: "vat_offset_confirmation",  label: 'אישור רו"ח — קיזוז מע"מ',        icon: "📊" },
+  { type: "keys",                     label: "מפתחות",                          icon: "🔑" },
+  { type: "other",                    label: "אחר",                             icon: "📎" },
 ];
 
 const FALLBACK_META = { label: "מסמך", icon: "📎" };

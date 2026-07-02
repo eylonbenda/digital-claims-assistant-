@@ -1,4 +1,4 @@
-import type { ClaimData, Fault } from "@/lib/formfill/types";
+import type { ClaimData, Fault, InsuranceType } from "@/lib/formfill/types";
 
 // The wizard's working shape. Persisted verbatim to `claims.summary_json.collected`
 // at submit, so the agent side can re-derive the canonical ClaimData server-side.
@@ -15,6 +15,7 @@ export type State = {
   consent: boolean;
   injuries: boolean | null;
   policyInsurer: string; // the claimant's own insurer (drives which accident-notice form gets filled)
+  insuranceType: InsuranceType | ""; // מקיף / חובה / צד ג' — pivots own_policy viability
   insured: { first_name: string; last_name: string; id_number: string; mobile: string; city: string };
   vehicle: { plate: string; manufacturer: string; year: string };
   accident: { date: string; time: string; location: string; description: string };
@@ -42,6 +43,7 @@ export const INSURERS: { key: string; label: string; templated: boolean }[] = [
 // Shared so the claimant preview and the agent-side PDF generation stay identical.
 export function toClaimData(s: State): ClaimData {
   return {
+    ...(s.insuranceType ? { insurance_type: s.insuranceType } : {}),
     insured: {
       first_name: s.insured.first_name,
       last_name: s.insured.last_name,

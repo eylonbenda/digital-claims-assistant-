@@ -12,6 +12,7 @@ const EMPTY: State = {
   consent: false,
   injuries: null,
   policyInsurer: "",
+  insuranceType: "",
   insured: { first_name: "", last_name: "", id_number: "", mobile: "", city: "" },
   vehicle: { plate: "", manufacturer: "", year: "" },
   accident: { date: "", time: "", location: "", description: "" },
@@ -25,6 +26,7 @@ type StatePrefill = Partial<{
   consent: boolean;
   injuries: boolean | null;
   policyInsurer: string;
+  insuranceType: State["insuranceType"];
   insured: Partial<State["insured"]>;
   vehicle: Partial<State["vehicle"]>;
   accident: Partial<State["accident"]>;
@@ -153,7 +155,8 @@ export default function CollectionWizard({
           filled(s.insured.id_number) &&
           filled(s.insured.mobile) &&
           filled(s.insured.city) &&
-          filled(s.policyInsurer)
+          filled(s.policyInsurer) &&
+          filled(s.insuranceType)
         );
       case 3:
         return filled(s.vehicle.plate) && filled(s.vehicle.manufacturer) && filled(s.vehicle.year);
@@ -200,6 +203,12 @@ export default function CollectionWizard({
     third_party_report: "צד ג' — דוח פרטי",
     third_party_settlement: "צד ג' — הסדר",
     unknown: "לא ידוע",
+  };
+
+  const CONFIDENCE_LABELS: Record<string, string> = {
+    high: "גבוהה",
+    medium: "בינונית",
+    low: "נמוכה",
   };
 
   async function runAnalyze() {
@@ -378,6 +387,24 @@ export default function CollectionWizard({
                 ))}
               </select>
             </label>
+            <label className="block">
+              <span className="text-sm text-zinc-600">
+                סוג הביטוח שלך<span className="text-red-500"> *</span>
+              </span>
+              <select
+                value={s.insuranceType}
+                onChange={(e) => set({ insuranceType: e.target.value as State["insuranceType"] })}
+                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-base outline-none focus:border-blue-500"
+              >
+                <option value="">בחר/י סוג ביטוח…</option>
+                <option value="comprehensive">מקיף</option>
+                <option value="third_party">צד ג'</option>
+                <option value="mandatory">חובה בלבד</option>
+              </select>
+              <span className="mt-1 block text-xs text-zinc-400">
+                קובע אם ניתן לתבוע דרך הפוליסה שלך.
+              </span>
+            </label>
           </div>
         )}
 
@@ -501,8 +528,26 @@ export default function CollectionWizard({
                   <p>
                     <span className="text-zinc-500">סוג תביעה מוצע: </span>
                     <strong>{TYPE_LABELS[aiResult.proposed_claim_type]}</strong>
+                    <span className="mr-1 text-xs text-zinc-400">
+                      (ודאות: {CONFIDENCE_LABELS[aiResult.confidence]})
+                    </span>
                     {aiResult.rationale ? ` — ${aiResult.rationale}` : ""}
                   </p>
+                  {aiResult.needs_agent_choice && (
+                    <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                      ⓘ הסוכן יבחר בין &quot;דוח פרטי&quot; ל&quot;הסדר&quot; לפי אסטרטגיית הטיפול.
+                    </p>
+                  )}
+                  {aiResult.fault_assessment.mismatch && (
+                    <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                      ⚠️ אי-התאמה בין האשמה שסומנה לתיאור האירוע — לבדיקת הסוכן.
+                    </p>
+                  )}
+                  {aiResult.viability_warning && (
+                    <p className="rounded bg-red-50 px-2 py-1 text-xs text-red-700">
+                      ⚠️ {aiResult.viability_warning}
+                    </p>
+                  )}
                   {aiResult.missing.length > 0 && (
                     <div>
                       <span className="text-zinc-500">חסר / לא ברור:</span>
