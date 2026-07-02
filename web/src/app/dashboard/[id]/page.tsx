@@ -2,8 +2,15 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { computeChecklist } from "@/lib/claims/checklist";
+import { classifyFromClaimData } from "@/lib/claims/classify";
+import { getOrCreateAnalysis, type SummaryJson } from "@/lib/claims/analysis-cache";
+import { toClaimData, type State } from "@/lib/collection/claim-state";
 import ClaimDocuments, { type DocView } from "./ClaimDocuments";
 import FormGenerator from "./FormGenerator";
+import ChecklistPanel from "./ChecklistPanel";
+import AgentDocUpload from "./AgentDocUpload";
+import ClaimTypeConfirm from "./ClaimTypeConfirm";
 
 const BUCKET = "claim-docs";
 const SIGNED_TTL = 60 * 60; // 1h — agent viewing session
@@ -63,7 +70,7 @@ export default async function ClaimDetailPage({
   const { data: claim } = await supabase
     .from("claims")
     .select(
-      "id, client_name, client_phone, claim_type, status, summary_json, created_at, submitted_at"
+      "id, client_name, client_phone, claim_type, status, summary_json, created_at, submitted_at, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider"
     )
     .eq("id", id)
     .single();
@@ -84,6 +91,45 @@ export default async function ClaimDetailPage({
       .eq("claim_id", id)
       .order("created_at", { ascending: false }),
   ]);
+
+  // Lazy-cached AI analysis: computes once on first view, then reads from
+  // summary_json.analysis. Supplies the narrative signals (incident kind / inferred
+  // fault) that the structured fields alone can't provide. Best-effort → null.
+  const summaryJson = claim.summary_json as SummaryJson;
+  const analysis = await getOrCreateAnalysis(claim.id, summaryJson);
+
+  // Deterministic classifier, now narrative-aware when analysis is available. This is
+  // the proposal + confidence the agent sees before confirming.
+  const collected = summaryJson?.collected;
+  const classification = collected
+    ? classifyFromClaimData(
+        toClaimData(collected),
+        analysis
+          ? {
+              incidentKind: analysis.incident_kind,
+              inferredFault: analysis.fault_assessment.inferred,
+            }
+          : undefined,
+      )
+    : null;
+
+  // Compute the dynamic checklist on the server — pure function, no I/O.
+  const flags = {
+    theft:                !!(claim as Record<string, unknown>).theft,
+    lien:                 !!(claim as Record<string, unknown>).lien,
+    business_use:         !!(claim as Record<string, unknown>).business_use,
+    policy_activated:     !!(claim as Record<string, unknown>).policy_activated,
+    garage_network_rider: !!(claim as Record<string, unknown>).garage_network_rider,
+  };
+  const uploadedDocTypes = new Set((rows ?? []).map((r) => r.type as string));
+  const checklistState = ((claim as Record<string, unknown>).checklist_state as Record<string, boolean> | null) ?? {};
+  const checklistItems = computeChecklist(
+    claim.claim_type,
+    uploadedDocTypes,
+    (formRows ?? []).length > 0,
+    checklistState,
+    flags,
+  );
 
   // Ownership is already proven by the RLS queries above; the service client only
   // mints short-lived signed URLs for the private bucket (Storage RLS is separate).
@@ -144,6 +190,54 @@ export default async function ClaimDetailPage({
               נפתח: {new Date(claim.created_at).toLocaleDateString("he-IL")}
             </span>
           </div>
+        </section>
+
+        {classification && (
+          <section>
+            <h2 className="mb-3 text-lg font-semibold text-zinc-900">
+              סיווג התביעה
+            </h2>
+
+            {analysis && (
+              <div className="mb-3 rounded-xl border border-zinc-200 bg-white p-4 text-sm">
+                <p className="text-zinc-700">{analysis.summary}</p>
+                {analysis.missing.length > 0 && (
+                  <div className="mt-3">
+                    <span className="text-zinc-500">חסר / לא ברור:</span>
+                    <ul className="mr-4 mt-1 list-disc text-zinc-600">
+                      {analysis.missing.map((m, i) => (
+                        <li key={i}>{m}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <ClaimTypeConfirm
+              claimId={claim.id}
+              currentType={claim.claim_type}
+              classification={classification}
+            />
+          </section>
+        )}
+
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-zinc-900">
+            רשימת מסמכים והתקדמות
+          </h2>
+          <ChecklistPanel
+            claimId={claim.id}
+            claimType={claim.claim_type}
+            initialItems={checklistItems}
+          />
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-zinc-900">
+            העלאת מסמך לתיק
+          </h2>
+          <AgentDocUpload claimId={claim.id} />
         </section>
 
         <section>
