@@ -39,7 +39,16 @@ agents          (id, agency_id → agencies, auth_user_id, name, email, phone)
 claims          (id, agent_id → agents, client_name, client_phone,
                  claim_type, status, urgent bool, access_token (unique),
                  policy_insurer, at_fault_insurer,
-                 theft, lien, business_use, policy_activated, garage_network_rider,
+                 coverage_type,         -- comprehensive (מקיף) | third_party (צד ג')
+                 garage_network_rider,  -- "נבחרת מוסכים" bool — restricts payable garages
+                 policy_activated,      -- bool: did the client activate their OWN policy?
+                                        --   forks third_party_report → residual-loss (הפסדים)
+                 lien bool,             -- circumstance flags → conditional checklist
+                 business_use bool,
+                 theft bool,
+                 sla_clock_started_at,  -- set when ALL required docs present (clock starts)
+                 decision_due_at,       -- sla_clock_started_at + 30 calendar days
+                 limitation_deadline,   -- 3y own-policy (§31) | 7y TP property tort
                  summary_json, checklist_state, created_at, submitted_at, closed_at)
                  -- claim_type: own_policy | third_party_report
                  --           | third_party_settlement | unknown
@@ -48,21 +57,44 @@ claims          (id, agent_id → agents, client_name, client_phone,
 claim_documents (id, claim_id → claims, type, storage_path,
                  mime, uploaded_at)
                  -- type: car_photo | drivers_license | vehicle_reg
-                 --       | third_party_doc | police_report | id_card
-                 --       | garage_invoice | repair_receipt | appraiser_report
-                 --       | assessor_fee_invoice | assessor_fee_receipt
-                 --       | no_claim_confirmation | loss_confirmation
-                 --       | insurance_history | demand_form | bank_details
-                 --       | lien_release | info_consent | power_of_attorney
-                 --       | vat_offset_confirmation | keys | other
+                 --       | id_card | third_party_doc | police_report
+                 --       | garage_invoice (חשבונית תיקון)
+                 --       | repair_receipt (קבלה על תשלום בפועל — ≠ invoice)
+                 --       | appraiser_report (דוח שמאי)
+                 --       | assessor_fee_invoice | assessor_fee_receipt (שכ"ט שמאי + קבלה)
+                 --       | no_claim_confirmation (אישור אי-הגשת תביעה)
+                 --       | loss_confirmation (אישור הפסדים — ≠ no_claim_confirmation)
+                 --       | insurance_history (עבר ביטוחי)
+                 --       | lien_release (אישור הסרת שיעבוד)
+                 --       | info_consent (הסכמה למסירת מידע / משרד הרישוי)
+                 --       | power_of_attorney (ייפוי כוח, §68 חוק חוזה הביטוח)
+                 --       | bank_details (טופס בנק / שיק מבוטל / IBAN)
+                 --       | vat_offset_confirmation (אישור רו"ח על קיזוז מע"מ — עסקי)
+                 --       | keys (מפתחות — גניבה) | demand_form | other
 third_parties   (id, claim_id → claims, name, phone, id_number,
                  plate, insurer)
+garages         (id, claim_id → claims, name, is_arranged bool,
+                 -- is_arranged: "מוסך הסדר" — affects payment flow and checklist
+                 contact_phone, vehicle_in_garage_at)
+assessors       (id, claim_id → claims, name, contact_phone)
+                 -- שמאי: independent + regulated; the product tracks/organises only.
+                 -- Must never appear to direct שמאות or pay commission (regulatory prohibition).
+witnesses       (id, claim_id → claims, name, phone, address)
+injured_persons (id, claim_id → claims, name, id_number, address,
+                 injury_nature, hospitalized bool, hospital, age)
+payments        (id, claim_id → claims, payee_type, method, amount,
+                 status, paid_at)
+                 -- payee_type: client | garage | assessor
+                 -- method: bank_transfer | check | assignment_of_rights (המחאת זכויות)
+                 -- status: expected | paid | reconciled
 tasks           (id, claim_id → claims, title, track, status,
                  due_at, assignee, created_at)
                  -- track: own_policy | third_party_report | third_party_settlement
                  -- status: todo | in_progress | blocked | done
 generated_forms (id, claim_id → claims, kind, insurer, storage_path, created_at)
-                 -- kind: accident_notice (הודעה על תאונה) | ...
+                 -- kind: accident_notice (הודעה על תאונה)
+                 --       | demand_letter (מכתב דרישה — required for TP route)
+                 --       | submission_packet (תיק הגשה — full doc bundle)
                  -- insurer: migdal | menora | hachshara | ... (which template was filled)
 claim_events    (id, claim_id → claims, type, payload_json, created_at)
                  -- audit log: consent_given, step_completed,
@@ -101,6 +133,8 @@ Principles (important for an AI product):
 - **Stream** the summary to the UI — perceived speed.
 - **Per-request cost cap** + token tracking — AI margins erode quietly.
 - **Privacy:** in MVP, **don't send ID images (ID / license) to the LLM**. Missing-info detection works on *metadata* (which docs were uploaded), not image content — so there's no need to send images at all. Automatic OCR = future phase, carefully.
+- **OCR vendor (when built):** Google Cloud Vision **or** Azure Vision — both support Hebrew (use language hints). **AWS Textract does NOT support Hebrew** — do not prototype on it.
+- **Human-in-the-loop on critical fields** (never auto-commit extracted values): plate number, policy number, accident date, IBAN/bank account, invoice amount, and *presence of* אישור אי-הגשת תביעה. Set a per-document-type accuracy KPI, not one global number.
 
 > **Filling the "הודעה על תאונה" form is NOT an AI task — it's templating.** The forms are flat PDFs (no AcroForm) → fill via text overlay at coordinates, from **one canonical schema** + a **per-insurer coordinate template**. Tools: pdf-lib (Node) / reportlab + pypdf (Python), with an embedded Hebrew font. Details and field map: [form-field-map.md](form-field-map.md).
 
@@ -115,6 +149,9 @@ We collect sensitive PII (ID, license, third-party details) under Israel's Priva
 - **Explicit consent** at the start of the flow, recorded in `claim_events` with a timestamp.
 - **Encryption at rest** (Supabase default) + consider field-level encryption for ID numbers.
 - **Least privilege** and a full audit log (`claim_events`).
+- **Assessor independence:** the UI/automation must never appear to direct שמאות or steer garage/assessor choice — regulations forbid commission or benefit-in-kind in the claims process (רשות שוק ההון).
+- **DPA** with every AI/OCR sub-processor (Anthropic named explicitly); documented **retention policy**; explicit **opt-in** for WhatsApp/digital messaging (required per כלל/general consent frameworks).
+- **Client's right to export/receive their full claim file** on request — build an export path.
 
 ---
 
