@@ -39,16 +39,22 @@ agents          (id, agency_id → agencies, auth_user_id, name, email, phone)
 claims          (id, agent_id → agents, client_name, client_phone,
                  claim_type, status, urgent bool, access_token (unique),
                  policy_insurer, at_fault_insurer,
+                 theft, lien, business_use, policy_activated, garage_network_rider,
                  summary_json, checklist_state, created_at, submitted_at, closed_at)
                  -- claim_type: own_policy | third_party_report
                  --           | third_party_settlement | unknown
+                 -- circumstance flags (bool, default false; migration 004) drive the
+                 --   conditional checklist sections
 claim_documents (id, claim_id → claims, type, storage_path,
                  mime, uploaded_at)
                  -- type: car_photo | drivers_license | vehicle_reg
-                 --       | third_party_doc | police_report
-                 --       | garage_invoice | appraiser_report
-                 --       | no_claim_confirmation | insurance_history
-                 --       | demand_form | other
+                 --       | third_party_doc | police_report | id_card
+                 --       | garage_invoice | repair_receipt | appraiser_report
+                 --       | assessor_fee_invoice | assessor_fee_receipt
+                 --       | no_claim_confirmation | loss_confirmation
+                 --       | insurance_history | demand_form | bank_details
+                 --       | lien_release | info_consent | power_of_attorney
+                 --       | vat_offset_confirmation | keys | other
 third_parties   (id, claim_id → claims, name, phone, id_number,
                  plate, insurer)
 tasks           (id, claim_id → claims, title, track, status,
@@ -67,9 +73,10 @@ collection_progress  -- can live as JSON on claims or as a separate table
 Notes:
 - `access_token` — non-sequential identifier for client access (never expose `claims.id`).
 - `summary_json` — Claude's structured output (summary + missing-info checklist).
-- **Static per-track checklist** = a config (`claim_type` → required docs/steps) ⊕ a presence check against `claim_documents` / collected fields. A **derived view, not a task engine** (the `tasks` table is reserved for phase-2 active workflow).
-  - Document items **auto-check** from `claim_documents` presence — uploaded at intake, or **by the agent from the dashboard with a type tag** (MVP = Option A; a follow-up client/garage upload link is phase 2).
-  - Pure action-milestones (e.g. "submitted to insurer", "car at garage", "payment received") are **manual ticks**, persisted in a small `checklist_state` JSON on `claims`.
+- **Per-track checklist** (implemented — `web/src/lib/claims/checklist.ts`) = a per-track config (`claim_type` → required docs/steps, grouped into `base` / `late` / `conditional` / `milestone` sections) ⊕ a presence check against `claim_documents` / collected fields. A **derived view, not a task engine** (the `tasks` table is reserved for phase-2 active workflow). `computeChecklist()` is a pure function, run server-side on the claim detail page.
+  - Document items **auto-check** from `claim_documents` presence — uploaded at intake, or **by the agent from the dashboard with a type tag** (`POST /api/claims/[id]/documents`; MVP = Option A; a follow-up client/garage upload link is phase 2).
+  - Conditional items (police report / keys / lien release / VAT offset / loss-vs-no-claim confirmation) are toggled by the claim's **circumstance flags** (`theft`, `lien`, `business_use`, `policy_activated`, `garage_network_rider`).
+  - Pure action-milestones (e.g. "submitted to insurer", "car at garage", "payment received") are **manual ticks** (`PATCH /api/claims/[id]/checklist`), persisted in a small `checklist_state` JSON on `claims`.
 - `claim_events` — full audit; important for regulation and debugging.
 - ID numbers (`id_number`) → consider **field-level encryption** (beyond at-rest).
 
@@ -81,10 +88,10 @@ Notes:
 |---|---|---|---|
 | Structure free-text / voice | haiku-4-5 | text / transcript | structured fields |
 | Missing-info detection | haiku-4-5 | which fields / docs exist | missing checklist |
-| Claim-type proposal | haiku-4-5 | fault, coverage, third-party presence | proposed `claim_type` |
+| Narrative signals | opus-4-8 | event description | `incident_kind` + `inferred_fault` (NOT the track) |
 | **Final event summary** | opus-4-8 | all structured data | agent-readable summary |
 
-**Implemented (MVP):** `web/src/lib/ai/analyze.ts` does the summary + missing-info + claim-type proposal in **one structured call** (`claude-opus-4-8`, adaptive thinking, `output_config.format` → JSON). Default is Opus 4.8 per the claude-api skill (don't downgrade for cost without the user's call); override the tier via `CLAIMS_AI_MODEL`.
+**Implemented (MVP): two-layer classifier.** `web/src/lib/ai/analyze.ts` makes **one structured call** (`claude-opus-4-8`, adaptive thinking, `output_config.format` → JSON schema) that returns only *signals*: the Hebrew `summary`, `missing`, plus narrative-derived `incident_kind` and `inferred_fault`. The LLM **never picks the track** — a **deterministic pure function** (`web/src/lib/claims/classify.ts`) owns the decision so it stays auditable: Layer 1 (fact-driven) resolves `own_policy` vs. third-party from fault × identified-third-party × coverage type; Layer 2 (business choice) only *recommends* `third_party_report` vs. `third_party_settlement` and forces the agent to pick (`needsAgentChoice`). It also emits a `confidence`, a `viabilityWarning` (e.g. at-fault + no comprehensive), and a `faultMismatch` flag when stated fault conflicts with the narrative. The analysis is lazily computed once and cached in `summary_json.analysis` (`web/src/lib/claims/analysis-cache.ts`), keyed by an input hash so a data edit invalidates it. Default is Opus 4.8 per the claude-api skill (don't downgrade for cost without the user's call); override the tier via `CLAIMS_AI_MODEL`.
 
 Principles (important for an AI product):
 - **Structured outputs / tool calling** — not regex on prose. Always validate/parse the output.

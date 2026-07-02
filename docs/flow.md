@@ -43,10 +43,10 @@ Each step = one screen, one action. Auto-save after each step (resumable).
 
 ### Step 3 — AI processing
 - Claude receives the **text/transcript + the list of uploaded documents** (not the ID images).
-- Produces: a **structured event summary** + a **missing-info checklist** + a **proposed `claim_type`**.
+- Produces: a **structured event summary** + a **missing-info checklist** + narrative **signals** (`incident_kind`, `inferred_fault`). Claude does **not** pick the track — a deterministic classifier (`web/src/lib/claims/classify.ts`) turns those signals + the structured fields into a **proposed `claim_type`** with a confidence and, for third-party claims, a report-vs-settlement recommendation the agent must confirm. See [claim-management.md](claim-management.md).
 - If critical info is missing → the client is asked to complete it before submitting.
 
-> **Implemented:** the wizard also captures the client's **own insurer** (`policy_insurer`) on the identity step — this is what selects the per-insurer form template. Photos / license / registration uploads persist to the private `claim-docs` Storage bucket via `POST /api/claims/documents` (magic-byte sniffed).
+> **Implemented:** the wizard also captures the client's **own insurer** (`policy_insurer`) and **coverage type** (`insurance_type` — מקיף / חובה / צד ג', which pivots own-policy viability) on the identity step; the insurer selects the per-insurer form template. Photos / license / registration uploads persist to the private `claim-docs` Storage bucket via `POST /api/claims/documents` (magic-byte sniffed).
 
 ### Step 4 — Confirm & submit
 - The client sees a readable summary, confirms/edits, and submits.
@@ -54,8 +54,8 @@ Each step = one screen, one action. Auto-save after each step (resumable).
 - **On submit** (`POST /api/claims/submit`), if a template exists for the client's insurer, the "הודעה על תאונה" form is filled **once** and stored in the case file (`generated_forms` + `form_generated` event). Best-effort — a fill error never blocks submission.
 
 ### Step 5 — At the agent
-- The claim appears in the dashboard with status `submitted`. Opening it (`/dashboard/[id]`) shows the **uploaded documents** (signed-URL previews) and the **pre-filled accident-notice form**.
-- The agent **confirms/adjusts the claim type** (or leaves it `unknown`) and works the **per-track checklist**. The agent can also regenerate / fill a different insurer's form on demand (which re-persists, replacing the prior copy per insurer).
+- The claim appears in the dashboard with status `submitted`. Opening it (`/dashboard/[id]`) shows the AI summary, the **proposed classification** (with confidence + rationale), the **uploaded documents** (signed-URL previews), and the **pre-filled accident-notice form**.
+- The agent **confirms/adjusts the claim type** (`PATCH /api/claims/[id]/classify` → advances to `classified`, or leaves it `unknown`) and works the **dynamic per-track checklist**: document items auto-check as files arrive (the agent uploads later docs via `POST /api/claims/[id]/documents` with a type tag), and milestone ticks persist via `PATCH /api/claims/[id]/checklist`. The agent can also regenerate / fill a different insurer's form on demand (which re-persists, replacing the prior copy per insurer).
 
 ---
 
