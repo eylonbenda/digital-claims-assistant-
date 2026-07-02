@@ -83,6 +83,39 @@ Validating means **ID/licence images leave the system to Anthropic** (a sub-proc
 - **Scope to typed docs** (`drivers_license`, `vehicle_reg`) where slot-matching matters; skip or
   lightly check `car_photo` (just "contains a vehicle / legible").
 
+## OCR vendor & accuracy KPIs
+
+When OCR is added (phase 2+) to extract structured fields from documents:
+
+**Vendor choice:**
+- ✅ **Google Cloud Vision** — supports Hebrew; use `languageHints: ["he"]` when auto-detection is unreliable.
+- ✅ **Azure AI Vision (Read API)** — supports Hebrew.
+- ❌ **AWS Textract** — does NOT support Hebrew. Do not prototype on it.
+
+**Critical fields — always Human-in-the-loop (never auto-commit):**
+
+| Field | Why it matters |
+|---|---|
+| Plate number | Drives TP claims, route decisions |
+| Policy number | Required for form fill and insurer routing |
+| Accident date | Determines limitation clock |
+| IBAN / bank account | Payee routing — wrong payee = serious error |
+| Invoice amount | Drives reimbursement; מנורה requires חשבונית + קבלה separately |
+| Presence of אישור אי-הגשת תביעה | Blocking dependency; absence = clock blocked |
+
+**Per-document-type accuracy target (not one global KPI):**
+
+| Doc type | Accuracy target | Notes |
+|---|---|---|
+| `drivers_license` | 95%+ on clean scans | Structured, predictable layout |
+| `vehicle_reg` | 95%+ on clean scans | |
+| `garage_invoice` | 90%+ | Layout varies by garage |
+| `repair_receipt` | 85%+ | Handwritten elements possible |
+| `appraiser_report` | 80%+ on key fields | Free-form prose sections |
+| `car_photo` | N/A — classify only (contains a vehicle / legible) | |
+
+Image quality is the dominant accuracy driver (NIST research); add photo-guidance prompts in the wizard.
+
 ## Phasing
 
 1. **Classify only** — `is_expected_type` + `legible` → inline warning. *(80% of the value, smallest build.)*

@@ -40,6 +40,18 @@ report → guided collection → AI summary + missing-info
 - WhatsApp Business API (automated channel).
 - Document OCR, billing, multi-agency, subrogation track, payment tracking.
 
+## Candidates from 2026-06-29 research (not yet locked — validate before building)
+
+These emerged from the domain research review as high-value and relatively cheap to add.
+Pending validation / product decision before committing to MVP scope.
+
+| Candidate | Why it's high value | Build cost | Decision needed |
+|---|---|---|---|
+| **Regulatory-clock widget** in claim card | Cheapest differentiator: "clock not started — missing X" / "decision due in N days". Fields (`sla_clock_started_at`, `decision_due_at`) are in the data model; constants are fixed. | Low — derived view from checklist blocking state | Does this move to MVP? (Recommended: yes) |
+| **Conditional checklist** (per circumstance flags) | Theft/lien/business/activated-policy forks make the checklist accurate instead of generic. New fields on `claims` already specced in `architecture.md`. | Low — config change in checklist engine | Move to MVP as part of step 6? (Recommended: yes, with step 6 build) |
+| **Demand letter generation** (`demand_letter` kind) | The TP route's primary deliverable beyond the accident form. Needed for the "organized submission packet" value prop. | Medium — new template engine pass | Is this in MVP or phase 2? |
+| **WhatsApp as primary intake channel** | Research recommends WhatsApp-first; agents/clients already work there. Web wizard reusable as link target inside a WA flow. | Medium-High (Meta BSP, approval) | Validate channel preference with agents before deciding |
+
 ---
 
 ## MVP claim states (subset of [flow.md](flow.md))
