@@ -55,7 +55,7 @@ Each step = one screen, one action. Auto-save after each step (resumable).
 
 ### Step 5 — At the agent
 - The claim appears in the dashboard with status `submitted`. Opening it (`/dashboard/[id]`) shows the AI summary, the **proposed classification** (with confidence + rationale), the **uploaded documents** (signed-URL previews), and the **pre-filled accident-notice form**.
-- The agent **confirms/adjusts the claim type** (`PATCH /api/claims/[id]/classify` → advances to `classified`, or leaves it `unknown`) and works the **dynamic per-track checklist**: document items auto-check as files arrive (the agent uploads later docs via `POST /api/claims/[id]/documents` with a type tag), and milestone ticks persist via `PATCH /api/claims/[id]/checklist`. The agent can also regenerate / fill a different insurer's form on demand (which re-persists, replacing the prior copy per insurer).
+- The agent **confirms/adjusts the claim type** (`PATCH /api/claims/[id]/classify` → advances to `classified`, or leaves it `unknown`) and works the **dynamic per-track checklist**: document items auto-check as files arrive (the agent uploads later docs via `POST /api/claims/[id]/documents` with a type tag), and milestone ticks persist via `PATCH /api/claims/[id]/checklist`. The agent can also regenerate / fill a different insurer's form on demand (which re-persists, replacing the prior copy per insurer), and can **edit/complete the canonical form fields** before regenerating (`PATCH /api/claims/[id]/form-data`) — the edits are stored in `summary_json.form_data`, the client's original `collected` submission is left untouched for audit, and the form fill prefers `form_data` when present (`effectiveClaimData`).
 
 ---
 

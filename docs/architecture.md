@@ -72,7 +72,7 @@ collection_progress  -- can live as JSON on claims or as a separate table
 
 Notes:
 - `access_token` — non-sequential identifier for client access (never expose `claims.id`).
-- `summary_json` — Claude's structured output (summary + missing-info checklist).
+- `summary_json` — the client's `collected` submission + Claude's structured output (`analysis`: summary + missing-info checklist). When the agent edits/completes the accident-notice fields, the corrected canonical `ClaimData` is stored alongside as `form_data` (`effectiveClaimData` prefers it over `collected`; the original `collected` is never mutated, for audit).
 - **Per-track checklist** (implemented — `web/src/lib/claims/checklist.ts`) = a per-track config (`claim_type` → required docs/steps, grouped into `base` / `late` / `conditional` / `milestone` sections) ⊕ a presence check against `claim_documents` / collected fields. A **derived view, not a task engine** (the `tasks` table is reserved for phase-2 active workflow). `computeChecklist()` is a pure function, run server-side on the claim detail page.
   - Document items **auto-check** from `claim_documents` presence — uploaded at intake, or **by the agent from the dashboard with a type tag** (`POST /api/claims/[id]/documents`; MVP = Option A; a follow-up client/garage upload link is phase 2).
   - Conditional items (police report / keys / lien release / VAT offset / loss-vs-no-claim confirmation) are toggled by the claim's **circumstance flags** (`theft`, `lien`, `business_use`, `policy_activated`, `garage_network_rider`).
