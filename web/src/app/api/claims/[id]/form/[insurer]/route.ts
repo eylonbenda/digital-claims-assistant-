@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { templates, fillForm } from "@/lib/formfill";
 import type { Template } from "@/lib/formfill/engine";
-import { toClaimData, type State } from "@/lib/collection/claim-state";
+import { effectiveClaimData, type ClaimSummaryJson } from "@/lib/formfill/effective";
 
 export const runtime = "nodejs"; // needs fs to read the template PDF + font
 
@@ -80,15 +80,16 @@ export async function GET(
 
   if (!claim) return Response.json({ error: "claim not found" }, { status: 404 });
 
-  const collected = (claim.summary_json as { collected?: State } | null)?.collected;
-  if (!collected) {
+  // Prefer the agent's edited form_data; fall back to the client's submission.
+  const claimData = effectiveClaimData(claim.summary_json as ClaimSummaryJson);
+  if (!claimData) {
     return Response.json(
       { error: "no collected data yet — the client hasn't submitted the form" },
       { status: 409 }
     );
   }
 
-  const pdf = new Uint8Array(await fillForm(template, toClaimData(collected)));
+  const pdf = new Uint8Array(await fillForm(template, claimData));
   await persistForm(id, insurer, pdf); // archive into the case file (latest per insurer)
   const body = new Blob([pdf], { type: "application/pdf" });
   return new Response(body, {
