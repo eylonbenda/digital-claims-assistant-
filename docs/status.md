@@ -78,12 +78,15 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 - **New API routes:** `PATCH /api/claims/[id]/classify`, `PATCH /api/claims/[id]/checklist`, `POST /api/claims/[id]/documents` (agent upload).
 - **Migration 004:** expands the `doc_type` enum + adds circumstance-flag columns. Wizard now also captures `insurance_type` on the identity step.
 
+### Done since last sync (2026-07-02 → 07-05)
+- **All 6 remaining insurer templates mapped** (`web/src/lib/formfill/templates/`): הראל, AIG, שלמה, ליברה, הפניקס, איילון — registered in `formfill/index.ts`, source PDFs bundled under `formfill/assets/`. הפניקס (broken glyph encoding) + איילון (scanned) authored **visually from renders — no OCR**. All 9 insurers now fillable via `GET/POST /api/forms/[insurer]`.
+- **Third-party vehicle-type labels**: `engine.ts` now strips array indices before the `LABELS` lookup, so `third_parties.N.vehicle_type` reuses the `vehicle.type` vocabulary (`labels.ts`).
 ### Done since last sync (2026-07-02 → 07-04)
 - **Agent edits accident-form fields:** `FormFieldEditor` on `/dashboard/[id]` lets the agent complete/correct the canonical form fields; `PATCH /api/claims/[id]/form-data` persists the edited `ClaimData` to `summary_json.form_data` (logs a `form_data_edited` event) without touching the client's `collected` submission. New `web/src/lib/formfill/effective.ts` (`effectiveClaimData`) — the form-fill route prefers `form_data`, falling back to `collected`.
 
 ### Remaining work
 - **AI doc-validation** (spec only — `docs/ai-doc-validation.md`): is the uploaded file actually a driver's license? Phase 1 = classify-only warning.
-- **Remaining insurer templates**: shlomo/libra/harel/aig (+ OCR for הפניקס/איילון) via the `pdf-form-mapper` agent.
+- ~~Remaining insurer templates (shlomo/libra/harel/aig + הפניקס/איילון)~~ — **done**: all 9 mapped (הפניקס/איילון visually, no OCR).
 - **UX polish** (step 8): design partner run.
 
 ---

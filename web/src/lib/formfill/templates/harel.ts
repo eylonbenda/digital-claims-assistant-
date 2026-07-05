@@ -1,0 +1,167 @@
+import type { Template } from "../engine";
+
+// Coordinate map: canonical field -> position on הראל (Harel) accident-notice form.
+// Source: docs/accidentStatementPdf/הראל_טופס_הודעה.pdf (2 pages; page 2 is a privacy notice
+// with no fillable fields). Checkboxes on this form are drawn as glyphs (☐) immediately to the
+// right (higher x, in front of, in RTL reading order) of each option's label — centre ≈ label's
+// right-edge x + ~5.3pt, calibrated against the vector-square notification checkboxes at the
+// bottom of page 1 and cross-checked visually. All ID/date/plate cells are per-digit grid boxes
+// on the source PDF; per menora/migdal precedent we fill them as a single right-anchored text run.
+const harel: Template = {
+  insurer: "הראל",
+  srcFile: "harel.pdf",
+  fields: [
+    // א. פרטי המבוטח והפוליסה
+    { key: "agent_name", right: 231, y: 731, size: 9 },
+    { key: "insurance_type", right: 355, y: 731, size: 8 }, // free-text cell -> Hebrew via labels
+    { key: "policy_number", right: 503, y: 731, size: 9 },
+
+    { key: "vehicle.year", right: 95, y: 711, size: 9 },
+    { key: "vehicle.model", right: 300, y: 711, size: 8 }, // תוצר ודגם (manufacturer+model cell)
+    { key: "vehicle.plate", right: 515, y: 711, size: 9 },
+
+    // מס' ת.ז. is a 9-digit grid cell (right edge 400); ticks sit just below the label line.
+    { key: "insured.id_number", right: 397, y: 681, size: 8 },
+    { key: "insured.first_name", right: 504, y: 691, size: 8 },
+    { key: "insured.last_name", right: 460, y: 691, size: 8 },
+    // vehicle.type — free-text cell would collide with the checkbox glyphs on this row, so map
+    // as checkbox instead (private/commercial only — "אחר" has no canonical VehicleType value)
+    {
+      key: "vehicle.type",
+      type: "checkbox",
+      size: 8,
+      options: {
+        private: [262, 681],
+        commercial: [230, 681],
+      },
+    },
+
+    { key: "insured.street", right: 531, y: 669, size: 9 },
+    { key: "insured.house_no", right: 324, y: 669, size: 9 },
+    { key: "insured.city", right: 278, y: 669, size: 8 },
+    { key: "insured.postal_code", right: 60, y: 669, size: 8 },
+
+    { key: "insured.phone", right: 513, y: 649, size: 9 },
+    { key: "insured.mobile", right: 360, y: 649, size: 9 },
+
+    { key: "insured.email", right: 496, y: 629, size: 8 },
+
+    // ב. פרטי הנהג
+    { key: "driver.first_name", right: 517, y: 592, size: 8 },
+    // מס' ת.ז. / תאריך לידה are per-digit grid cells (right edges 301 / 165); label sits on the
+    // row's top line (y=592), the digit boxes are lower (y≈580) — offset down to avoid collision.
+    { key: "driver.id_number", right: 297, y: 580, size: 8 },
+    { key: "driver.birth_date", right: 162, y: 580, size: 8 },
+
+    { key: "driver.address_line", right: 531, y: 571, size: 8 }, // רחוב cell (single free-text line)
+    { key: "driver.phone", right: 514, y: 551, size: 9 },
+    { key: "driver.mobile", right: 247, y: 551, size: 9 },
+
+    // These cells' labels occupy most of the cell width, so the answer is written to the
+    // label's left (same pattern as accident.location below).
+    { key: "driver.license_number", right: 493, y: 531, size: 8 },
+    { key: "driver.license_type", right: 339, y: 531, size: 8 },
+    // Cell is narrow (225-301) and the label "שנת הוצאת רישיון" occupies almost its entire width
+    // (leaving only ~10pt clear at x=225-235) — the form really only expects a year here, but the
+    // canonical field can hold a full date string. Shrunk to the smallest legible size; a full
+    // dd/mm/yyyy value will still touch the label — documented as a known tight-cell limitation.
+    { key: "driver.license_date", right: 234, y: 531, size: 5.5 },
+    // בתוקף עד -  (cell grid: x=135-225, label "בתוקף עד -" occupies its right portion 180-222,
+    // leaving ~45pt clear at x=135-176 — wide enough for a full date at normal size, unlike the
+    // narrow license_date cell to its right).
+    { key: "driver.license_expiry", right: 176, y: 531, size: 8 },
+
+    // ג. פרטי התאונה
+    { key: "accident.date", right: 526, y: 492, size: 9 },
+    { key: "accident.time", right: 355, y: 492, size: 9 },
+    // location cell spans x=28-274; label "מקום/כתובת אתר התאונה" sits at its right portion
+    // (178-271), so the answer must be written to the label's left.
+    { key: "accident.location", right: 174, y: 492, size: 8 },
+
+    { key: "accident.police.station", right: 409, y: 473, size: 8 },
+    { key: "accident.police.log_number", right: 344, y: 473, size: 8 },
+
+    { key: "damage.insured_vehicle", right: 407, y: 445, size: 8 },
+
+    // המקרה אירע — trip-type glyph checkboxes, y=260. This form only offers work-related options
+    // (to/during/from work); private/taxi/paid_transport have no matching box and are left
+    // unmapped rather than forced onto an unrelated option.
+    {
+      key: "accident.trip_type",
+      type: "checkbox",
+      size: 8,
+      options: {
+        to_from_work: [220, 261],
+        work: [165, 261],
+      },
+    },
+
+    // תיאור מפורט של התאונה — first dotted line right of the diagram box, top-right area
+    { key: "accident.description", right: 548, y: 401, size: 8 },
+
+    // עדים — witness 1 / witness 2 (name / phone rows share a baseline; address on the row below)
+    { key: "witnesses.0.name", right: 510, y: 345, size: 8 },
+    { key: "witnesses.0.phone", right: 393, y: 345, size: 8 },
+    { key: "witnesses.0.address", right: 500, y: 325, size: 8 },
+    { key: "witnesses.1.name", right: 510, y: 305, size: 8 },
+    { key: "witnesses.1.phone", right: 393, y: 305, size: 8 },
+    { key: "witnesses.1.address", right: 500, y: 285, size: 8 },
+
+    { key: "garage.name", right: 396, y: 265, size: 8 },
+    { key: "assessor_name", right: 529, y: 265, size: 8 },
+
+    // ד. פרטי המעורב - צד ג'
+    { key: "third_parties.0.vehicle_plate", right: 513, y: 228, size: 9 },
+    // סוג הרכב (light / heavy>4t) — mapped onto private/truck, the closest canonical values
+    {
+      key: "third_parties.0.vehicle_type",
+      type: "checkbox",
+      size: 8,
+      options: {
+        private: [344, 224],
+        truck: [303, 224],
+      },
+    },
+    // סוג ביטוח: מקיף / צד ג' / חובה — same row, glyph boxes right of each label (label right-edge + ~2pt)
+    {
+      key: "third_parties.0.insurance_type",
+      type: "checkbox",
+      size: 8,
+      options: {
+        comprehensive: [112, 224],
+        third_party: [79, 224],
+        mandatory: [50, 224],
+      },
+    },
+
+    // owner row: id_number is a 9-digit grid (cell 253-391); ticks sit just below the label (y=208).
+    // Other cells' labels occupy most of the cell width, so answers are written to the label's left.
+    { key: "third_parties.0.owner_name", right: 498, y: 208, size: 8 },
+    { key: "third_parties.0.id_number", right: 388, y: 200, size: 8 },
+    { key: "third_parties.0.address", right: 224, y: 208, size: 8 },
+    { key: "third_parties.0.phone", right: 84, y: 208, size: 8 },
+
+    // driver row: shares the same grid geometry, one line lower (label y=188, ticks y≈180)
+    { key: "third_parties.0.driver_name", right: 518, y: 188, size: 8 },
+
+    { key: "third_parties.0.insurer", right: 482, y: 169, size: 8 },
+    { key: "third_parties.0.policy_number", right: 337, y: 169, size: 8 },
+    { key: "third_parties.0.damage_description", right: 134, y: 169, size: 8 },
+
+    // ה. הצהרת המבוטח — "הנני מעוניין כי תביעת צד ג'... יטופל ע"י החברה" כן/לא (y=131).
+    // Engine checkboxes now match boolean values via yes/no option keys.
+    {
+      key: "declarations.poa_third_party",
+      type: "checkbox",
+      size: 8,
+      options: {
+        yes: [295, 131],
+        no: [274, 131],
+      },
+    },
+    { key: "declarations.date", right: 524, y: 81, size: 8 },
+    { key: "declarations.signatory_name", right: 178, y: 81, size: 8 },
+  ],
+};
+
+export default harel;
