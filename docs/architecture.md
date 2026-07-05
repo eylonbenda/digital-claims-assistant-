@@ -96,6 +96,9 @@ generated_forms (id, claim_id → claims, kind, insurer, storage_path, created_a
                  --       | demand_letter (מכתב דרישה — required for TP route)
                  --       | submission_packet (תיק הגשה — full doc bundle)
                  -- insurer: migdal | menora | hachshara | ... (which template was filled)
+claim_notes     (id, claim_id → claims, body, created_at)
+                 -- agent free-text state-of-play scratchpad (migration 005);
+                 --   POST /api/claims/[id]/notes appends, shown on /dashboard/[id]
 claim_events    (id, claim_id → claims, type, payload_json, created_at)
                  -- audit log: consent_given, step_completed,
                  --   classified, form_generated, status_changed ...
