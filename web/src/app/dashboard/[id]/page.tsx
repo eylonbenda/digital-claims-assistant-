@@ -6,8 +6,10 @@ import { computeChecklist } from "@/lib/claims/checklist";
 import { classifyFromClaimData } from "@/lib/claims/classify";
 import { getOrCreateAnalysis, type SummaryJson } from "@/lib/claims/analysis-cache";
 import { toClaimData, type State } from "@/lib/collection/claim-state";
+import { effectiveClaimData, type ClaimSummaryJson } from "@/lib/formfill/effective";
 import ClaimDocuments, { type DocView } from "./ClaimDocuments";
 import FormGenerator from "./FormGenerator";
+import FormFieldEditor from "./FormFieldEditor";
 import ChecklistPanel from "./ChecklistPanel";
 import AgentDocUpload from "./AgentDocUpload";
 import ClaimTypeConfirm from "./ClaimTypeConfirm";
@@ -112,6 +114,12 @@ export default async function ClaimDetailPage({
           : undefined,
       )
     : null;
+
+  // Canonical data that fills the accident-notice form: the agent's edits if any,
+  // else the client's submission. Drives the editable form-field panel.
+  const formSummary = claim.summary_json as ClaimSummaryJson;
+  const formClaimData = effectiveClaimData(formSummary);
+  const formDataEdited = !!formSummary?.form_data;
 
   // Compute the dynamic checklist on the server — pure function, no I/O.
   const flags = {
@@ -284,6 +292,19 @@ export default async function ClaimDetailPage({
             hasData={!!(claim.summary_json as { collected?: unknown } | null)?.collected}
             hasStoredForm={forms.length > 0}
           />
+
+          {/* Agent edits the canonical form data (complete missing / fix wrong fields);
+              regenerating the form above then fills from these edits. */}
+          {formClaimData && (
+            <div className="mt-3">
+              <FormFieldEditor
+                claimId={claim.id}
+                initial={formClaimData}
+                missing={analysis?.missing ?? []}
+                edited={formDataEdited}
+              />
+            </div>
+          )}
         </section>
 
         <section>
