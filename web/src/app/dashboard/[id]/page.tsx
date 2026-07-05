@@ -501,6 +501,8 @@ export default async function ClaimDetailPage({
                   initial={formClaimData}
                   missing={analysis?.missing ?? []}
                   edited={formDataEdited}
+                  claimType={claim.claim_type}
+                  insurer={claim.policy_insurer}
                 />
               </div>
             </details>
