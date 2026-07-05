@@ -20,17 +20,20 @@ import type { Template } from "../engine";
 //    enum only has 4 values; the 4 best-fit boxes are mapped, the rest have no target.
 //  - מוקד נזק (damage location on car diagram: חזית/גג/תחתון/... 11 boxes) — damage.* are free-text
 //    strings, not an enum/checkbox in the schema; left unmapped.
-//  - מעורבות משטרה כן/לא (accident.police.notified is boolean) — engine checkboxes only match
-//    string enum values, so booleans never draw (same as other insurer templates); left unmapped.
-//  - הריני מייפה את כוחה... (declarations.poa_third_party is boolean) — same boolean limitation.
 //  - accident.passengers, vehicle.odometer's policy_number pairing, garage/assessor,
 //    bank_account, injured_persons — not present anywhere on this form.
+//
+// NOTE: insured.full_name / driver.full_name are synthetic keys (engine.ts resolve()) that join
+// first_name + last_name for these forms' single merged name cells. Page3's "שם מלא מבוטח" was
+// already declarations.signatory_name (a distinct full-name field), so it needed no change.
+// accident.police.notified / declarations.poa_third_party checkboxes use the engine's boolean
+// yes/no option-key matching (added alongside full_name support).
 const libra: Template = {
   insurer: "ליברה",
   srcFile: "libra.pdf",
   fields: [
     // ── פרטי המבוטח (page1) ──────────────────────────────────────────────────
-    { key: "insured.first_name", right: 375, y: 682 },
+    { key: "insured.full_name", right: 375, y: 682 },
     { key: "insured.id_number", right: 227, y: 682 },
     { key: "insured.birth_date", right: 128, y: 682, size: 9 },
 
@@ -51,7 +54,7 @@ const libra: Template = {
 
     // ── פרטי הנהג בעת האירוע (page1) — driver at time of accident ───────────
     // Row 1: שם הנהג | תעודת זהות | כתובת
-    { key: "driver.first_name", right: 399, y: 477 },
+    { key: "driver.full_name", right: 399, y: 477 },
     { key: "driver.id_number", right: 278, y: 477, size: 9 },
     { key: "driver.address_line", right: 143, y: 477, size: 8 },
     // Row 2: טלפון נייד | טלפון נוסף | דואר אלקטרוני
@@ -115,10 +118,29 @@ const libra: Template = {
     { key: "witnesses.0.address", page: 1, right: 270, y: 183, size: 8 },
     { key: "witnesses.0.phone", page: 1, right: 129, y: 183, size: 8 },
 
+    // ── מעורבות משטרה כן/לא (page2) ──────────────────────────────────────────
+    {
+      key: "accident.police.notified",
+      type: "checkbox",
+      page: 1,
+      options: {
+        yes: [384, 243],
+        no: [344, 242],
+      },
+    },
+
     // ── הצהרות (page3) — signature block ─────────────────────────────────────
     { key: "declarations.signatory_name", page: 2, right: 497, y: 625, size: 9 },
     { key: "insured.id_number", page: 2, right: 381, y: 625, size: 9 },
     { key: "declarations.date", page: 2, right: 237, y: 625, size: 9 },
+
+    // ── הריני מייפה את כוחה... — poa_third_party consent (page3, single box) ──
+    {
+      key: "declarations.poa_third_party",
+      type: "checkbox",
+      page: 2,
+      options: { yes: [541, 655] },
+    },
   ],
 };
 

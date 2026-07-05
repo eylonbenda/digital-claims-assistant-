@@ -14,14 +14,12 @@ import type { Template } from "../engine";
 // driver row2 share one column), the model column for "כתובתו" (address), and the insurer/policy
 // columns for id_number/phone respectively. Verified visually across multiple crops.
 //
-// SCHEMA GAPS / engine limitations (present on form, left unmapped):
+// SCHEMA GAPS (present on form, left unmapped):
 //  - accident.police.notified, accident.is_paid_transport, garage.is_arrangement,
-//    injured_persons[].hospitalized are all `boolean` in ClaimData. The engine's checkbox
-//    renderer only matches string enum values (`typeof val === "string"`), so boolean fields
-//    never draw — same known limitation documented in aig.ts / phoenix.ts / libra.ts. Their
-//    on-form כן/לא boxes were located but are left unmapped:
-//      police notified: כן=[224,520] לא=[224,512]   paid transport: כן=[74,497] לא=[54,497]
-//      garage is_arrangement: כן=[285,52] לא=[262,52]   hospitalized (row1): כן=[130,152] לא=[40,152]
+//    injured_persons[0].hospitalized are `boolean` in ClaimData and ARE mapped below as
+//    checkbox fields using the engine's yes/no option-key support (booleans match
+//    options.yes / options.no). Verified visually — X lands centered in the printed
+//    כן/לא boxes for both true and false.
 //  - "האם מעורבת משאית?" (was a truck involved) — no canonical key.
 //  - "מהו התמרור המוצב בדרכו של הנהג המבוטח/הנהג צד ג'" (road sign) x2 — no canonical key.
 //  - "תרשים מקום התאונה" (accident sketch diagram box) — no canonical key.
@@ -76,7 +74,11 @@ const ayalon: Template = {
     { key: "accident.date", right: 550, y: 510, size: 9 },
     { key: "accident.time", right: 468, y: 507, size: 8 },
     { key: "accident.location", right: 412, y: 507, size: 6.5 },
-    // accident.police.notified is boolean — engine checkbox limitation, see header note.
+    {
+      key: "accident.police.notified",
+      type: "checkbox",
+      options: { yes: [222, 521], no: [222, 506] },
+    },
     { key: "accident.police.station", right: 205, y: 507, size: 8 },
     { key: "accident.police.log_number", right: 127, y: 507, size: 8 },
 
@@ -91,7 +93,11 @@ const ayalon: Template = {
         taxi: [286, 492],
       },
     },
-    // accident.is_paid_transport is boolean — engine checkbox limitation, see header note.
+    {
+      key: "accident.is_paid_transport",
+      type: "checkbox",
+      options: { yes: [73, 490], no: [53, 490] },
+    },
 
     // תאור נסיבות המקרה — first blank line
     { key: "accident.description", right: 475, y: 479, size: 8 },
@@ -149,12 +155,20 @@ const ayalon: Template = {
     { key: "injured_persons.0.id_number", right: 282, y: 155, size: 6.5 },
     { key: "injured_persons.0.age", right: 275, y: 140, size: 8 },
     { key: "injured_persons.0.injury_nature", right: 505, y: 140, size: 7 },
-    // injured_persons.0.hospitalized is boolean — engine checkbox limitation, see header note.
+    {
+      key: "injured_persons.0.hospitalized",
+      type: "checkbox",
+      options: { yes: [194, 141], no: [54, 141] },
+    },
 
     // ── הרכב נמצא במוסך / השמאי המטפל (garage / assessor) ───────────────────
     { key: "garage.name", right: 480, y: 52, size: 8 },
     { key: "garage.phone", right: 408, y: 52, size: 8 },
-    // garage.is_arrangement is boolean — engine checkbox limitation, see header note.
+    {
+      key: "garage.is_arrangement",
+      type: "checkbox",
+      options: { yes: [287, 46], no: [264, 46] },
+    },
     { key: "assessor_name", right: 140, y: 52, size: 8 },
 
     // ── הצהרה + תאריך (declaration) ─────────────────────────────────────────

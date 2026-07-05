@@ -66,6 +66,10 @@ const harel: Template = {
     // canonical field can hold a full date string. Shrunk to the smallest legible size; a full
     // dd/mm/yyyy value will still touch the label — documented as a known tight-cell limitation.
     { key: "driver.license_date", right: 234, y: 531, size: 5.5 },
+    // בתוקף עד -  (cell grid: x=135-225, label "בתוקף עד -" occupies its right portion 180-222,
+    // leaving ~45pt clear at x=135-176 — wide enough for a full date at normal size, unlike the
+    // narrow license_date cell to its right).
+    { key: "driver.license_expiry", right: 176, y: 531, size: 8 },
 
     // ג. פרטי התאונה
     { key: "accident.date", right: 526, y: 492, size: 9 },
@@ -118,6 +122,17 @@ const harel: Template = {
         truck: [303, 224],
       },
     },
+    // סוג ביטוח: מקיף / צד ג' / חובה — same row, glyph boxes right of each label (label right-edge + ~2pt)
+    {
+      key: "third_parties.0.insurance_type",
+      type: "checkbox",
+      size: 8,
+      options: {
+        comprehensive: [112, 224],
+        third_party: [79, 224],
+        mandatory: [50, 224],
+      },
+    },
 
     // owner row: id_number is a 9-digit grid (cell 253-391); ticks sit just below the label (y=208).
     // Other cells' labels occupy most of the cell width, so answers are written to the label's left.
@@ -134,8 +149,16 @@ const harel: Template = {
     { key: "third_parties.0.damage_description", right: 134, y: 169, size: 8 },
 
     // ה. הצהרת המבוטח — "הנני מעוניין כי תביעת צד ג'... יטופל ע"י החברה" כן/לא (y=131).
-    // declarations.poa_third_party is a boolean; engine checkboxes only match string enum
-    // values (see aig.ts/libra.ts precedent), so this on-form yes/no is left unmapped.
+    // Engine checkboxes now match boolean values via yes/no option keys.
+    {
+      key: "declarations.poa_third_party",
+      type: "checkbox",
+      size: 8,
+      options: {
+        yes: [295, 131],
+        no: [274, 131],
+      },
+    },
     { key: "declarations.date", right: 524, y: 81, size: 8 },
     { key: "declarations.signatory_name", right: 178, y: 81, size: 8 },
   ],

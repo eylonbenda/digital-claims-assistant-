@@ -9,12 +9,9 @@ import type { Template } from "../engine";
 // LEFT of its box. `right` below is each box's right edge (minus ~4pt padding).
 //
 // Checkboxes are plain vector squares (no AcroForm widgets); "yes/no" questions use a single
-// two-cell bordered box split by a vertical rule (right half = כן, left half = לא).
-//
-// Known engine limitation: boolean ClaimData fields (e.g. accident.police.notified,
-// declarations.poa_third_party) cannot be drawn via the checkbox type, since engine.ts only
-// positions checkboxes when the value is a string (enum), not a boolean. Such on-form yes/no
-// questions are left unmapped — see schema_gaps in the mapping report.
+// two-cell bordered box split by a vertical rule (right half = כן, left half = לא). Boolean
+// ClaimData fields (accident.police.notified, declarations.poa_third_party) are mapped via the
+// checkbox type's yes/no option keys, matched against boolean values by engine.ts.
 const aig: Template = {
   insurer: "AIG",
   srcFile: "aig.pdf",
@@ -39,9 +36,11 @@ const aig: Template = {
     { key: "driver.mobile", right: 126, y: 573, size: 9 },
     { key: "driver.address_line", right: 304, y: 544, size: 8 },
     { key: "driver.relation_to_insured", right: 482, y: 519, size: 8 },
+    { key: "driver.email", right: 305, y: 514, size: 8 },
     { key: "driver.license_number", right: 126, y: 492, size: 8 },
     { key: "driver.license_date", right: 304, y: 462, size: 8 },
     { key: "driver.license_type", right: 482, y: 457, size: 8 },
+    { key: "driver.license_expiry", right: 126, y: 458, size: 8 },
 
     // ג. פרטי הרכב
     { key: "vehicle.manufacturer", right: 126, y: 400, size: 8 }, // combined "דגם ויצרן" cell
@@ -80,6 +79,14 @@ const aig: Template = {
       },
     },
     { key: "accident.location", right: 482, y: 234, size: 8 },
+    {
+      key: "accident.police.notified",
+      type: "checkbox",
+      options: {
+        yes: [105, 199],
+        no: [60, 199],
+      },
+    },
     { key: "accident.police.station", right: 304, y: 168, size: 8 },
     { key: "accident.police.log_number", right: 482, y: 168, size: 8 },
     { key: "accident.passengers", right: 126, y: 168, size: 9 },
@@ -120,6 +127,27 @@ const aig: Template = {
     { key: "third_parties.0.policy_number", page: 1, right: 305, y: 185, size: 8 },
     { key: "third_parties.0.insurer", page: 1, right: 127, y: 185, size: 8 },
     { key: "third_parties.0.agent_name", page: 1, right: 482, y: 185, size: 8 },
+    {
+      key: "third_parties.0.insurance_type",
+      type: "checkbox",
+      page: 1,
+      options: {
+        comprehensive: [451, 155],
+        third_party: [408, 155],
+        mandatory: [363, 155],
+      },
+    },
+
+    // האם הינך מאשר לפצות את צד ג' (ייפוי כוח סעיף 68 — declarations.poa_third_party)
+    {
+      key: "declarations.poa_third_party",
+      type: "checkbox",
+      page: 1,
+      options: {
+        yes: [105, 414],
+        no: [60, 414],
+      },
+    },
 
     // ===== PAGE 3 =====
     // ז. עדים למקרה (2 rows)

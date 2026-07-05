@@ -7,11 +7,9 @@ import type { Template } from "../engine";
 // Checkboxes are glyph squares (□) immediately to the right (higher x, i.e. printed just before,
 // in RTL reading order) of each option's label; centres calibrated visually against page renders.
 //
-// Known engine limitation (see aig.ts/harel.ts precedent): boolean ClaimData fields
-// (accident.police.notified, garage.is_arrangement, injured_persons[].hospitalized,
-// accident.is_paid_transport) cannot be drawn via the checkbox type, since engine.ts only
-// positions checkboxes when the value is a string (enum), not a boolean — the corresponding
-// on-form כן/לא boxes are therefore left unmapped.
+// Boolean כן/לא checkboxes (engine.ts checkbox type now also matches boolean values via
+// options.yes/options.no): accident.police.notified, garage.is_arrangement,
+// injured_persons[].hospitalized, accident.is_paid_transport.
 const shlomo: Template = {
   insurer: "שלמה",
   srcFile: "shlomo.pdf",
@@ -57,6 +55,12 @@ const shlomo: Template = {
     { key: "accident.location", right: 430, y: 563, size: 7 },
     { key: "accident.police.station", right: 202, y: 563, size: 7 },
     { key: "accident.police.log_number", right: 107, y: 563, size: 7 },
+    {
+      key: "accident.police.notified",
+      type: "checkbox",
+      size: 6,
+      options: { yes: [229.5, 580.5], no: [230, 569.3] },
+    },
 
     { key: "accident.description", right: 470, y: 549, size: 8 },
 
@@ -74,6 +78,12 @@ const shlomo: Template = {
     { key: "garage.name", right: 493, y: 350, size: 7 },
     { key: "garage.phone", right: 393, y: 350, size: 7 },
     { key: "assessor_name", right: 150, y: 350, size: 8 },
+    {
+      key: "garage.is_arrangement",
+      type: "checkbox",
+      size: 6,
+      options: { yes: [258, 352], no: [233.2, 352] },
+    },
 
     // ===== פרטי כלי רכב המעורבים (צד ג' — הרכב הפוגע) =====
     { key: "third_parties.0.vehicle_plate", right: 549, y: 317, size: 8 },
@@ -104,18 +114,44 @@ const shlomo: Template = {
     { key: "injured_persons.0.id_number", right: 298, y: 178, size: 7 },
     { key: "injured_persons.0.age", right: 163, y: 155, size: 8 },
     { key: "injured_persons.0.injury_nature", right: 543, y: 155, size: 8 },
+    {
+      key: "injured_persons.0.hospitalized",
+      type: "checkbox",
+      size: 6,
+      options: { yes: [193.8, 163], no: [45.8, 163] },
+    },
 
     { key: "injured_persons.1.name", right: 567, y: 141, size: 8 },
     { key: "injured_persons.1.address", right: 434, y: 141, size: 7 },
     { key: "injured_persons.1.id_number", right: 298, y: 141, size: 7 },
     { key: "injured_persons.1.age", right: 163, y: 118, size: 8 },
     { key: "injured_persons.1.injury_nature", right: 543, y: 118, size: 8 },
+    {
+      key: "injured_persons.1.hospitalized",
+      type: "checkbox",
+      size: 6,
+      options: { yes: [193.8, 120], no: [45.8, 120] },
+    },
 
     { key: "injured_persons.2.name", right: 567, y: 104, size: 8 },
     { key: "injured_persons.2.address", right: 434, y: 104, size: 7 },
     { key: "injured_persons.2.id_number", right: 298, y: 104, size: 7 },
     { key: "injured_persons.2.age", right: 163, y: 81, size: 8 },
     { key: "injured_persons.2.injury_nature", right: 543, y: 81, size: 8 },
+    {
+      key: "injured_persons.2.hospitalized",
+      type: "checkbox",
+      size: 6,
+      options: { yes: [193.8, 76], no: [45.8, 76] },
+    },
+
+    // ===== מידע נוסף (תחתית הטופס) =====
+    {
+      key: "accident.is_paid_transport",
+      type: "checkbox",
+      size: 6,
+      options: { yes: [204.2, 57], no: [179.4, 57] },
+    },
 
     // ===== הצהרה =====
     { key: "declarations.date", right: 209, y: 40, size: 9 },

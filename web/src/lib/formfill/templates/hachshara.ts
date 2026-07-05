@@ -24,6 +24,12 @@ const hachshara: Template = {
         third_party_settlement: [242, 677],
       },
     },
+    // "בהסדר מוסכים" כן/לא — same row as סוג תביעה, left of "אי הגשת תביעה".
+    {
+      key: "garage.is_arrangement",
+      type: "checkbox",
+      options: { yes: [245, 676], no: [200, 676] },
+    },
 
     // ── א. פרטי המבוטח ──────────────────────────────────────────────────────
     { key: "insured.first_name", right: 455, y: 645 },
@@ -85,6 +91,12 @@ const hachshara: Template = {
     { key: "third_parties.0.owner_name", right: 468, y: 140 },
     { key: "third_parties.0.insurer", right: 360, y: 113 },
     { key: "third_parties.0.policy_number", right: 490, y: 113 },
+    // "הניתנה הודעה למשטרה" כן/לא (same row as TP insurer/policy #, just below).
+    {
+      key: "accident.police.notified",
+      type: "checkbox",
+      options: { yes: [186, 109], no: [149, 109] },
+    },
 
     // ── Page 2: עדים ────────────────────────────────────────────────────────
     { key: "witnesses.0.name", page: 1, right: 468, y: 435 },

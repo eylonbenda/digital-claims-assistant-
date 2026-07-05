@@ -21,6 +21,18 @@ const migdal: Template = {
     { key: "insured.mobile", right: 112, y: 605, size: 9 },
     { key: "insured.phone", right: 537, y: 605, size: 9 },
     { key: "insured.email", right: 284, y: 605, size: 8 },
+    // "האם משטרת ישראל התערבה באירוע?" — box sits immediately left of each label (RTL).
+    {
+      key: "accident.police.notified",
+      type: "checkbox",
+      options: { yes: [416, 77], no: [438, 77] },
+    },
+    // "האם הרכב שימש... להסעת נוסעים בשכר..." (same convention as police row above).
+    {
+      key: "accident.is_paid_transport",
+      type: "checkbox",
+      options: { yes: [131, 90], no: [151, 90] },
+    },
 
     // ב. פרטי כלי רכב
     { key: "vehicle.plate", right: 536, y: 515 },
@@ -46,6 +58,8 @@ const migdal: Template = {
     { key: "driver.license_number", right: 441, y: 380 },
     { key: "driver.license_type", right: 264, y: 380, size: 9 },
     { key: "driver.license_date", right: 115, y: 380, size: 9 },
+    // "כתובת דואר אלקטרוני" — leftmost column of the driver row (id_number row, y=440).
+    { key: "driver.email", right: 140, y: 440, size: 8 },
 
     // ד. פרטי האירוע
     { key: "accident.date", right: 558, y: 335 },
@@ -66,6 +80,17 @@ const migdal: Template = {
     { key: "accident.location", right: 350, y: 317, size: 9 },
     // תיאור האירוע — first blank line below the label
     { key: "accident.description", right: 561, y: 225, size: 8 },
+
+    // ── Page 2 (index 1) ────────────────────────────────────────────────────
+
+    // ה. פרטי נפגעי גוף — row 1: "האם הנפגע אושפז בבי"ח" כן/לא
+    {
+      key: "injured_persons.0.hospitalized",
+      type: "checkbox",
+      page: 1,
+      size: 9,
+      options: { yes: [337, 459], no: [359, 459] },
+    },
 
     // ── Page 3 (index 2) ────────────────────────────────────────────────────
 
@@ -90,6 +115,14 @@ const migdal: Template = {
         third_party: [523, 592],
         unknown: [197, 592],
       },
+    },
+    // ט. הצהרות המבוטח — "אני מסכים/ה שהאגף לשירותי מידע במשרד התחבורה יעביר מידע..."
+    // (Ministry of Transport data-bureau consent) — single checkbox, no "לא" glyph.
+    {
+      key: "declarations.data_consent",
+      type: "checkbox",
+      page: 2,
+      options: { yes: [428, 370] },
     },
   ],
 };

@@ -16,7 +16,7 @@ import type { Template } from "../engine";
 //             1 = page 2 (injured persons x3 / work-related yes-no questions / witnesses (dup) /
 //                          bank account / mailing address for refund).
 //
-// SCHEMA GAPS (present on form, no canonical key, or engine boolean-checkbox limitation):
+// SCHEMA GAPS (present on form, no canonical key):
 //  - Top incident-type checkboxes (תאונה / גניבת רכב / רדיו טייפ / מק אש / אחר) — a different
 //    taxonomy from ClaimData.claim_type (own_policy/third_party_report/settlement/unknown, which
 //    is about who pays); no canonical field for "incident category". Left unmapped.
@@ -25,15 +25,11 @@ import type { Template } from "../engine";
 //  - "טלפון לברורים" (inquiries phone/fax/mobile) — no canonical key.
 //  - "שים לב, יש לצרף..." attachment-reminder checkboxes (6 document types) — instructional, not
 //    a data field; no canonical key.
-//  - garage.is_arrangement ("הסדר○ / לא הסדר○") — boolean; engine checkboxes only match string
-//    enum values (same known limitation as other insurer templates), so it never draws. Left
-//    unmapped even though the boxes were located (x=125 "הסדר", x=76 "לא הסדר", y=666).
-//  - driver.license_number's neighbouring "האם הרשיון נפסל?" (was license revoked, כן/לא) and
-//    "תוקף רשיון מ:___ עד:___" (license validity range) — no canonical keys.
+//  - driver.license_number's neighbouring "האם הרשיון נפסל?" (was license revoked, כן/לא) — no
+//    canonical key (revocation status isn't in ClaimData). "תוקף רשיון מ:___" (license validity
+//    FROM-date) also has no canonical key — only the "עד:" (expiry) half is mapped below.
 //  - "מהו התמרור המוצב בדרכו..." (road sign at accident) x2, "מי מעורב משאית/אופנוע/נגרר/רכב
 //    חונה" (vehicle-type-involved yes/no) x4 — no canonical keys.
-//  - accident.police.notified is boolean — engine checkbox limitation. The כן/לא box is on
-//    page 1 in the accident row ("האם חובא לידיעת המשטרה", x≈267/241, y≈554). Left unmapped.
 //  - third_parties[0] block (top, w/ insurer+policy) has no owner_name cell (only driver_name);
 //    third_parties[0].owner_name left unmapped for that row.
 //  - third_parties[].agent_name / damage_description — not present on this form for any TP row.
@@ -42,6 +38,8 @@ import type { Template } from "../engine";
 //    account_number only).
 //  - "הועבר לתביעת גוף בתאריך" (transferred to bodily-injury claim on date) — no canonical key.
 //  - injured_persons[].age — not collected on this form.
+//  - injured_persons[].hospitalized — no separate כן/לא box for this on the form; "אשפוז (שם
+//    בי"ח)" is a single free-text cell (mapped to injured_persons[].hospital), not a boolean box.
 //  - declarations.poa_third_party / data_consent — boolean declaration checkmarks pre-printed on
 //    the form (✓ glyphs already baked into the template graphic); no canonical key needed/usable.
 const phoenix: Template = {
@@ -54,6 +52,13 @@ const phoenix: Template = {
     // ── מוסך / שמאי ──────────────────────────────────────────────────────────
     { key: "garage.name", right: 300, y: 665, size: 9 },
     { key: "assessor_name", right: 485, y: 665, size: 9 },
+    // הסדר○ / לא הסדר○ circles, y=666 (now mappable via yes/no checkbox options)
+    {
+      key: "garage.is_arrangement",
+      type: "checkbox",
+      size: 8,
+      options: { yes: [125, 666], no: [76, 666] },
+    },
 
     // ── א. פרטי המבוטח ───────────────────────────────────────────────────────
     // "שם המבוטח" is a SINGLE narrow cell (no separate first/last columns) — both names share
@@ -83,6 +88,9 @@ const phoenix: Template = {
     { key: "driver.id_number", right: 420, y: 600, size: 6 },
     { key: "driver.license_number", right: 320, y: 591, size: 6 },
     { key: "driver.license_type", right: 259, y: 591, size: 6 },
+    // תוקף רשיון מ:___ עד:___ — "עד:" cell only (no canonical key for "מ:" from-date);
+    // cell spans x≈85-145, label "עד:" printed at its right edge (~x=137-145), y=596 baseline.
+    { key: "driver.license_expiry", right: 130, y: 596, size: 6 },
 
     // ── ג. פרטי הרכב ─────────────────────────────────────────────────────────
     { key: "vehicle.plate", right: 530, y: 570, size: 8 },
@@ -96,8 +104,15 @@ const phoenix: Template = {
     { key: "accident.time", right: 435, y: 550, size: 8 },
     // NOTE: accident.area_type (urban/intercity/parking/junction) has no matching checkbox on
     // this form — the only nearby circles are יום/לילה (day/night, no canonical field) and the
-    // "האם חובא לידיעת המשטרה" police-notified boolean (engine limitation, see file header).
+    // "האם חובא לידיעת המשטרה" police-notified boolean (mapped below via yes/no options).
     { key: "accident.location", right: 375, y: 550, size: 7 },
+    // האם הובא לידיעת המשטרה — כן/לא circles, y=554
+    {
+      key: "accident.police.notified",
+      type: "checkbox",
+      size: 8,
+      options: { yes: [267, 554], no: [241, 554] },
+    },
 
     // מי לדעתך אחראי לתאונה? (fault) — glyph circles, y≈353 (visually re-derived; the boxdetect
     // triplet near y=337 was a false lead / different element — see full-page ruled crosscheck)
@@ -192,8 +207,14 @@ const phoenix: Template = {
         to_from_work: [419, 625],
       },
     },
-    // האם היתה הסעה בשכר? — boolean; engine checkbox limitation, left unmapped (box at
-    // כן≈[419,595] לא≈[388,595] if a future engine version supports boolean checkboxes).
+    // האם היתה הסעה בשכר? — כן/לא circles, y=569 (question 3, page 2)
+    {
+      key: "accident.is_paid_transport",
+      type: "checkbox",
+      page: 1,
+      size: 8,
+      options: { yes: [423, 569], no: [392, 569] },
+    },
 
     // ── פרטי חשבון הבנק ──────────────────────────────────────────────────────
     { key: "bank_account.bank", page: 1, right: 558, y: 390, size: 7 },
