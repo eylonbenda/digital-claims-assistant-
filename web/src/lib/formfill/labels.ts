@@ -34,3 +34,8 @@ export const LABELS: Record<string, Record<string, string>> = {
   },
   "driver.license_origin": { israeli: "ישראלי", foreign: "זר" },
 };
+
+// Third-party vehicle type shares the vehicle.type vocabulary. Array indices are
+// normalized out of the key before lookup (third_parties.0.vehicle_type ->
+// third_parties.vehicle_type), see engine.ts.
+LABELS["third_parties.vehicle_type"] = LABELS["vehicle.type"];

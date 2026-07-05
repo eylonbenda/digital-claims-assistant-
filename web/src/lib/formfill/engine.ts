@@ -57,7 +57,10 @@ export async function fillForm(
     if (raw == null || raw === "") continue;
     // Enum fields rendered as free text get their Hebrew label (vehicle.type "private" -> "פרטי").
     // Checkbox forms are unaffected — they map the enum key to a box above.
-    const s = LABELS[f.key]?.[String(raw)] ?? String(raw);
+    // Array indices are normalized out for the vocabulary lookup, so
+    // third_parties.0.vehicle_type resolves LABELS["third_parties.vehicle_type"].
+    const labelKey = f.key.replace(/\.\d+(?=\.)/g, "");
+    const s = (LABELS[f.key] ?? LABELS[labelKey])?.[String(raw)] ?? String(raw);
     const size = f.size ?? 10;
     const w = font.widthOfTextAtSize(s, size);
     // Hebrew drawn in logical order — pdf-lib + fontkit shape RTL. Right-anchored.
