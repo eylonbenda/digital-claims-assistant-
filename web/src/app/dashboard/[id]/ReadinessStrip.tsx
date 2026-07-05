@@ -23,7 +23,7 @@ export default function ReadinessStrip({
   blocking,
   nextMilestone,
   clientPhone,
-  accessToken,
+  uploadUrl,
   clientName,
 }: {
   claimId: string;
@@ -31,7 +31,8 @@ export default function ReadinessStrip({
   blocking: BlockingItem[];
   nextMilestone: NextMilestone | null;
   clientPhone: string | null;
-  accessToken: string;
+  // Absolute /c/<token> link, built server-side so SSR/CSR render identically.
+  uploadUrl: string;
   clientName: string | null;
 }) {
   const router = useRouter();
@@ -68,11 +69,6 @@ export default function ReadinessStrip({
 
   if (blocking.length > 0) {
     const wa = clientPhone ? waPhone(clientPhone) : null;
-    // Built on click-render — window.location.origin is client-only.
-    const uploadUrl =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/c/${accessToken}`
-        : `/c/${accessToken}`;
     const msg = [
       `שלום${clientName ? ` ${clientName.split(" ")[0]}` : ""}, בהמשך לתביעה שלך —`,
       `כדי שנוכל להתקדם מול חברת הביטוח חסרים המסמכים הבאים:`,

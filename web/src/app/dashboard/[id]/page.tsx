@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -77,6 +78,13 @@ export default async function ClaimDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  // Absolute origin for links baked into rendered HTML (e.g. the WhatsApp
+  // message body) — computed server-side so SSR and client hydration match.
+  const hdrs = await headers();
+  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const origin = host ? `${proto}://${host}` : "";
 
   const supabase = await createClient();
   const {
@@ -329,7 +337,7 @@ export default async function ClaimDetailPage({
             nextMilestone ? { key: nextMilestone.key, label: nextMilestone.label } : null
           }
           clientPhone={claim.client_phone}
-          accessToken={claim.access_token}
+          uploadUrl={`${origin}/c/${claim.access_token}`}
           clientName={claim.client_name}
         />
 
