@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-05**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-04**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -20,7 +20,7 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 | 2 | Data model + agent Auth + claim creation + link | ✅ **done** (pending Supabase provisioning) — schema + RLS in `web/db/schema.sql`; migrations in `web/db/migrations/` (001 agent setup, 002 PostgREST grants); auth routes + middleware + dashboard written. **Needs real Supabase keys in `web/.env.local`.** |
 | 3 | Collection web-app | ✅ done — `web/src/components/collection/CollectionWizard.tsx` (10-step RTL wizard, incl. **own-insurer select** + **document-upload step**). Submit calls `POST /api/claims/submit`. |
 | 4 | AI processing | ✅ done — `POST /api/analyze` → `web/src/lib/ai/analyze.ts`. **Now a two-layer classifier**: the LLM emits narrative signals only; a deterministic `web/src/lib/claims/classify.ts` owns the track + confidence. Analysis cached in `summary_json.analysis`. Wired into the wizard's review step + agent detail page. |
-| 5 | Form overlay fill | ✅ **done + persisted** — `GET/POST /api/forms/[insurer]` (preview/fill). Insurers wired: **all 9** (הכשרה, מגדל, מנורה, הראל, AIG, שלמה, ליברה, הפניקס, איילון — הפניקס/איילון mapped visually, no OCR). **Now written to `generated_forms` + Storage**: auto-filled at submit from the claimant's insurer, and `GET /api/claims/[id]/form/[insurer]` (agent, RLS-gated) regenerates on demand (latest-per-insurer). |
+| 5 | Form overlay fill | ✅ **done + persisted** — `GET/POST /api/forms/[insurer]` (preview/fill). Insurers wired: הכשרה, מגדל, מנורה. **Now written to `generated_forms` + Storage**: auto-filled at submit from the claimant's insurer, and `GET /api/claims/[id]/form/[insurer]` (agent, RLS-gated) regenerates on demand (latest-per-insurer). **Agent can now edit/complete the canonical form fields** (`FormFieldEditor` → `PATCH /api/claims/[id]/form-data`, stored in `summary_json.form_data`; `effectiveClaimData` prefers it, client `collected` left untouched). Remaining insurer templates + OCR for הפניקס/איילון deferred. |
 | 6 | Per-track checklist | ✅ **done** — dynamic per-track config `web/src/lib/claims/checklist.ts` (base/late/conditional/milestone sections; doc items auto-check from `claim_documents`, milestones tick via `PATCH /api/claims/[id]/checklist`, conditional items driven by circumstance flags — migration `004`). Agent uploads later docs via `POST /api/claims/[id]/documents`; confirms track via `PATCH /api/claims/[id]/classify`. Rendered on `/dashboard/[id]`. |
 | 7 | Basic dashboard | ✅ **done** — `web/src/app/dashboard/page.tsx` (claims list) + **`/dashboard/[id]` claim detail**: proposed classification (confidence + rationale), uploaded docs (signed-URL previews + zoom), the checklist panel, agent doc upload, and the filled accident-notice form. Feeds from Supabase RLS. **Needs Supabase keys to go live.** |
 | 8 | UX polish + run with design partner | ❌ not started |
@@ -81,6 +81,8 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 ### Done since last sync (2026-07-02 → 07-05)
 - **All 6 remaining insurer templates mapped** (`web/src/lib/formfill/templates/`): הראל, AIG, שלמה, ליברה, הפניקס, איילון — registered in `formfill/index.ts`, source PDFs bundled under `formfill/assets/`. הפניקס (broken glyph encoding) + איילון (scanned) authored **visually from renders — no OCR**. All 9 insurers now fillable via `GET/POST /api/forms/[insurer]`.
 - **Third-party vehicle-type labels**: `engine.ts` now strips array indices before the `LABELS` lookup, so `third_parties.N.vehicle_type` reuses the `vehicle.type` vocabulary (`labels.ts`).
+### Done since last sync (2026-07-02 → 07-04)
+- **Agent edits accident-form fields:** `FormFieldEditor` on `/dashboard/[id]` lets the agent complete/correct the canonical form fields; `PATCH /api/claims/[id]/form-data` persists the edited `ClaimData` to `summary_json.form_data` (logs a `form_data_edited` event) without touching the client's `collected` submission. New `web/src/lib/formfill/effective.ts` (`effectiveClaimData`) — the form-fill route prefers `form_data`, falling back to `collected`.
 
 ### Remaining work
 - **AI doc-validation** (spec only — `docs/ai-doc-validation.md`): is the uploaded file actually a driver's license? Phase 1 = classify-only warning.
