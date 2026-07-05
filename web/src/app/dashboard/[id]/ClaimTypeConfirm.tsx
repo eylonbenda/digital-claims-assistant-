@@ -38,10 +38,8 @@ export default function ClaimTypeConfirm({
   const router = useRouter();
   const confirmed = currentType !== "unknown";
 
-  // Force an explicit pick when the agent must choose (report vs settlement),
-  // when confidence is low, or when nothing is confirmed yet.
-  const mustChoose =
-    !confirmed || classification.needsAgentChoice || classification.confidence === "low";
+  // Force an explicit pick when nothing is confirmed yet or confidence is low.
+  const mustChoose = !confirmed || classification.confidence === "low";
 
   const [selected, setSelected] = useState<ClaimType>(
     confirmed ? currentType : classification.proposedType,
@@ -50,7 +48,10 @@ export default function ClaimTypeConfirm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const showChooser = mustChoose || editing;
+  // The report-vs-settlement decision gets its own comparison UI instead of the
+  // generic 4-type chooser — it's the sharpest, most consequential pick.
+  const showDecisionAid = classification.needsAgentChoice && !confirmed && !editing;
+  const showChooser = (mustChoose || editing) && !showDecisionAid;
 
   async function save(type: ClaimType) {
     setBusy(true);
@@ -108,18 +109,25 @@ export default function ClaimTypeConfirm({
           ⚠️ {classification.viabilityWarning}
         </p>
       )}
-      {classification.needsAgentChoice && (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          נדרשת הכרעה: <strong>דוח פרטי</strong> (תיק מלא אחרי תיקון) מול <strong>הסדר</strong>{" "}
-          (אישור מראש מול מבטח צד ג').
-          {classification.tpStrategyRecommendation && (
-            <> המערכת ממליצה על {TYPE_LABELS[classification.tpStrategyRecommendation]}.</>
-          )}
-        </p>
-      )}
-
       {/* Action */}
-      {showChooser ? (
+      {showDecisionAid ? (
+        <div className="space-y-3">
+          <TpDecisionAid
+            recommended={classification.tpStrategyRecommendation}
+            busy={busy}
+            onChoose={save}
+          />
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            disabled={busy}
+            className="text-sm text-zinc-500 hover:underline disabled:opacity-50"
+          >
+            סיווג אחר (עצמי / לא ידוע)
+          </button>
+          {error && <p className="text-xs text-red-600">{error}</p>}
+        </div>
+      ) : showChooser ? (
         <div className="space-y-2">
           <span className="text-sm font-medium text-zinc-700">בחר/י סוג תביעה:</span>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -195,6 +203,111 @@ export default function ClaimTypeConfirm({
           {error && <span className="text-xs text-red-600">{error}</span>}
         </div>
       )}
+    </div>
+  );
+}
+
+// Report vs. settlement — the Layer-2 business decision. Both need identical facts;
+// the split is a treatment strategy, so the agent decides with the tradeoffs in view.
+// Content mirrors docs/claim-management.md (§tracks).
+const TP_OPTIONS: {
+  type: Extract<ClaimType, "third_party_report" | "third_party_settlement">;
+  title: string;
+  tagline: string;
+  pros: string[];
+  cons: string[];
+}[] = [
+  {
+    type: "third_party_report",
+    title: "דוח פרטי",
+    tagline: "תיק מלא, נאסף אחרי התיקון",
+    pros: [
+      "לא תלוי בשיתוף פעולה מוקדם של מבטח צד ג'",
+      "בסיס לפיצוי מלא — כולל ירידת ערך",
+    ],
+    cons: [
+      "מורכב — ~15 מסמכים (שמאי, חשבונית, קבלה, אי-הגשה)",
+      "איטי יותר; הלקוח מקדים תשלום על התיקון",
+    ],
+  },
+  {
+    type: "third_party_settlement",
+    title: "הסדר",
+    tagline: "אישור מראש מול מבטח צד ג'",
+    pros: [
+      "מהיר ופשוט — ~5 מסמכים",
+      "תיקון במוסך הסדר, ללא הקדמת תשלום",
+    ],
+    cons: [
+      "תלוי בהסכמת מבטח צד ג' מראש",
+      "לרוב ללא ירידת ערך / פיצוי מופחת",
+    ],
+  },
+];
+
+function TpDecisionAid({
+  recommended,
+  busy,
+  onChoose,
+}: {
+  recommended?: Extract<ClaimType, "third_party_report" | "third_party_settlement">;
+  busy: boolean;
+  onChoose: (type: ClaimType) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-sm font-medium text-zinc-700">
+        נדרשת הכרעת מסלול — שני המסלולים דורשים אותן עובדות, ההבדל הוא אסטרטגיית טיפול:
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {TP_OPTIONS.map((o) => {
+          const isRec = o.type === recommended;
+          return (
+            <div
+              key={o.type}
+              className={`flex flex-col rounded-xl border p-4 ${
+                isRec ? "border-blue-400 bg-blue-50/40" : "border-zinc-200"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-zinc-900">{o.title}</span>
+                {isRec && (
+                  <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-800">
+                    מומלץ
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-xs text-zinc-500">{o.tagline}</p>
+              <ul className="mt-2 space-y-1 text-xs">
+                {o.pros.map((p, i) => (
+                  <li key={i} className="flex gap-1.5 text-green-700">
+                    <span>+</span>
+                    <span>{p}</span>
+                  </li>
+                ))}
+                {o.cons.map((c, i) => (
+                  <li key={i} className="flex gap-1.5 text-zinc-500">
+                    <span>−</span>
+                    <span>{c}</span>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => onChoose(o.type)}
+                disabled={busy}
+                className={`mt-3 rounded-lg py-2 text-sm font-medium disabled:opacity-50 ${
+                  isRec
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "border border-zinc-300 text-zinc-700 hover:bg-zinc-50"
+                }`}
+              >
+                {busy ? "שומר…" : `בחר ${o.title}`}
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

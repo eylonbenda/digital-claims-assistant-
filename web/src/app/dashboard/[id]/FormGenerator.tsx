@@ -2,23 +2,29 @@
 
 import { useState } from "react";
 
-// Insurers with a coordinate template (mirrors web/src/lib/formfill/index.ts).
-const INSURERS: { key: string; label: string }[] = [
-  { key: "migdal", label: "מגדל" },
-  { key: "menora", label: "מנורה" },
-  { key: "hachshara", label: "הכשרה" },
-];
+export type InsurerOption = { key: string; label: string };
 
 export default function FormGenerator({
   claimId,
   hasData,
   hasStoredForm = false,
+  insurers,
+  defaultInsurer,
 }: {
   claimId: string;
   hasData: boolean;
   hasStoredForm?: boolean;
+  // Server-derived from the formfill template registry — stays in sync as
+  // insurer templates land, without bundling the templates client-side.
+  insurers: InsurerOption[];
+  // The claimant's own insurer, when we have a template for it.
+  defaultInsurer?: string | null;
 }) {
-  const [insurer, setInsurer] = useState(INSURERS[0].key);
+  const [insurer, setInsurer] = useState(
+    defaultInsurer && insurers.some((i) => i.key === defaultInsurer)
+      ? defaultInsurer
+      : insurers[0]?.key ?? "",
+  );
 
   if (!hasData) {
     return (
@@ -38,7 +44,7 @@ export default function FormGenerator({
         onChange={(e) => setInsurer(e.target.value)}
         className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
       >
-        {INSURERS.map((i) => (
+        {insurers.map((i) => (
           <option key={i.key} value={i.key}>
             {i.label}
           </option>
