@@ -204,6 +204,12 @@ export default async function ClaimDetailPage({
     }
   }
 
+  // docType → newest signed URL, so a satisfied checklist doc-item links straight
+  // to the file that satisfied it. `docs` is ascending by uploaded_at, so the last
+  // write per type wins (= most recent upload).
+  const docUrlByType: Record<string, string> = {};
+  for (const d of docs) if (d.url) docUrlByType[d.type] = d.url;
+
   const statusBadge =
     STATUS_BADGE[claim.status] ?? "bg-zinc-100 text-zinc-600 ring-zinc-200";
 
@@ -387,6 +393,7 @@ export default async function ClaimDetailPage({
                 claimId={claim.id}
                 claimType={claim.claim_type}
                 initialItems={checklistItems}
+                docUrls={docUrlByType}
               />
             </section>
           </div>
