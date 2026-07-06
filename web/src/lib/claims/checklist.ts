@@ -29,42 +29,6 @@ export const SECTION_LABELS: Record<ItemSection, string> = {
   milestone: "אבני דרך",
 };
 
-// ─── circumstance flags ───────────────────────────────────────────────────────
-// Real claim attributes the agent sets; they gate the conditional checklist below.
-export type ClaimFlag = keyof ClaimFlags;
-
-export const FLAG_DEFS: {
-  key: ClaimFlag;
-  label: string;
-  tracks: string[]; // which claim_types this circumstance is relevant to
-  warn?: string; // shown when enabled (a caution, not a doc requirement)
-}[] = [
-  { key: "theft", label: "גניבה / ונדליזם", tracks: ["own_policy"] },
-  { key: "lien", label: "רכב משועבד", tracks: ["own_policy"] },
-  { key: "business_use", label: "לקוח עסקי (עוסק / חברה)", tracks: ["own_policy"] },
-  {
-    key: "policy_activated",
-    label: "הופעלה פוליסת הלקוח",
-    tracks: ["third_party_report"],
-  },
-  {
-    key: "garage_network_rider",
-    label: "נבחרת מוסכים בפוליסה",
-    tracks: ["own_policy", "third_party_report", "third_party_settlement"],
-    warn: "תיקון מחוץ לרשת עלול לבטל תגמולים — ודא מוסך רשת / הסדר.",
-  },
-];
-
-// Conditional items that only apply when their circumstance flag is set. Keys not
-// listed here are unconditional. (policy_activated is handled specially below —
-// it swaps one doc for another rather than adding/removing one.)
-const FLAG_GATED: Partial<Record<string, ClaimFlag>> = {
-  police_report: "theft",
-  keys: "theft",
-  lien_release: "lien",
-  vat_offset_confirmation: "business_use",
-};
-
 // ─── per-track item configs ──────────────────────────────────────────────────
 
 const OWN_POLICY: ChecklistItemDef[] = [
@@ -154,13 +118,6 @@ export function computeChecklist(
       items = items.filter((i) => i.key !== "loss_confirmation");
     }
   }
-
-  // Drop circumstance-conditional items whose flag isn't set, so the checklist
-  // reflects this claim's actual situation instead of every possible one.
-  items = items.filter((item) => {
-    const req = FLAG_GATED[item.key];
-    return !req || flags[req];
-  });
 
   return items.map((item) => ({
     ...item,

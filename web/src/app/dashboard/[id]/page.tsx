@@ -17,7 +17,6 @@ import AgentDocUpload from "./AgentDocUpload";
 import ClaimTypeConfirm from "./ClaimTypeConfirm";
 import ReadinessStrip from "./ReadinessStrip";
 import NotesPanel, { type NoteView } from "./NotesPanel";
-import CircumstancePanel from "./CircumstancePanel";
 
 const BUCKET = "claim-docs";
 const SIGNED_TTL = 60 * 60; // 1h — agent viewing session
@@ -383,19 +382,6 @@ export default async function ClaimDetailPage({
                     classification={classification}
                   />
                 </details>
-              </section>
-            )}
-
-            {claim.claim_type !== "unknown" && (
-              <section>
-                <h2 className="mb-3 text-lg font-semibold text-zinc-900">
-                  נסיבות התביעה
-                </h2>
-                <CircumstancePanel
-                  claimId={claim.id}
-                  claimType={claim.claim_type}
-                  flags={flags}
-                />
               </section>
             )}
 
