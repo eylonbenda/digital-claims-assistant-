@@ -111,7 +111,7 @@ Notes:
 - **Per-track checklist** (implemented — `web/src/lib/claims/checklist.ts`) = a per-track config (`claim_type` → required docs/steps, grouped into `base` / `late` / `conditional` / `milestone` sections) ⊕ a presence check against `claim_documents` / collected fields. A **derived view, not a task engine** (the `tasks` table is reserved for phase-2 active workflow). `computeChecklist()` is a pure function, run server-side on the claim detail page.
   - Document items **auto-check** from `claim_documents` presence — uploaded at intake, or **by the agent from the dashboard with a type tag** (`POST /api/claims/[id]/documents`; MVP = Option A; a follow-up client/garage upload link is phase 2).
   - Conditional items (police report / keys / lien release / VAT offset / loss-vs-no-claim confirmation) are toggled by the claim's **circumstance flags** (`theft`, `lien`, `business_use`, `policy_activated`, `garage_network_rider`).
-  - Pure action-milestones (e.g. "submitted to insurer", "car at garage", "payment received") are **manual ticks** (`PATCH /api/claims/[id]/checklist`), persisted in a small `checklist_state` JSON on `claims`.
+  - Pure action-milestones (e.g. "submitted to insurer", "car at garage", "payment received") are **manual ticks** (`PATCH /api/claims/[id]/checklist`), persisted in a small `checklist_state` JSON on `claims`. Ticking a **submit** or **payment** milestone also advances `claims.status` (→ `submitted` / `closed`, setting `submitted_at` / `closed_at`) so the hero badge can't disagree with the checklist — **forward-only**: unticking never downgrades.
 - `claim_events` — full audit; important for regulation and debugging.
 - ID numbers (`id_number`) → consider **field-level encryption** (beyond at-rest).
 
