@@ -29,6 +29,9 @@ const menora: Template = {
     { key: "driver.license_type", right: 267, y: 668, size: 8 },
     // תאריך הוצאה cell: x≈144–203 (label right-edge 203), data right≈200
     { key: "driver.license_date", right: 200, y: 668, size: 8 },
+    // "כתובת דואר אלקטרוני (לכתובת מייל זה יישלחו הדיוורים ממנורה):" — blank line
+    // below the driver license row; label starts at x=348, underline runs left of it.
+    { key: "driver.email", right: 345, y: 654, size: 8 },
 
     // ג. פרטי הרכב
     { key: "vehicle.plate", right: 484, y: 615 },
@@ -40,19 +43,40 @@ const menora: Template = {
     // ד. פרטי התאונה
     { key: "accident.date", right: 476, y: 596 },
     { key: "accident.time", right: 406, y: 596 },
-    { key: "accident.location", right: 288, y: 596, size: 8 },
+    // Location cell (x≈289-403) has the printed label on the top line (y=596);
+    // the answer goes on the blank line below the label, inside the same cell
+    // (cell bottom border ≈ y=583). Fixed 2026-07-06 — value used to collide with the label.
+    { key: "accident.location", right: 400, y: 587, size: 8 },
 
-    // תוך כדי עבודה / בדרך לעבודה? — glyph yes/no boxes
+    // The y=573 line packs three questions (per text dump): תוך כדי עבודה? כן=[350] לא=[323]
+    // / מעורבת משאית? כן=[225] לא=[198] (no canonical key) / הסעה בשכר? כן=[91] לא=[65].
+    // trip_type originally pointed at the הסעה בשכר circles by mistake — fixed 2026-07-05.
     {
       key: "accident.trip_type",
       type: "checkbox",
       options: {
-        work: [91, 573],
-        to_from_work: [91, 573],
-        private: [65, 573],
-        taxi: [65, 573],
-        paid_transport: [65, 573],
+        work: [350, 573],
+        to_from_work: [350, 573],
+        private: [323, 573],
+        taxi: [323, 573],
+        paid_transport: [323, 573],
       },
+    },
+
+    // "האם היתה הסעה בשכר? כן ○ לא ○" — same row, right of the trip_type boxes.
+    {
+      key: "accident.is_paid_transport",
+      type: "checkbox",
+      options: { yes: [91, 573], no: [65, 573] },
+    },
+
+    // "האם הובא לידעת המשטרה" — stacked כן (top)/לא (bottom) circles, cell x≈197-226
+    // (to the right of the "רשיונך נפסל?" cell at x≈165-193 — verified no overlap).
+    // Glyph circles sit at x=214 (w=7); corrected from [210,594]/[210,584] 2026-07-06.
+    {
+      key: "accident.police.notified",
+      type: "checkbox",
+      options: { yes: [214, 595], no: [214, 585] },
     },
 
     // מי אחראי לארוע התאונה? — glyph checkboxes (w=7 empty glyphs), y=458
@@ -89,10 +113,31 @@ const menora: Template = {
     // טל. בית (TP owner phone): label x=225-249 at y=343 → data right=224
     { key: "third_parties.0.phone", right: 224, y: 343, size: 8 },
 
+    // אשפוז — נפגעי גוף, שורה ראשונה: single circle (checked = hospitalized).
+    {
+      key: "injured_persons.0.hospitalized",
+      type: "checkbox",
+      options: { yes: [129, 253] },
+    },
+
+    // "אני ○ מאשר/ת טיפול בתביעת צד ג' בכפוף לתנאי הפוליסה." — single circle,
+    // authorizes third-party claim handling; closest match to poa_third_party.
+    {
+      key: "declarations.poa_third_party",
+      type: "checkbox",
+      options: { yes: [547, 435] },
+    },
+
     // מוסך + שמאי (תחתית הטופס)
     { key: "garage.name", right: 492, y: 62 },
     { key: "garage.phone", right: 383, y: 62, size: 9 },
     { key: "assessor_name", right: 154, y: 62 },
+    // "מוסך הסדר: כן ○ לא ○" — same bottom row, right of garage phone/assessor.
+    {
+      key: "garage.is_arrangement",
+      type: "checkbox",
+      options: { yes: [261, 62], no: [233, 62] },
+    },
   ],
 };
 

@@ -31,6 +31,20 @@ const get = (obj: unknown, p: string): unknown =>
     obj
   );
 
+// Synthetic ".full_name" key for forms with a single merged name cell: joins the
+// parent object's first_name + last_name (e.g. "insured.full_name", "driver.full_name").
+const resolve = (obj: unknown, p: string): unknown => {
+  if (p.endsWith(".full_name")) {
+    const parent = get(obj, p.slice(0, -".full_name".length));
+    if (parent && typeof parent === "object") {
+      const { first_name, last_name } = parent as { first_name?: string; last_name?: string };
+      return [first_name, last_name].filter(Boolean).join(" ") || undefined;
+    }
+    return undefined;
+  }
+  return get(obj, p);
+};
+
 const isCheckbox = (f: Field): f is CheckboxField => "type" in f && f.type === "checkbox";
 
 export async function fillForm(
@@ -49,15 +63,22 @@ export async function fillForm(
     const page = pages[f.page ?? 0];
     if (isCheckbox(f)) {
       const val = get(data, f.key);
-      const pos = typeof val === "string" ? f.options[val] : undefined;
+      // Booleans match the "yes"/"no" option keys — for on-form כן/לא boxes driven by
+      // boolean canonical fields (police.notified, garage.is_arrangement, …).
+      const optKey =
+        typeof val === "boolean" ? (val ? "yes" : "no") : typeof val === "string" ? val : undefined;
+      const pos = optKey !== undefined ? f.options[optKey] : undefined;
       if (pos) page.drawText("X", { x: pos[0], y: pos[1], size: f.size ?? 11, font, color: MARK });
       continue;
     }
-    const raw = get(data, f.key);
+    const raw = resolve(data, f.key);
     if (raw == null || raw === "") continue;
     // Enum fields rendered as free text get their Hebrew label (vehicle.type "private" -> "פרטי").
     // Checkbox forms are unaffected — they map the enum key to a box above.
-    const s = LABELS[f.key]?.[String(raw)] ?? String(raw);
+    // Array indices are normalized out for the vocabulary lookup, so
+    // third_parties.0.vehicle_type resolves LABELS["third_parties.vehicle_type"].
+    const labelKey = f.key.replace(/\.\d+(?=\.)/g, "");
+    const s = (LABELS[f.key] ?? LABELS[labelKey])?.[String(raw)] ?? String(raw);
     const size = f.size ?? 10;
     const w = font.widthOfTextAtSize(s, size);
     // Hebrew drawn in logical order — pdf-lib + fontkit shape RTL. Right-anchored.

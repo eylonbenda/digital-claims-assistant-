@@ -28,6 +28,7 @@ export interface ThirdParty {
   phone?: string;
   address?: string;
   insurer?: string;
+  insurance_type?: InsuranceType; // סוג ביטוח צד ג' (מקיף/צד ג'/חובה)
   policy_number?: string;
   agent_name?: string;
   damage_description?: string;
@@ -85,9 +86,11 @@ export interface ClaimData {
     address_line?: string;
     phone?: string;
     mobile?: string;
+    email?: string;
     license_number?: string;
     license_type?: string; // דרגת רישיון
     license_date?: string; // תאריך הוצאת רישיון
+    license_expiry?: string; // בתוקף עד
     license_origin?: LicenseOrigin; // ישראלי / זר
     relation_to_insured?: string; // קרבה למבוטח
   };
