@@ -24,7 +24,7 @@ The client gets a **personal link** from the agent (via WhatsApp) and opens an R
 
 ### Step 1 — Triage (injuries)
 - First question, always: **"Are there injuries?"**
-- If **yes** → show immediate emergency guidance (101 / police), and raise an **urgent flag** to the agent in real time (`urgent=true`). Collection continues, but the claim is marked for priority handling.
+- If **yes** → show immediate emergency guidance (101 / police) + raise an **urgent flag** (`urgent=true`). **Bodily injury (נפגעי גוף) is a different legal regime** (ביטוח חובה, not רכוש): the system handles the *רכוש* (property) part of the case, and **hands the גוף component to the agent** (out of MVP scope). This is a hard scope boundary, not just a color flag. Collection of the property side continues.
 - If **no** → normal continuation.
 
 ### Step 2 — Guided collection (step-by-step, not one long form)
@@ -54,7 +54,7 @@ Each step = one screen, one action. Auto-save after each step (resumable).
 - **On submit** (`POST /api/claims/submit`), if a template exists for the client's insurer, the "הודעה על תאונה" form is filled **once** and stored in the case file (`generated_forms` + `form_generated` event). Best-effort — a fill error never blocks submission.
 
 ### Step 5 — At the agent
-- The claim appears in the dashboard with status `submitted`. Opening it (`/dashboard/[id]`) shows the AI summary, the **proposed classification** (with confidence + rationale), the **uploaded documents** (signed-URL previews), and the **pre-filled accident-notice form**.
+- The claim appears in the dashboard with status `submitted`. Opening it (`/dashboard/[id]`) is a **cockpit**: a hero (identity + status badge + days-open + AI one-liner), a **readiness strip** (the page's thesis — submittable or not; when blocking docs are missing it offers a **one-click WhatsApp chase** pre-filled with the missing items + the client's upload link, otherwise a button to advance the next milestone), the **proposed classification** (with confidence + rationale), the **uploaded documents** (signed-URL previews), the **pre-filled accident-notice form**, and an **agent notes** scratchpad (`claim_notes`, via `POST /api/claims/[id]/notes`).
 - The agent **confirms/adjusts the claim type** (`PATCH /api/claims/[id]/classify` → advances to `classified`, or leaves it `unknown`) and works the **dynamic per-track checklist**: document items auto-check as files arrive (the agent uploads later docs via `POST /api/claims/[id]/documents` with a type tag), and milestone ticks persist via `PATCH /api/claims/[id]/checklist`. The agent can also regenerate / fill a different insurer's form on demand (which re-persists, replacing the prior copy per insurer), and can **edit/complete the canonical form fields** before regenerating (`PATCH /api/claims/[id]/form-data`) — the edits are stored in `summary_json.form_data`, the client's original `collected` submission is left untouched for audit, and the form fill prefers `form_data` when present (`effectiveClaimData`).
 
 ---
@@ -84,8 +84,14 @@ created → in_progress → submitted → classified → form_generated → chec
 **Phase-2 handling sub-states** (active workflow): `claim_opened`, `in_handling`, `pending_documents`, `pending_assessor`, `pending_payment`, and the granular `WAITING_FOR_*` statuses (garage invoice, appraiser report, no-claim confirmation, insurance history).
 
 **Cross-cutting dimensions:**
-- `urgent` (injuries) — an attribute, not a state; affects sorting and color in the dashboard.
+- `urgent` (injuries) — an attribute, not a state; affects sorting and color in the dashboard. Also triggers the גוף/רכוש scope split (see Step 1).
 - `claim_type` (`own_policy` / `third_party_report` / `third_party_settlement` / `unknown`) — can start `unknown` and be revised; drives the per-track checklist (and the phase-2 task track). See [claim-management.md](claim-management.md).
+
+**Time/SLA dimension (cross-cutting):**
+- `sla_clock_started_at` — set when all *blocking* required docs are present; `decision_due_at = +30 calendar days`; expect a 90-day continued-investigation notice if unresolved.
+- `limitation_deadline` — per route: **3 years** (own policy, §31 חוק חוזה הביטוח) vs **7 years** (TP property damage as civil tort). Filing with the insurer does **not** toll this — only a court filing does.
+- The dashboard surfaces "clock not started: missing X" and "decision due in N days" as first-class alerts.
+- Full constants and citations: [regulatory-clock.md](regulatory-clock.md).
 
 ---
 
@@ -97,11 +103,19 @@ created → in_progress → submitted → classified → form_generated → chec
 - **Multiple vehicles / injured** → "add another" option for third parties.
 - **Non-technical client** → fallback: the agent fills manually from the dashboard, or the client sends materials and the system organizes them.
 - **Duplicates** → token per claim; warn the agent before opening a duplicate claim for the same event.
+- **Theft / vandalism** → set `theft=true`; checklist requires police report + keys. Classification `own_policy`.
+- **Lien on vehicle** → set `lien=true`; lien-release document required before payout is processed.
+- **Business client** → set `business_use=true`; accountant VAT-offset confirmation required.
+- **"נבחרת מוסכים" rider** → set `garage_network_rider=true`; warn prominently that out-of-network repair may void תגמולים.
+- **Repair outside insurer network** (without a מוסך הסדר pre-authorisation) → checklist flags need for a pre-repair estimate (duty to mitigate; without it the insurer may dispute the invoice).
+- **Client already activated own policy, third party at fault** → set `policy_activated=true`; fork `third_party_report` to residual-loss (הפסדים) — requires `loss_confirmation` instead of `no_claim_confirmation`.
 
 ---
 
-## 4. Agent flow (dashboard)
-- **Claim list** sorted by status + urgency flag + claim type, with search.
-- **Claim card:** client details, vehicle, documents/photos (view), AI summary, missing-info alerts, the generated "הודעה על תאונה" form, and a **static checklist by claim type** (required docs/steps + what's missing + next step). Active task automation is phase 2.
-- **Create new claim:** agent enters client name + phone → system generates a personal link to send.
-- **Alerts:** urgent flag (injuries), missing document, claim awaiting classification.
+## 4. Agent flow (dashboard) — three screens
+
+- **Inbox ("what's stuck")** — grouped first by *blocking dependency*, then *regulatory clock*, not by insurer or date. Mental model = task tickets: *missing license / awaiting אישור אי-הגשה / awaiting invoice / awaiting קבלה / clock not started / decision due in N days / approved for settlement / paid / requires continued investigation (המשך בירור)*. Search + filter by `claim_type`, urgency.
+- **Claim 360** — client/vehicle/3rd-party details, document list + previews, AI summary, an **event Timeline** (from `claim_events`), the generated הודעה-על-תאונה form, the per-track conditional checklist (mandatory/conditional/blocking semantics), a **regulatory-clock widget** (clock started/not + days to decision), and an explicit **Next action**.
+- **Templates/Exports** — accident notice (done) + demand letter + submission packet (see `generated_forms.kind` in [architecture.md](architecture.md)).
+- **Create new claim:** agent enters client name + phone → personal link to send.
+- **Alerts:** urgent flag (injuries), blocking dependency missing, claim awaiting classification, regulatory clock approaching decision date.

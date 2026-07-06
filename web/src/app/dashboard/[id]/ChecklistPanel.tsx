@@ -8,9 +8,11 @@ type Props = {
   claimId: string;
   claimType: string;
   initialItems: ComputedItem[];
+  // docType → signed URL for uploaded docs, so satisfied doc-items link to the file.
+  docUrls?: Record<string, string>;
 };
 
-export default function ChecklistPanel({ claimId, claimType, initialItems }: Props) {
+export default function ChecklistPanel({ claimId, claimType, initialItems, docUrls = {} }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   // Local optimistic state for milestone toggles only
@@ -22,6 +24,12 @@ export default function ChecklistPanel({ claimId, claimType, initialItems }: Pro
 
   const sections = groupBySection(items);
   const blockingMissing = items.filter((i) => i.blocking && !i.done);
+
+  // Claim-level progress over the required items — optional/conditional docs don't
+  // drag it down, so "done" reflects readiness, not busywork.
+  const required = items.filter((i) => i.mandatory);
+  const requiredDone = required.filter((i) => i.done).length;
+  const pct = required.length ? Math.round((requiredDone / required.length) * 100) : 0;
 
   async function toggleMilestone(key: string, next: boolean) {
     setLocalState((s) => ({ ...s, [key]: next }));
@@ -43,6 +51,28 @@ export default function ChecklistPanel({ claimId, claimType, initialItems }: Pro
 
   return (
     <div className="space-y-4">
+      {/* Claim-level progress over required items. */}
+      <div>
+        <div className="mb-1 flex items-center justify-between text-sm">
+          <span className="font-medium text-zinc-700">התקדמות התיק</span>
+          <span className="text-zinc-500">
+            {requiredDone} מתוך {required.length} · {pct}%
+          </span>
+        </div>
+        <div
+          className="h-2 overflow-hidden rounded-full bg-zinc-100"
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div
+            className={`h-full rounded-full transition-all ${pct === 100 ? "bg-green-600" : "bg-teal-500"}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
       {blockingMissing.length > 0 && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span className="font-medium">חסרים מסמכים חוסמים ({blockingMissing.length}):</span>{" "}
@@ -58,6 +88,7 @@ export default function ChecklistPanel({ claimId, claimType, initialItems }: Pro
           items={sItems}
           isPending={isPending}
           onToggle={toggleMilestone}
+          docUrls={docUrls}
         />
       ))}
     </div>
@@ -70,12 +101,14 @@ function SectionGroup({
   items,
   isPending,
   onToggle,
+  docUrls,
 }: {
   section: ItemSection;
   label: string;
   items: ComputedItem[];
   isPending: boolean;
   onToggle: (key: string, next: boolean) => void;
+  docUrls: Record<string, string>;
 }) {
   const done = items.filter((i) => i.done).length;
 
@@ -94,6 +127,11 @@ function SectionGroup({
             item={item}
             isPending={isPending}
             onToggle={onToggle}
+            docUrl={
+              item.kind === "doc" && item.done && item.docType
+                ? docUrls[item.docType]
+                : undefined
+            }
           />
         ))}
       </ul>
@@ -105,10 +143,12 @@ function ChecklistRow({
   item,
   isPending,
   onToggle,
+  docUrl,
 }: {
   item: ComputedItem;
   isPending: boolean;
   onToggle: (key: string, next: boolean) => void;
+  docUrl?: string;
 }) {
   const isMilestone = item.kind === "milestone";
 
@@ -145,6 +185,17 @@ function ChecklistRow({
           <span className="mr-1 text-xs text-amber-600">(מותנה)</span>
         )}
       </div>
+
+      {docUrl && (
+        <a
+          href={docUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 text-xs font-medium text-blue-600 hover:underline"
+        >
+          צפה בקובץ ↗
+        </a>
+      )}
 
       {item.blocking && !item.done && (
         <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
