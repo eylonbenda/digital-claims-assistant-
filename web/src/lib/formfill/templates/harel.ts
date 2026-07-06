@@ -75,8 +75,8 @@ const harel: Template = {
     { key: "accident.date", right: 526, y: 492, size: 9 },
     { key: "accident.time", right: 355, y: 492, size: 9 },
     // location cell spans x=28-274; label "מקום/כתובת אתר התאונה" sits at its right portion
-    // (178-271), so the answer must be written to the label's left.
-    { key: "accident.location", right: 174, y: 492, size: 8 },
+    // (169-271), so the answer must be written to the label's left with a clear gap.
+    { key: "accident.location", right: 160, y: 492, size: 8 },
 
     { key: "accident.police.station", right: 409, y: 473, size: 8 },
     { key: "accident.police.log_number", right: 344, y: 473, size: 8 },

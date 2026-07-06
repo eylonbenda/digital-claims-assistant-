@@ -43,7 +43,10 @@ const menora: Template = {
     // ד. פרטי התאונה
     { key: "accident.date", right: 476, y: 596 },
     { key: "accident.time", right: 406, y: 596 },
-    { key: "accident.location", right: 288, y: 596, size: 8 },
+    // Location cell (x≈289-403) has the printed label on the top line (y=596);
+    // the answer goes on the blank line below the label, inside the same cell
+    // (cell bottom border ≈ y=583). Fixed 2026-07-06 — value used to collide with the label.
+    { key: "accident.location", right: 400, y: 587, size: 8 },
 
     // The y=573 line packs three questions (per text dump): תוך כדי עבודה? כן=[350] לא=[323]
     // / מעורבת משאית? כן=[225] לא=[198] (no canonical key) / הסעה בשכר? כן=[91] לא=[65].
@@ -67,11 +70,13 @@ const menora: Template = {
       options: { yes: [91, 573], no: [65, 573] },
     },
 
-    // "האם הובא לידעת המשטרה" — stacked כן (top)/לא (bottom) circles.
+    // "האם הובא לידעת המשטרה" — stacked כן (top)/לא (bottom) circles, cell x≈197-226
+    // (to the right of the "רשיונך נפסל?" cell at x≈165-193 — verified no overlap).
+    // Glyph circles sit at x=214 (w=7); corrected from [210,594]/[210,584] 2026-07-06.
     {
       key: "accident.police.notified",
       type: "checkbox",
-      options: { yes: [210, 594], no: [210, 584] },
+      options: { yes: [214, 595], no: [214, 585] },
     },
 
     // מי אחראי לארוע התאונה? — glyph checkboxes (w=7 empty glyphs), y=458

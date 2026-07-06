@@ -207,13 +207,14 @@ const phoenix: Template = {
         to_from_work: [419, 625],
       },
     },
-    // האם היתה הסעה בשכר? — כן/לא circles, y=569 (question 3, page 2)
+    // האם היתה הסעה בשכר? — כן/לא circles, y=553 (question 3, page 2; box centers verified via
+    // boxdetect.mjs: y=569 is actually "האם מעורב נגרר" one row above — corrected here)
     {
       key: "accident.is_paid_transport",
       type: "checkbox",
       page: 1,
       size: 8,
-      options: { yes: [423, 569], no: [392, 569] },
+      options: { yes: [423, 553], no: [392, 553] },
     },
 
     // ── פרטי חשבון הבנק ──────────────────────────────────────────────────────
