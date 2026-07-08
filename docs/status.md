@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-05**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-08**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -25,7 +25,9 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 | 7 | Basic dashboard | ✅ **done** — `web/src/app/dashboard/page.tsx` (claims list) + **`/dashboard/[id]` claim-detail cockpit**: hero (identity + status badge + days-open + AI one-liner), a **readiness strip** (blocking-docs-or-not, with a one-click **WhatsApp doc chase** / advance-next-milestone), proposed classification (confidence + rationale, collapsed once confirmed), the checklist panel, agent doc upload, the filled accident-notice form (insurer options now server-derived from the `formfill` template registry), collapsible form-field editor, and an **agent notes** scratchpad (`claim_notes`, `POST /api/claims/[id]/notes`, migration `005`). Feeds from Supabase RLS. **Needs Supabase keys to go live.** |
 | 8 | UX polish + run with design partner | ❌ not started |
 
-**In one line:** the full pipeline is built end-to-end — collection + upload + two-layer classification + form persistence + dynamic per-track checklist + agent surfacing. Blocked only on Supabase provisioning (run migrations `001`–`005`, incl. the `claim-docs` bucket).
+Beyond the original build order, the **task engine** (phase-2 active workflow, pulled forward) is now built: `web/src/lib/tasks/` (pure `advanceTasks` + `runEngine` + per-track rule table) drives event-driven task spawn/complete + forward-only status advance; `TasksPanel` on `/dashboard/[id]` + next-task column on the dashboard list; `POST`/`PATCH /api/claims/[id]/tasks[/taskId]` for manual tasks. Migration `006` adds the `tasks` columns + idempotency index. Vitest wired (`web/vitest.config.ts`, engine/template unit tests).
+
+**In one line:** the full pipeline is built end-to-end — collection + upload + two-layer classification + form persistence + per-track checklist + agent surfacing + a task engine. Blocked only on Supabase provisioning (run migrations `001`–`006`, incl. the `claim-docs` bucket).
 
 ---
 
@@ -85,8 +87,14 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 - **Claim-detail cockpit** (`/dashboard/[id]` redesign): a hero (identity + colored status badge + days-open + AI one-liner), a **readiness strip** (`ReadinessStrip.tsx`) that states whether the claim is submittable — red with a **one-click WhatsApp doc chase** (pre-filled with the blocking items + the client's `/c/[token]` upload link) when blocking docs are missing, amber when unclassified, green with an advance-next-milestone button otherwise — a two-column action/controls layout, and collapsible classification + form-field-editor sections. All readiness signals are derived from the existing checklist (no extra I/O). `FormGenerator` insurer options are now server-derived from the `formfill` template registry (`Object.keys(templates)`).
 - **Agent notes:** `NotesPanel.tsx` + `POST /api/claims/[id]/notes` — a timestamped free-text scratchpad for the case file, backed by the new `claim_notes` table (**migration `005`**, RLS via `claim_belongs_to_me`).
 
+### Done since last sync (2026-07-05 → 07-08)
+- **Task engine** (`web/src/lib/tasks/`): pure, idempotent `advanceTasks` (`engine.ts`) over a declarative per-track rule table (`templates.ts`, due-offsets from `regulatory-clock.md`) → `{ spawn, complete, statusAdvance }`. `runEngine` (`runner.ts`) fetches state, applies inserts/updates, and runs **best-effort** (never fails the triggering mutation) inline from the submit / classify / checklist / documents routes on the events `claim_submitted` / `track_confirmed` / `milestone_ticked` / `doc_uploaded`. Status advances are forward-only + compare-and-set.
+- **Manual tasks + UI:** `POST /api/claims/[id]/tasks`, `PATCH /api/claims/[id]/tasks/[taskId]` (agent ad-hoc tasks, `source='manual'`, never auto-completed); `TasksPanel` on `/dashboard/[id]` + a next-task/overdue column + due-date sort on the dashboard list.
+- **Migration `006`** (`tasks` columns `key`/`source`/`note`/`completed_at` + `tasks_claim_key_open_uniq` partial index). **Vitest** wired (`web/vitest.config.ts`; `engine.test.ts` + `templates.test.ts`).
+
 ### Remaining work
 - **AI doc-validation** (spec only — `docs/ai-doc-validation.md`): is the uploaded file actually a driver's license? Phase 1 = classify-only warning.
+- **Task-engine reminders/notifications:** the engine spawns/completes tasks but does not yet send reminders or chase externally (phase 2).
 - **Remaining insurer templates**: shlomo/libra/harel/aig (+ OCR for הפניקס/איילון) via the `pdf-form-mapper` agent.
 - **UX polish** (step 8): design partner run.
 

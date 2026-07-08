@@ -88,9 +88,13 @@ payments        (id, claim_id → claims, payee_type, method, amount,
                  -- method: bank_transfer | check | assignment_of_rights (המחאת זכויות)
                  -- status: expected | paid | reconciled
 tasks           (id, claim_id → claims, title, track, status,
-                 due_at, assignee, created_at)
+                 due_at, assignee, created_at,
+                 key, source, note, completed_at)   -- task-engine cols (migration 006)
                  -- track: own_policy | third_party_report | third_party_settlement
                  -- status: todo | in_progress | blocked | done
+                 -- key: stable template id (null = manual task, never auto-completed)
+                 -- source: template (engine-spawned) | manual (agent-created)
+                 -- partial unique index: at most one OPEN template task per (claim, key)
 generated_forms (id, claim_id → claims, kind, insurer, storage_path, created_at)
                  -- kind: accident_notice (הודעה על תאונה)
                  --       | demand_letter (מכתב דרישה — required for TP route)
@@ -108,7 +112,8 @@ collection_progress  -- can live as JSON on claims or as a separate table
 Notes:
 - `access_token` — non-sequential identifier for client access (never expose `claims.id`).
 - `summary_json` — the client's `collected` submission + Claude's structured output (`analysis`: summary + missing-info checklist). When the agent edits/completes the accident-notice fields, the corrected canonical `ClaimData` is stored alongside as `form_data` (`effectiveClaimData` prefers it over `collected`; the original `collected` is never mutated, for audit).
-- **Per-track checklist** (implemented — `web/src/lib/claims/checklist.ts`) = a per-track config (`claim_type` → required docs/steps, grouped into `base` / `late` / `conditional` / `milestone` sections) ⊕ a presence check against `claim_documents` / collected fields. A **derived view, not a task engine** (the `tasks` table is reserved for phase-2 active workflow). `computeChecklist()` is a pure function, run server-side on the claim detail page.
+- **Per-track checklist** (implemented — `web/src/lib/claims/checklist.ts`) = a per-track config (`claim_type` → required docs/steps, grouped into `base` / `late` / `conditional` / `milestone` sections) ⊕ a presence check against `claim_documents` / collected fields. `computeChecklist()` is a pure function, run server-side on the claim detail page — a **derived view**, distinct from the task engine (below), which reads this checklist to decide what work to spawn.
+- **Task engine** (implemented — `web/src/lib/tasks/`) = the active workflow layer over the `tasks` table. A **pure, idempotent** decision function `advanceTasks()` (`engine.ts`) takes the computed checklist + open tasks + an `EngineEvent` (`claim_submitted` / `track_confirmed` / `milestone_ticked` / `doc_uploaded`) and returns `{ spawn, complete, statusAdvance }` from a declarative per-track rule table (`templates.ts`: spawn-on / complete-when conditions, relative due-date offsets sourced from [regulatory-clock.md](regulatory-clock.md)). `runner.ts` (`runEngine`) fetches state → runs the pure fn → applies inserts/updates, and is called **best-effort** (never fails the triggering mutation) inline from the submit / classify / checklist / documents routes. Status advances are forward-only (`STATUS_ORDER`) and compare-and-set. Agents also add ad-hoc tasks (`source='manual'`, never auto-completed) via `POST /api/claims/[id]/tasks` and edit them via `PATCH /api/claims/[id]/tasks/[taskId]`; surfaced on `/dashboard/[id]` (`TasksPanel`) and as a next-task column on the dashboard list.
   - Document items **auto-check** from `claim_documents` presence — uploaded at intake, or **by the agent from the dashboard with a type tag** (`POST /api/claims/[id]/documents`; MVP = Option A; a follow-up client/garage upload link is phase 2).
   - Conditional items (police report / keys / lien release / VAT offset / loss-vs-no-claim confirmation) are toggled by the claim's **circumstance flags** (`theft`, `lien`, `business_use`, `policy_activated`, `garage_network_rider`).
   - Pure action-milestones (e.g. "submitted to insurer", "car at garage", "payment received") are **manual ticks** (`PATCH /api/claims/[id]/checklist`), persisted in a small `checklist_state` JSON on `claims`.
@@ -159,8 +164,8 @@ We collect sensitive PII (ID, license, third-party details) under Israel's Priva
 ---
 
 ## 6. What's in MVP vs later
-✅ **MVP:** collection web-app (RTL), basic dashboard, photo storage, AI summary + missing-info, **4-way classification label** (own-policy / TP-report / TP-settlement / unknown), "הודעה על תאונה" form fill, **static per-track checklist**.
-⏭️ **After validation:** active task workflow (reminders, chasing garage/appraiser/insurer), WhatsApp Business API, document OCR, multi-agency / permissions, billing (Stripe), analytics, subrogation track.
+✅ **MVP:** collection web-app (RTL), basic dashboard, photo storage, AI summary + missing-info, **4-way classification label** (own-policy / TP-report / TP-settlement / unknown), "הודעה על תאונה" form fill, **per-track checklist**, **task engine** (event-driven task spawn/complete + forward-only status advance; pulled forward from phase 2).
+⏭️ **After validation:** WhatsApp Business API, document OCR, multi-agency / permissions, billing (Stripe), analytics, subrogation track. Task-engine reminders/notifications still to build.
 
 ---
 
