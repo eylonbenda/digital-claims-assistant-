@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { templates, fillForm } from "@/lib/formfill";
 import { toClaimData, type State } from "@/lib/collection/claim-state";
+import { runEngine } from "@/lib/tasks/runner";
 
 export const runtime = "nodejs"; // form-fill reads the template PDF + font from disk
 
@@ -108,6 +109,9 @@ export async function POST(request: Request) {
     type: "submitted",
     payload_json: { sections: Object.keys(collected ?? {}) },
   });
+
+  // Reactive task engine: spawn the doc-chase task if base docs are missing.
+  await runEngine(claim.id, { type: "claim_submitted" });
 
   return Response.json({ ok: true });
 }

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sniffFileType, SNIFF_MIME, SNIFF_EXT } from "@/lib/files/sniff";
+import { runEngine } from "@/lib/tasks/runner";
 
 export const runtime = "nodejs";
 
@@ -105,6 +106,9 @@ export async function POST(
     await svc.storage.from(BUCKET).remove([path]);
     return Response.json({ error: `could not record document: ${dbErr.message}` }, { status: 500 });
   }
+
+  // Reactive task engine: auto-complete chase tasks this doc satisfies.
+  await runEngine(id, { type: "doc_uploaded", docType: type });
 
   return Response.json({ ok: true, id: doc.id, type, path });
 }
