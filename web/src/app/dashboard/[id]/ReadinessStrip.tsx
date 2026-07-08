@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 export type BlockingItem = { key: string; label: string };
 export type NextMilestone = { key: string; label: string };
+export type NextTask = { title: string; due_at: string | null; overdue: boolean };
 
 // Israeli local mobile → wa.me international format (0521234567 → 972521234567).
 function waPhone(phone: string): string | null {
@@ -25,6 +26,7 @@ export default function ReadinessStrip({
   clientPhone,
   uploadUrl,
   clientName,
+  nextTask = null,
 }: {
   claimId: string;
   claimType: string;
@@ -34,6 +36,7 @@ export default function ReadinessStrip({
   // Absolute /c/<token> link, built server-side so SSR/CSR render identically.
   uploadUrl: string;
   clientName: string | null;
+  nextTask?: NextTask | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -104,9 +107,19 @@ export default function ReadinessStrip({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-green-200 bg-green-50 px-5 py-3">
-      <p className="text-sm font-semibold text-green-800">
-        ✓ אין מסמכים חוסמים{nextMilestone ? ` — השלב הבא: ${nextMilestone.label}` : " — כל אבני הדרך הושלמו"}
-      </p>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-green-800">
+          ✓ אין מסמכים חוסמים{nextMilestone ? ` — השלב הבא: ${nextMilestone.label}` : " — כל אבני הדרך הושלמו"}
+        </p>
+        {nextTask && (
+          <p className={`mt-0.5 text-sm ${nextTask.overdue ? "font-medium text-red-700" : "text-green-700"}`}>
+            {nextTask.overdue ? "⚠ משימה באיחור: " : "המשימה הבאה: "}
+            {nextTask.title}
+            {nextTask.due_at &&
+              ` · עד ${new Date(nextTask.due_at).toLocaleDateString("he-IL", { day: "numeric", month: "numeric" })}`}
+          </p>
+        )}
+      </div>
       <div className="flex items-center gap-3">
         {error && <span className="text-xs text-red-600">{error}</span>}
         {nextMilestone && (

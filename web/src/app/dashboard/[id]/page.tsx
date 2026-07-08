@@ -17,6 +17,7 @@ import AgentDocUpload from "./AgentDocUpload";
 import ClaimTypeConfirm from "./ClaimTypeConfirm";
 import ReadinessStrip from "./ReadinessStrip";
 import NotesPanel, { type NoteView } from "./NotesPanel";
+import TasksPanel, { type TaskView } from "./TasksPanel";
 
 const BUCKET = "claim-docs";
 const SIGNED_TTL = 60 * 60; // 1h — agent viewing session
@@ -105,7 +106,7 @@ export default async function ClaimDetailPage({
 
   // RLS-scoped reads (claim_belongs_to_me): the claimant-uploaded docs, the
   // auto-generated accident-notice form(s), and the agent's notes.
-  const [{ data: rows }, { data: formRows }, { data: noteRows }] = await Promise.all([
+  const [{ data: rows }, { data: formRows }, { data: noteRows }, { data: taskRows }] = await Promise.all([
     supabase
       .from("claim_documents")
       .select("id, type, storage_path, mime, uploaded_at")
@@ -121,8 +122,16 @@ export default async function ClaimDetailPage({
       .select("id, body, created_at")
       .eq("claim_id", id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("tasks")
+      .select("id, key, title, status, due_at, note, source")
+      .eq("claim_id", id)
+      .order("due_at", { ascending: true }),
   ]);
   const notes: NoteView[] = noteRows ?? [];
+  const tasks: TaskView[] = taskRows ?? [];
+  const openTasks = tasks.filter((t) => t.status !== "done");
+  const nextTask = openTasks.find((t) => t.due_at) ?? openTasks[0] ?? null;
 
   // Lazy-cached AI analysis: computes once on first view, then reads from
   // summary_json.analysis. Supplies the narrative signals (incident kind / inferred
@@ -345,6 +354,17 @@ export default async function ClaimDetailPage({
           clientPhone={claim.client_phone}
           uploadUrl={`${origin}/c/${claim.access_token}`}
           clientName={claim.client_name}
+          nextTask={
+            nextTask
+              ? {
+                  title: nextTask.title,
+                  due_at: nextTask.due_at,
+                  overdue:
+                    !!nextTask.due_at &&
+                    new Date(nextTask.due_at).getTime() < Date.now(),
+                }
+              : null
+          }
         />
 
         {/* ── Two-column: action items (wide) · compact controls (narrow) ── */}
@@ -384,6 +404,18 @@ export default async function ClaimDetailPage({
                 </details>
               </section>
             )}
+
+            <section>
+              <h2 className="mb-3 text-lg font-semibold text-zinc-900">
+                משימות
+                {openTasks.length > 0 && (
+                  <span className="mr-1 text-sm font-normal text-zinc-400">
+                    ({openTasks.length})
+                  </span>
+                )}
+              </h2>
+              <TasksPanel claimId={claim.id} tasks={tasks} />
+            </section>
 
             <section>
               <h2 className="mb-3 text-lg font-semibold text-zinc-900">
