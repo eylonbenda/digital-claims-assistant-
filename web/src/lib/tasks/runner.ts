@@ -136,15 +136,17 @@ export async function runEngine(
       }
       // Compare-and-set: only apply if status hasn't moved since our read.
       // A stale read matches 0 rows and the update is a no-op; the next
-      // event re-derives from the (now current) status.
-      const { error } = await svc
+      // event re-derives from the (now current) status. count lets us tell a
+      // real advance from a lost race, so we don't log a phantom event or
+      // return a status the DB never took.
+      const { error, count } = await svc
         .from("claims")
-        .update(patch)
+        .update(patch, { count: "exact" })
         .eq("id", claimId)
         .eq("status", claim.status);
       if (error) {
         if (error.code !== "23505") console.error("status advance failed:", claimId, error);
-      } else {
+      } else if (count && count > 0) {
         events.push({
           claim_id: claimId,
           type: "status_advanced",
