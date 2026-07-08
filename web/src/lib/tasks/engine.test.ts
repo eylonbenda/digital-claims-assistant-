@@ -106,6 +106,18 @@ describe("spawning", () => {
     const r = run({ event: { type: "doc_uploaded", docType: "drivers_license" } });
     expect(r.spawn).toEqual([]);
   });
+
+  it("does not spawn tasks on a closed claim, but still auto-completes", () => {
+    const open = task({ key: "chase_appraiser", id: "t-c" });
+    const r = run({
+      status: "closed",
+      docs: ["appraiser_report"],
+      openTasks: [open],
+      event: { type: "milestone_ticked", key: "car_at_garage", done: true },
+    });
+    expect(r.spawn).toEqual([]);
+    expect(r.complete).toContain("t-c"); // auto-complete still runs
+  });
 });
 
 describe("idempotency", () => {

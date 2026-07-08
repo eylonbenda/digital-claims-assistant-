@@ -19,26 +19,32 @@ export async function runEngine(
   try {
     const svc = createServiceClient();
 
-    const [{ data: claim }, { data: docs }, { count: formCount }, { data: taskRows }] =
-      await Promise.all([
-        svc
-          .from("claims")
-          .select(
-            "id, claim_type, status, at_fault_insurer, checklist_state, submitted_at, theft, lien, business_use, policy_activated, garage_network_rider",
-          )
-          .eq("id", claimId)
-          .single(),
-        svc.from("claim_documents").select("type").eq("claim_id", claimId),
-        svc
-          .from("generated_forms")
-          .select("id", { count: "exact", head: true })
-          .eq("claim_id", claimId),
-        svc
-          .from("tasks")
-          .select("id, key, title, status, due_at, source")
-          .eq("claim_id", claimId)
-          .neq("status", "done"),
-      ]);
+    const [
+      { data: claim },
+      { data: docs },
+      { count: formCount },
+      { data: taskRows },
+      { data: tpRows },
+    ] = await Promise.all([
+      svc
+        .from("claims")
+        .select(
+          "id, claim_type, status, at_fault_insurer, checklist_state, submitted_at, theft, lien, business_use, policy_activated, garage_network_rider",
+        )
+        .eq("id", claimId)
+        .single(),
+      svc.from("claim_documents").select("type").eq("claim_id", claimId),
+      svc
+        .from("generated_forms")
+        .select("id", { count: "exact", head: true })
+        .eq("claim_id", claimId),
+      svc
+        .from("tasks")
+        .select("id, key, title, status, due_at, source")
+        .eq("claim_id", claimId)
+        .neq("status", "done"),
+      svc.from("third_parties").select("insurer").eq("claim_id", claimId),
+    ]);
     if (!claim) return null;
 
     const hasForm = (formCount ?? 0) > 0;
@@ -56,11 +62,16 @@ export async function runEngine(
       },
     );
 
+    // The TP insurer lives in third_parties (written at submit), not claims.at_fault_insurer
+    // (which no route populates). Prefer it; fall back to the claims column for forward-compat.
+    const atFaultInsurer =
+      (tpRows ?? []).map((t) => t.insurer).find((v) => !!v) ?? claim.at_fault_insurer ?? null;
+
     const result = advanceTasks({
       claim: {
         claimType: claim.claim_type as ClaimType,
         status: claim.status as ClaimStatus,
-        atFaultInsurer: claim.at_fault_insurer ?? null,
+        atFaultInsurer,
       },
       checklist,
       hasGeneratedForm: hasForm,
@@ -82,7 +93,9 @@ export async function runEngine(
         due_at: s.due_at,
         source: "template",
       });
-      if (!error) {
+      if (error) {
+        if (error.code !== "23505") console.error("task spawn failed:", s.key, error);
+      } else {
         events.push({
           claim_id: claimId,
           type: "task_spawned",
@@ -96,7 +109,9 @@ export async function runEngine(
         .from("tasks")
         .update({ status: "done", completed_at: new Date().toISOString() })
         .in("id", result.complete);
-      if (!error) {
+      if (error) {
+        if (error.code !== "23505") console.error("task complete failed:", result.complete, error);
+      } else {
         for (const id of result.complete) {
           events.push({
             claim_id: claimId,
@@ -119,8 +134,17 @@ export async function runEngine(
       ) {
         patch.submitted_at = new Date().toISOString();
       }
-      const { error } = await svc.from("claims").update(patch).eq("id", claimId);
-      if (!error) {
+      // Compare-and-set: only apply if status hasn't moved since our read.
+      // A stale read matches 0 rows and the update is a no-op; the next
+      // event re-derives from the (now current) status.
+      const { error } = await svc
+        .from("claims")
+        .update(patch)
+        .eq("id", claimId)
+        .eq("status", claim.status);
+      if (error) {
+        if (error.code !== "23505") console.error("status advance failed:", claimId, error);
+      } else {
         events.push({
           claim_id: claimId,
           type: "status_advanced",

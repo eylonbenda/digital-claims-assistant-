@@ -55,18 +55,23 @@ export function advanceTasks(input: EngineInput): EngineResult {
 
   // 2 · spawn. Skip if an open task holds the key (idempotency) or the
   //     completion condition already holds (never spawn satisfied work).
+  //     Never spawn on a terminal claim (closed/abandoned) — auto-complete
+  //     above still runs so stale open tasks get closed out.
+  const terminal = claim.status === "closed" || claim.status === "abandoned";
   const openKeys = new Set(openTasks.filter((t) => t.key).map((t) => t.key!));
   const spawn: TaskSpawn[] = [];
-  for (const rule of rules) {
-    if (openKeys.has(rule.key)) continue;
-    if (!rule.spawnOn(event, ctx)) continue;
-    if (rule.completeWhen(ctx)) continue;
-    spawn.push({
-      key: rule.key,
-      title: rule.title,
-      track: claim.claimType === "unknown" ? null : claim.claimType,
-      due_at: new Date(now.getTime() + rule.dueDays * DAY_MS).toISOString(),
-    });
+  if (!terminal) {
+    for (const rule of rules) {
+      if (openKeys.has(rule.key)) continue;
+      if (!rule.spawnOn(event, ctx)) continue;
+      if (rule.completeWhen(ctx)) continue;
+      spawn.push({
+        key: rule.key,
+        title: rule.title,
+        track: claim.claimType === "unknown" ? null : claim.claimType,
+        due_at: new Date(now.getTime() + rule.dueDays * DAY_MS).toISOString(),
+      });
+    }
   }
 
   // 3 · status advance — forward-only, event-gated (see plan table).
@@ -86,7 +91,6 @@ export function advanceTasks(input: EngineInput): EngineResult {
     case "doc_uploaded":
       break;
   }
-  const terminal = claim.status === "closed" || claim.status === "abandoned";
   const statusAdvance =
     !terminal && candidate && STATUS_ORDER[candidate] > STATUS_ORDER[claim.status]
       ? candidate
