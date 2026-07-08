@@ -18,6 +18,25 @@ export default async function DashboardPage() {
     )
     .order("created_at", { ascending: false });
 
+  // Earliest open task per claim (RLS-scoped). due_at-ascending with nulls
+  // last, so row 1 per claim = the next dated action.
+  const { data: taskRows } = await supabase
+    .from("tasks")
+    .select("claim_id, title, due_at")
+    .neq("status", "done")
+    .order("due_at", { ascending: true, nullsFirst: false });
+
+  const nextTaskByClaim = new Map<string, { title: string; due_at: string | null }>();
+  for (const t of taskRows ?? []) {
+    if (!nextTaskByClaim.has(t.claim_id)) {
+      nextTaskByClaim.set(t.claim_id, { title: t.title, due_at: t.due_at });
+    }
+  }
+  const claimsWithTasks = (claims ?? []).map((c) => ({
+    ...c,
+    next_task: nextTaskByClaim.get(c.id) ?? null,
+  }));
+
   return (
     <div className="min-h-screen bg-zinc-50">
       <header className="border-b border-zinc-200 bg-white px-6 py-4">
@@ -36,7 +55,7 @@ export default async function DashboardPage() {
           <NewClaimForm />
         </div>
 
-        <ClaimsTable claims={claims ?? []} />
+        <ClaimsTable claims={claimsWithTasks} />
       </main>
     </div>
   );
