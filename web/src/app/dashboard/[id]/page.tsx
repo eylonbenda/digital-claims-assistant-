@@ -361,6 +361,7 @@ export default async function ClaimDetailPage({
                   due_at: nextTask.due_at,
                   overdue:
                     !!nextTask.due_at &&
+                    // eslint-disable-next-line react-hooks/purity -- time-of-render read is intentional: overdue is a display state, recomputed per request
                     new Date(nextTask.due_at).getTime() < Date.now(),
                 }
               : null

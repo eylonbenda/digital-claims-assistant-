@@ -110,6 +110,7 @@ export default function ClaimsTable({ claims }: { claims: Claim[] }) {
           {rows.map((c) => {
             const overdue =
               !!c.next_task?.due_at &&
+              // eslint-disable-next-line react-hooks/purity -- time-of-render read is intentional: overdue is a display state, refreshed with the page
               new Date(c.next_task.due_at).getTime() < Date.now() &&
               c.status !== "closed";
             return (
