@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="402" viewBox="0 0 680 402" role="img">
+<title>How one event flows through the task engine</title>
+<desc>Four mutation routes emit events into runEngine, which fetches claim state, calls the pure advanceTasks function (auto-complete, spawn, status-advance), then applies the writes: insert tasks, mark done, patch status via compare-and-set, and log claim_events. The runner is best-effort; the engine is pure and unit-tested.</desc>
+<style>
+  text{font-family:'Segoe UI',Arial,sans-serif}
+  .th{font-weight:500;font-size:14px}
+  .ts{font-weight:400;font-size:12px}
+  .arr{stroke:#888780;stroke-width:1.5;fill:none}
+  rect{stroke-width:1}
+  .c-gray rect{fill:#F1EFE8;stroke:#5F5E5A}.c-gray .th{fill:#2C2C2A}.c-gray .ts{fill:#5F5E5A}
+  .c-blue rect{fill:#E6F1FB;stroke:#185FA5}.c-blue .th{fill:#042C53}.c-blue .ts{fill:#185FA5}
+  .c-purple rect{fill:#EEEDFE;stroke:#534AB7}.c-purple .th{fill:#26215C}.c-purple .ts{fill:#534AB7}
+  .lbl{font-weight:500;font-size:14px;fill:#26215C}
+  .lg{font-weight:400;font-size:12px;fill:#5F5E5A}
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<line class="arr" x1="112" y1="85" x2="250" y2="118" marker-end="url(#arrow)"/>
+<line class="arr" x1="266" y1="85" x2="312" y2="118" marker-end="url(#arrow)"/>
+<line class="arr" x1="420" y1="85" x2="368" y2="118" marker-end="url(#arrow)"/>
+<line class="arr" x1="574" y1="85" x2="430" y2="118" marker-end="url(#arrow)"/>
+
+<line class="arr" x1="340" y1="160" x2="340" y2="168" marker-end="url(#arrow)"/>
+<line class="arr" x1="235" y1="229" x2="253" y2="229" marker-end="url(#arrow)"/>
+<line class="arr" x1="425" y1="229" x2="443" y2="229" marker-end="url(#arrow)"/>
+
+<line class="arr" x1="320" y1="272" x2="130" y2="303" marker-end="url(#arrow)"/>
+<line class="arr" x1="333" y1="272" x2="266" y2="303" marker-end="url(#arrow)"/>
+<line class="arr" x1="347" y1="272" x2="420" y2="303" marker-end="url(#arrow)"/>
+<line class="arr" x1="360" y1="272" x2="556" y2="303" marker-end="url(#arrow)"/>
+
+<g class="c-gray"><rect x="45" y="45" width="134" height="40" rx="4"/><text class="th" x="112" y="63" text-anchor="middle">classify</text><text class="ts" x="112" y="77" text-anchor="middle">track_confirmed</text></g>
+<g class="c-gray"><rect x="199" y="45" width="134" height="40" rx="4"/><text class="th" x="266" y="63" text-anchor="middle">checklist</text><text class="ts" x="266" y="77" text-anchor="middle">milestone_ticked</text></g>
+<g class="c-gray"><rect x="353" y="45" width="134" height="40" rx="4"/><text class="th" x="420" y="63" text-anchor="middle">documents</text><text class="ts" x="420" y="77" text-anchor="middle">doc_uploaded</text></g>
+<g class="c-gray"><rect x="507" y="45" width="134" height="40" rx="4"/><text class="th" x="574" y="63" text-anchor="middle">submit</text><text class="ts" x="574" y="77" text-anchor="middle">claim_submitted</text></g>
+
+<g class="c-blue"><rect x="140" y="120" width="400" height="40" rx="4"/><text class="th" x="340" y="138" text-anchor="middle">runEngine — fetch state</text><text class="ts" x="340" y="152" text-anchor="middle">claim · docs · tasks · checklist</text></g>
+
+<rect x="48" y="170" width="584" height="102" rx="6" fill="none" stroke="#7F77DD" stroke-width="1" stroke-dasharray="4 3"/>
+<text class="lbl" x="340" y="189" text-anchor="middle">advanceTasks — pure · unit-tested</text>
+<g class="c-purple"><rect x="65" y="200" width="170" height="52" rx="4"/><text class="th" x="150" y="221" text-anchor="middle">1 · auto-complete</text><text class="ts" x="150" y="236" text-anchor="middle">close satisfied tasks</text></g>
+<g class="c-purple"><rect x="255" y="200" width="170" height="52" rx="4"/><text class="th" x="340" y="221" text-anchor="middle">2 · spawn</text><text class="ts" x="340" y="236" text-anchor="middle">rules whose trigger fires</text></g>
+<g class="c-purple"><rect x="445" y="200" width="170" height="52" rx="4"/><text class="th" x="530" y="221" text-anchor="middle">3 · status advance</text><text class="ts" x="530" y="236" text-anchor="middle">forward-only</text></g>
+
+<g class="c-blue"><rect x="45" y="303" width="134" height="46" rx="4"/><text class="th" x="112" y="323" text-anchor="middle">insert tasks</text><text class="ts" x="112" y="338" text-anchor="middle">= spawn</text></g>
+<g class="c-blue"><rect x="199" y="303" width="134" height="46" rx="4"/><text class="th" x="266" y="323" text-anchor="middle">mark done</text><text class="ts" x="266" y="338" text-anchor="middle">= complete</text></g>
+<g class="c-blue"><rect x="353" y="303" width="134" height="46" rx="4"/><text class="th" x="420" y="323" text-anchor="middle">patch status</text><text class="ts" x="420" y="338" text-anchor="middle">CAS · forward</text></g>
+<g class="c-blue"><rect x="507" y="303" width="134" height="46" rx="4"/><text class="th" x="574" y="323" text-anchor="middle">claim_events</text><text class="ts" x="574" y="338" text-anchor="middle">audit log</text></g>
+
+<g class="c-gray"><rect x="150" y="372" width="13" height="13" rx="3"/></g>
+<text class="lg" x="169" y="382" text-anchor="start">route</text>
+<g class="c-blue"><rect x="250" y="372" width="13" height="13" rx="3"/></g>
+<text class="lg" x="269" y="382" text-anchor="start">runner · I/O (best-effort)</text>
+<g class="c-purple"><rect x="470" y="372" width="13" height="13" rx="3"/></g>
+<text class="lg" x="489" y="382" text-anchor="start">pure engine</text>
+</svg>
