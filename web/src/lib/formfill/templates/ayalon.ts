@@ -1,179 +1,225 @@
 import type { Template } from "../engine";
 
 // Coordinate map: canonical field -> position on איילון (Ayalon) — הודעה על תאונת דרכים.
-// SCANNED / IMAGE-ONLY PDF (0 extractable glyphs) — every coordinate below was measured
-// PURELY VISUALLY from mupdf renders (.pdfwork/render.mjs + a custom cropx.mjs that renders
-// an arbitrary [xL,xR]x[yTop,yBot] point-rectangle at a given scale), reading cell borders
-// and label edges off the rendered pixels and converting back to PDF points:
-//   pt_x = xL + pixel_x/scale ; pt_y_from_top = yTop + pixel_y/scale ; pdf_y = pageH - pt_y_from_top
-// Page size: 598.68 x 826.56 pt (1 page, portrait). pageH = 826.56.
+// REWRITTEN 2026-07-11 for the insurer's NEW official form (docs/accidentStatementPdf/
+// איילון_טופס_הודעה_חדש.pdf, bundled as assets/ayalon.pdf). The old template mapped a
+// SCANNED/image-only PDF (different layout) — those coordinates are entirely obsolete and
+// have been discarded.
 //
-// Table quirk worth documenting: the "third parties" table's HEADER row (מס' רישוי / תוצרת-דגם /
-// סוג הרכב / שם חברת הביטוח / מס' פוליסה) does not reuse the same column split in every data
-// row — row1 (owner) and row2 (driver) reuse the header's rightmost column for name (plate row1 /
-// driver row2 share one column), the model column for "כתובתו" (address), and the insurer/policy
-// columns for id_number/phone respectively. Verified visually across multiple crops.
+// This new PDF has a clean extractable text layer. Coordinates were measured from printed-
+// label glyph positions via .pdfwork/coords.mjs and checkbox circle rectangles via
+// .pdfwork/boxdetect2.mjs (CTM-aware; boxdetect.mjs's raw coords ignore the page's transform
+// stack and are unreliable on this file — every checkbox below uses boxdetect2 output),
+// verified visually against .pdfwork/render.mjs crops. Page size 595x842pt (1 page,
+// portrait). Each label row is ~19-24pt tall with the printed label sitting at the TOP of the
+// cell — data is written a few points BELOW the label's own baseline, not on it.
 //
-// SCHEMA GAPS (present on form, left unmapped):
-//  - accident.police.notified, accident.is_paid_transport, garage.is_arrangement,
-//    injured_persons[0].hospitalized are `boolean` in ClaimData and ARE mapped below as
-//    checkbox fields using the engine's yes/no option-key support (booleans match
-//    options.yes / options.no). Verified visually — X lands centered in the printed
-//    כן/לא boxes for both true and false.
-//  - "האם מעורבת משאית?" (was a truck involved) — no canonical key.
-//  - "מהו התמרור המוצב בדרכו של הנהג המבוטח/הנהג צד ג'" (road sign) x2 — no canonical key.
-//  - "תרשים מקום התאונה" (accident sketch diagram box) — no canonical key.
-//  - "מס' יומן/תיק" is accident.police.log_number (mapped); "שם התחנה" is police.station (mapped).
-//  - third_parties[].damage_description — no "תאור הנזק" column for TP rows on this form.
-//  - third_parties[].vehicle_type / model ("תוצרת/דגם", "סוג הרכב" columns) — ThirdParty has a
-//    vehicle_type field but the header column for it did not show corresponding data-row space
-//    distinct from owner_name in the visual trace; left unmapped to avoid an inaccurate guess.
-//  - witnesses[0].phone / relation-to-driver — the witness row's address/relation zone showed no
-//    internal divider (visually confirmed merged cell); phone omitted as position was ambiguous.
-//  - injured_persons[1.. ] (2nd/3rd injured-person rows below row1) — not mapped (only row1).
-//  - declarations.poa_third_party / data_consent — no dedicated checkboxes found on this form.
+// Table quirk worth documenting: "פרטי רכבים מעורבים - צד ג'" (third-party vehicles) is a
+// compact 2-line-per-party block with NO separate blank data line under each label row —
+// the printed label sits at the top of each ~19pt row band and the value is written directly
+// below it inside the same cell.
+//
+// SCHEMA GAPS (present on form, left unmapped — no canonical key fits):
+//  - Top-strip claim-type radio: "אי הגשה / נזק לצד ג' בלבד / נזק עצמי וגם נזק לצד ג' /
+//    נזק עצמי" — doesn't line up with ClaimData.claim_type's enum (own_policy/
+//    third_party_report/third_party_settlement/unknown); left unmapped to avoid a wrong fit.
+//  - "מס' בקשה לתשלום תגמולי ביטוח" (claim/request reference number, top-right header) — no
+//    canonical key.
+//  - "עוסק מורשה? כן/לא" (insured VAT-registered business) — no canonical key.
+//  - "מס' פקס" (insured fax) / "מס' טלפון סוכן הביטוח" (agent phone) — no canonical key.
+//  - "האם נהג ברשות המבוטח?" (driving with owner's permission, boolean) — no canonical key.
+//  - "רישיון נהיגה בתוקף? כן/לא" (license currently valid, boolean) — no canonical key
+//    (ClaimData has license_expiry as a date, not on this form).
+//  - "מהו התמרור/רמזור המוצב בדרך המבוטח/בדרכו של צד ג'?" (road sign) x2 — no canonical key.
+//  - "איזורי הפגיעה" impact-point diagrams (insured + TP vehicle silhouettes) x2 — no
+//    canonical key (visual diagram, not text).
+//  - "תיאור הנזקים ברכב צד ג'" — no canonical key (this form's damage section is a single
+//    diagram box, not two separate text descriptions like older insurer forms; ClaimData's
+//    damage.third_party_vehicle has no matching printed cell here — left unmapped since the
+//    only nearby free space is the diagram legend, not a data-entry blank).
+//  - "מי אשם בתאונה? ... נמק מדוע ___" free-text justification line — fault enum itself IS
+//    mapped (checkbox below); the "נמק מדוע" blank has no canonical key.
+//  - third_parties[].damage_description — no damage column in the TP vehicles table on this
+//    form.
+//  - injured_persons[].hospital ("כן, היכן" — hospital name) — the "היכן" answer has no
+//    distinct blank cell separate from the checkbox itself; left unmapped.
+//  - injured_persons[].age — no age column on this form (only תאריך לידה birth date, which
+//    isn't in InjuredPerson either); no canonical key.
+//  - "האם קרתה התאונה בדרך לעבודה או ממנה? כן / לא" (per injured person) — plain text "כן /
+//    לא" with no distinguishable checkbox circle per value; left unmapped.
+//  - "אני מבקש למנות שמאי באופן אקראי..." (random assessor assignment, boolean) — no
+//    canonical key (distinct from garage.is_arrangement).
+//  - "אני מאשר לאיילון לפצות את תובע צד ג'... (סעיף 68)" — this IS declarations.poa_third_party
+//    (mapped below).
+//  - Bottom delivery-method checkboxes (מסרון / דואר אלקטרוני / דואר) — no canonical key.
+//  - declarations.data_consent — no dedicated checkbox found on this form (only the poa/סעיף
+//    68 one, and the general "הריני מצהיר..." attestation which has no checkbox, just a
+//    signature line already covered by declarations.signatory_name/date).
+//  - bank_account.account_number cell is labeled "מס' חשבון" (mapped); bank/branch NAME
+//    cells (שם הבנק / שם הסניף) are mapped to bank_account.bank/branch — the numeric "מס'
+//    בנק"/"מס' סניף" cells have no separate canonical field and are left blank.
 const ayalon: Template = {
   insurer: "איילון",
   srcFile: "ayalon.pdf",
   fields: [
-    // ── Header (top of form) ────────────────────────────────────────────────
-    // "שם הסוכן" line (מס' תביעה above it has no canonical key — claim/reference number).
-    { key: "agent_name", right: 70, y: 710 },
+    // ── Header ───────────────────────────────────────────────────────────────
+    { key: "agent_name", right: 405, y: 753, size: 8 },
 
-    // ── פרטי המבוטח (insured) ───────────────────────────────────────────────
-    { key: "insured.first_name", right: 568, y: 653 },
-    { key: "policy_number", right: 420, y: 653 },
-    { key: "insured.id_number", right: 280, y: 651, size: 7 },
-    { key: "insured.phone", right: 188, y: 658, size: 7 }, // טל' בית (home) line
+    // ── פרטי המבוטח והפוליסה (insured + policy) ─────────────────────────────
+    { key: "insured.full_name", right: 562, y: 713, size: 9 },
+    { key: "insured.id_number", right: 361, y: 713, size: 8 },
+    { key: "insured.address_line", right: 244, y: 713, size: 7.5 },
+    { key: "insured.birth_date", right: 66, y: 703, size: 7 },
 
-    // ── פרטי הנהג (driver) ──────────────────────────────────────────────────
-    { key: "driver.first_name", right: 568, y: 613 },
-    { key: "driver.address_line", right: 462, y: 613, size: 8 },
-    { key: "driver.relation_to_insured", right: 290, y: 613, size: 8 },
-    { key: "driver.phone", right: 188, y: 618, size: 7 }, // טל' בית (home) line
+    { key: "insured.email", right: 130, y: 690, size: 7 },
+    { key: "insured.mobile", right: 407, y: 690, size: 8 },
 
-    { key: "driver.birth_date", right: 550, y: 589, size: 9 },
-    { key: "driver.id_number", right: 470, y: 589, size: 7 },
-    { key: "driver.license_type", right: 350, y: 589, size: 8 },
-    { key: "driver.license_number", right: 265, y: 589, size: 8 },
-    { key: "driver.license_date", right: 195, y: 589, size: 8 },
+    { key: "agent_name", right: 471, y: 668, size: 7.5 },
+    { key: "policy_number", right: 230, y: 668, size: 7.5 },
     {
-      key: "driver.license_origin",
+      key: "insurance_type",
       type: "checkbox",
-      options: { israeli: [91, 601], foreign: [91, 589] },
+      options: { mandatory: [75, 668], third_party: [103, 668], comprehensive: [137, 668] },
+      size: 6,
     },
 
     // ── פרטי הרכב (vehicle) ─────────────────────────────────────────────────
-    { key: "vehicle.plate", right: 550, y: 549, size: 9 },
-    { key: "vehicle.manufacturer", right: 466, y: 548, size: 8 },
-    { key: "vehicle.model", right: 407, y: 548, size: 8 },
-    { key: "vehicle.type", right: 356, y: 548, size: 8 }, // free-text cell -> Hebrew via labels
-    { key: "vehicle.year", right: 281, y: 548, size: 8 },
+    { key: "vehicle.plate", right: 561, y: 645, size: 8 },
+    { key: "vehicle.manufacturer", right: 485, y: 645, size: 6.5 },
+    { key: "vehicle.model", right: 400, y: 645, size: 6.5 },
+    { key: "vehicle.year", right: 177, y: 645, size: 7 },
+    {
+      key: "vehicle.type",
+      type: "checkbox",
+      options: {
+        private: [318, 646],
+        commercial: [286, 646],
+        truck: [249, 646],
+        tractor: [249, 646],
+        scooter: [249, 646],
+        motorcycle: [249, 646],
+      },
+      size: 6,
+    },
 
-    // ── פרטי המקרה / התאונה (accident) ──────────────────────────────────────
-    { key: "accident.date", right: 550, y: 510, size: 9 },
-    { key: "accident.time", right: 468, y: 507, size: 8 },
-    { key: "accident.location", right: 412, y: 507, size: 6.5 },
+    // ── פרטי הנהג (driver) ──────────────────────────────────────────────────
+    { key: "driver.full_name", right: 492, y: 623, size: 8 },
+    { key: "driver.id_number", right: 361, y: 623, size: 7.5 },
+    // "הקשר לבעל הרכב" cell (label x=213–265 at y=633; value written below it)
+    { key: "driver.relation_to_insured", right: 262, y: 623, size: 6.5 },
+    { key: "driver.address_line", right: 175, y: 623, size: 6.5 },
+
+    { key: "driver.mobile", right: 475, y: 601, size: 6.5 },
+    { key: "driver.birth_date", right: 408, y: 601, size: 6 },
+    { key: "driver.license_type", right: 338, y: 601, size: 6.5 },
+    { key: "driver.license_number", right: 281, y: 601, size: 6.5 },
+    {
+      key: "driver.license_origin",
+      type: "checkbox",
+      options: { israeli: [175, 603], foreign: [140, 603] },
+      size: 6,
+    },
+
+    // ── פרטי האירוע (accident) ───────────────────────────────────────────────
+    { key: "accident.date", right: 476, y: 578, size: 7.5 },
+    { key: "accident.time", right: 393, y: 578, size: 7.5 },
+    { key: "accident.location", right: 306, y: 578, size: 6 },
     {
       key: "accident.police.notified",
       type: "checkbox",
-      options: { yes: [222, 521], no: [222, 506] },
+      options: { yes: [179, 580], no: [154, 580] },
+      size: 6,
     },
-    { key: "accident.police.station", right: 205, y: 507, size: 8 },
-    { key: "accident.police.log_number", right: 127, y: 507, size: 8 },
+    { key: "accident.police.station", right: 82, y: 578, size: 6 },
 
-    // "תוך כדי עבודה / בדרך לעבודה או חזרה מהעבודה?" — כן -> work-related, לא -> not.
-    {
-      key: "accident.trip_type",
-      type: "checkbox",
-      options: {
-        work: [306, 492],
-        to_from_work: [306, 492],
-        private: [286, 492],
-        taxi: [286, 492],
-      },
-    },
-    {
-      key: "accident.is_paid_transport",
-      type: "checkbox",
-      options: { yes: [73, 490], no: [53, 490] },
-    },
+    // תיאור האירוע: — large blank box, right column of the diagram row
+    { key: "accident.description", right: 558, y: 535, size: 8 },
 
-    // תאור נסיבות המקרה — first blank line
-    { key: "accident.description", right: 475, y: 479, size: 8 },
-
-    // מי לדעתך אחראי לארוע התאונה?
+    // מי אשם בתאונה? — אני / צד ג' / לא יודע
     {
       key: "fault",
       type: "checkbox",
-      options: { me: [421, 359], third_party: [361, 359], unknown: [312, 359] },
+      options: { me: [502, 333], third_party: [477, 333], unknown: [447, 333] },
+      size: 6,
     },
 
-    // ── תאור הנזקים (damage) ────────────────────────────────────────────────
-    // NOTE: this row is a single compact ~20pt-tall label+data cell (label text is centered
-    // across the full cell width) — there is no separate blank line below the label, so the
-    // filled value necessarily sits close to it. Minimized with small size + bottom-of-row y.
-    { key: "damage.insured_vehicle", right: 565, y: 328.5, size: 6 },
-    { key: "damage.third_party_vehicle", right: 276, y: 328.5, size: 6 },
+    // ── פרטי רכבים מעורבים - צד ג' (third parties) — row 1 ───────────────────
+    // Header/label line (y=417) carries the value directly below the label inside the cell.
+    { key: "third_parties.0.vehicle_plate", right: 561, y: 407, size: 6.5 },
+    { key: "third_parties.0.vehicle_type", right: 397, y: 407, size: 6 },
+    { key: "third_parties.0.insurer", right: 327, y: 407, size: 6 },
+    { key: "third_parties.0.policy_number", right: 222, y: 407, size: 6.5 },
+    // Owner/driver combined name line (y=398)
+    { key: "third_parties.0.owner_name", right: 561, y: 388, size: 6.5 },
+    { key: "third_parties.0.address", right: 464, y: 388, size: 5.5 },
+    { key: "third_parties.0.phone", right: 296, y: 396, size: 6 },
+    { key: "third_parties.0.agent_name", right: 193, y: 394, size: 6 },
 
-    // ── עדים (witnesses) — row 1 ────────────────────────────────────────────
-    { key: "witnesses.0.name", right: 512, y: 308, size: 8 },
-    { key: "witnesses.0.address", right: 374, y: 308, size: 8 },
+    // ── row 2 ─────────────────────────────────────────────────────────────
+    { key: "third_parties.1.vehicle_plate", right: 561, y: 368, size: 6.5 },
+    { key: "third_parties.1.vehicle_type", right: 397, y: 368, size: 6 },
+    { key: "third_parties.1.insurer", right: 327, y: 368, size: 6 },
+    { key: "third_parties.1.policy_number", right: 222, y: 368, size: 6.5 },
+    { key: "third_parties.1.owner_name", right: 561, y: 349, size: 6.5 },
+    { key: "third_parties.1.address", right: 464, y: 349, size: 5.5 },
+    { key: "third_parties.1.phone", right: 296, y: 357, size: 6 },
+    { key: "third_parties.1.agent_name", right: 193, y: 355, size: 6 },
 
-    // ── פרטי רכבים מעורבים (third parties) — combined owner+driver row ──────
-    // NOTE: this table's rows carry their OWN inline label per cell (e.g. row1's rightmost
-    // cell literally prints "שם בעל הרכב", row2's prints "שם הנהג") rather than reusing the
-    // header row's column labels for data — every value below is right-anchored just to the
-    // LEFT of its own row's printed label to avoid drawing on top of it. The plate number goes
-    // in the blank space of the HEADER row itself (to the left of "מס' רישוי (של צד ג' הפוגע)").
-    { key: "third_parties.0.vehicle_plate", right: 475, y: 264, size: 7 },
-    { key: "third_parties.0.owner_name", right: 475, y: 252, size: 7 },
-    { key: "third_parties.0.address", right: 384, y: 252, size: 5.5 },
-    { key: "third_parties.0.insurer", right: 245, y: 252, size: 7 },
-    { key: "third_parties.0.policy_number", right: 133, y: 258, size: 7 },
-    { key: "third_parties.0.agent_name", right: 133, y: 246, size: 6 },
+    // "אני מאשר לאיילון לפצות את תובע צד ג' בגין התאונה... (על פי סעיף 68)" — כן/לא circles
+    {
+      key: "declarations.poa_third_party",
+      type: "checkbox",
+      options: { yes: [95, 359], no: [70, 359] },
+      size: 6,
+    },
 
-    { key: "third_parties.0.driver_name", right: 495, y: 232, size: 7 },
-    { key: "third_parties.0.id_number", right: 245, y: 236, size: 7 },
-    { key: "third_parties.0.phone", right: 100, y: 232, size: 7 },
-
-    // ── פרטים נוספים על רכבים מעורבים — rows 3 & 4 ───────────────────────────
-    // Same per-row inline-label pattern as above — anchor just left of each row's own label.
-    { key: "third_parties.1.vehicle_plate", right: 490, y: 207, size: 7 },
-    { key: "third_parties.1.owner_name", right: 368, y: 207, size: 7 },
-    { key: "third_parties.1.insurer", right: 188, y: 207, size: 7 },
-    { key: "third_parties.1.phone", right: 100, y: 207, size: 6 },
-
-    { key: "third_parties.2.vehicle_plate", right: 490, y: 192, size: 7 },
-    { key: "third_parties.2.owner_name", right: 368, y: 192, size: 7 },
-    { key: "third_parties.2.insurer", right: 188, y: 192, size: 7 },
-    { key: "third_parties.2.phone", right: 100, y: 192, size: 6 },
-
-    // ── נפגעים ברכב ו/או ע"י הרכב המבוטח (injured persons) — row 1 ──────────
-    { key: "injured_persons.0.name", right: 515, y: 161, size: 8 },
-    { key: "injured_persons.0.address", right: 390, y: 161, size: 7 },
-    { key: "injured_persons.0.id_number", right: 282, y: 155, size: 6.5 },
-    { key: "injured_persons.0.age", right: 275, y: 140, size: 8 },
-    { key: "injured_persons.0.injury_nature", right: 505, y: 140, size: 7 },
+    // ── נפגעים ברכב (injured persons) — row 1 ────────────────────────────────
+    { key: "injured_persons.0.name", right: 560, y: 287, size: 7.5 },
+    { key: "injured_persons.0.address", right: 438, y: 287, size: 6.5 },
+    { key: "injured_persons.0.id_number", right: 327, y: 287, size: 6.5 },
+    { key: "injured_persons.0.injury_nature", right: 521, y: 253, size: 6.5 },
+    { key: "injured_persons.0.birth_date", right: 294, y: 253, size: 6.5 },
     {
       key: "injured_persons.0.hospitalized",
       type: "checkbox",
-      options: { yes: [194, 141], no: [54, 141] },
+      options: { yes: [216, 275], no: [260, 264] },
+      size: 6,
     },
 
-    // ── הרכב נמצא במוסך / השמאי המטפל (garage / assessor) ───────────────────
-    { key: "garage.name", right: 480, y: 52, size: 8 },
-    { key: "garage.phone", right: 408, y: 52, size: 8 },
+    // ── row 2 ─────────────────────────────────────────────────────────────
+    { key: "injured_persons.1.name", right: 560, y: 240, size: 7.5 },
+    { key: "injured_persons.1.address", right: 438, y: 240, size: 6.5 },
+    { key: "injured_persons.1.id_number", right: 327, y: 240, size: 6.5 },
+    { key: "injured_persons.1.injury_nature", right: 521, y: 207, size: 6.5 },
+    { key: "injured_persons.1.birth_date", right: 294, y: 207, size: 6.5 },
+    {
+      key: "injured_persons.1.hospitalized",
+      type: "checkbox",
+      options: { yes: [216, 228], no: [260, 217] },
+      size: 6,
+    },
+
+    // ── טיפול בנזק (garage / assessor) ──────────────────────────────────────
+    { key: "assessor_name", right: 294, y: 188, size: 7 },
+    { key: "garage.name", right: 426, y: 188, size: 7 },
     {
       key: "garage.is_arrangement",
       type: "checkbox",
-      options: { yes: [287, 46], no: [264, 46] },
+      options: { yes: [516, 189], no: [491, 189] },
+      size: 6,
     },
-    { key: "assessor_name", right: 140, y: 52, size: 8 },
 
-    // ── הצהרה + תאריך (declaration) ─────────────────────────────────────────
-    { key: "declarations.date", right: 245, y: 33, size: 8 },
-    { key: "declarations.signatory_name", right: 104, y: 33, size: 8 },
+    // ── הרשאה לביצוע העברה בנקאית (bank account) ─────────────────────────────
+    { key: "bank_account.bank", right: 337, y: 120, size: 7 },
+    { key: "bank_account.branch", right: 266, y: 120, size: 7 },
+    { key: "bank_account.account_number", right: 201, y: 120, size: 7 },
+
+    // ── הצהרה + תאריך (declaration, bottom-left) ─────────────────────────────
+    // Narrow left column: "תאריך" label at top (y=81), "חתימת הנהג / המבוטח" signature-line
+    // label at bottom (y=65) — date goes in the gap between them, signatory name below the
+    // signature-line label.
+    { key: "declarations.date", right: 146, y: 71, size: 6.5 },
+    { key: "declarations.signatory_name", right: 146, y: 54, size: 6.5 },
   ],
 };
 
