@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-08**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-11**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -20,7 +20,7 @@ Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat histo
 | 2 | Data model + agent Auth + claim creation + link | ✅ **done** (pending Supabase provisioning) — schema + RLS in `web/db/schema.sql`; migrations in `web/db/migrations/` (001 agent setup, 002 PostgREST grants); auth routes + middleware + dashboard written. **Needs real Supabase keys in `web/.env.local`.** |
 | 3 | Collection web-app | ✅ done — `web/src/components/collection/CollectionWizard.tsx` (10-step RTL wizard, incl. **own-insurer select** + **document-upload step**). Submit calls `POST /api/claims/submit`. |
 | 4 | AI processing | ✅ done — `POST /api/analyze` → `web/src/lib/ai/analyze.ts`. **Now a two-layer classifier**: the LLM emits narrative signals only; a deterministic `web/src/lib/claims/classify.ts` owns the track + confidence. Analysis cached in `summary_json.analysis`. Wired into the wizard's review step + agent detail page. |
-| 5 | Form overlay fill | ✅ **done + persisted** — `GET/POST /api/forms/[insurer]` (preview/fill). Insurers wired: הכשרה, מגדל, מנורה. **Now written to `generated_forms` + Storage**: auto-filled at submit from the claimant's insurer, and `GET /api/claims/[id]/form/[insurer]` (agent, RLS-gated) regenerates on demand (latest-per-insurer). **Agent can now edit/complete the canonical form fields** (`FormFieldEditor` → `PATCH /api/claims/[id]/form-data`, stored in `summary_json.form_data`; `effectiveClaimData` prefers it, client `collected` left untouched). Remaining insurer templates + OCR for הפניקס/איילון deferred. |
+| 5 | Form overlay fill | ✅ **done + persisted** — `GET/POST /api/forms/[insurer]` (preview/fill). Insurers wired: הכשרה, מגדל, מנורה. **Now written to `generated_forms` + Storage**: auto-filled at submit from the claimant's insurer, and `GET /api/claims/[id]/form/[insurer]` (agent, RLS-gated) regenerates on demand (latest-per-insurer). **Agent can now edit/complete the canonical form fields** (`FormFieldEditor` → `PATCH /api/claims/[id]/form-data`, stored in `summary_json.form_data`; `effectiveClaimData` prefers it, client `collected` left untouched). Remaining insurer templates + OCR for הפניקס deferred (איילון now maps the insurer's **new official form** — extractable text layer, bundled as `assets/ayalon.pdf`). |
 | 6 | Per-track checklist | ✅ **done** — dynamic per-track config `web/src/lib/claims/checklist.ts` (base/late/conditional/milestone sections; doc items auto-check from `claim_documents`, milestones tick via `PATCH /api/claims/[id]/checklist`, conditional items driven by circumstance flags — migration `004`). Agent uploads later docs via `POST /api/claims/[id]/documents`; confirms track via `PATCH /api/claims/[id]/classify`. Rendered on `/dashboard/[id]`. |
 | 7 | Basic dashboard | ✅ **done** — `web/src/app/dashboard/page.tsx` (claims list) + **`/dashboard/[id]` claim-detail cockpit**: hero (identity + status badge + days-open + AI one-liner), a **readiness strip** (blocking-docs-or-not, with a one-click **WhatsApp doc chase** / advance-next-milestone), proposed classification (confidence + rationale, collapsed once confirmed), the checklist panel, agent doc upload, the filled accident-notice form (insurer options now server-derived from the `formfill` template registry), collapsible form-field editor, and an **agent notes** scratchpad (`claim_notes`, `POST /api/claims/[id]/notes`, migration `005`). Feeds from Supabase RLS. **Needs Supabase keys to go live.** |
 | 8 | UX polish + run with design partner | ❌ not started |
@@ -96,6 +96,12 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **AI doc-validation** (spec only — `docs/ai-doc-validation.md`): is the uploaded file actually a driver's license? Phase 1 = classify-only warning.
 - **Task-engine reminders/notifications:** the engine spawns/completes tasks but does not yet send reminders or chase externally (phase 2).
 - **Remaining insurer templates**: shlomo/libra/harel/aig (+ OCR for הפניקס/איילון) via the `pdf-form-mapper` agent.
+### Done since last sync (2026-07-05 → 07-11)
+- **איילון remapped to the insurer's new official form** (`docs/accidentStatementPdf/איילון_טופס_הודעה_חדש.pdf`, bundled as `web/src/lib/formfill/assets/ayalon.pdf`): the old template mapped a scanned/image-only PDF measured purely visually; the new form has a clean **extractable text layer**, so `web/src/lib/formfill/templates/ayalon.ts` was rewritten from printed-label glyph coordinates (`.pdfwork/coords.mjs`) + CTM-aware checkbox rects (`.pdfwork/boxdetect2.mjs`), no OCR needed. **No longer an OCR-pending insurer.**
+
+### Remaining work
+- **AI doc-validation** (spec only — `docs/ai-doc-validation.md`): is the uploaded file actually a driver's license? Phase 1 = classify-only warning.
+- **Remaining insurer templates**: shlomo/libra/harel/aig (+ OCR for הפניקס) via the `pdf-form-mapper` agent. איילון now maps the insurer's new official form (extractable text layer, no OCR needed).
 - **UX polish** (step 8): design partner run.
 
 ---
