@@ -398,7 +398,7 @@ export default function CollectionWizard({
               >
                 <option value="">בחר/י סוג ביטוח…</option>
                 <option value="comprehensive">מקיף</option>
-                <option value="third_party">צד ג'</option>
+                <option value="third_party">צד ג׳</option>
                 <option value="mandatory">חובה בלבד</option>
               </select>
               <span className="mt-1 block text-xs text-zinc-400">
