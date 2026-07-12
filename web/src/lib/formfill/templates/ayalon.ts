@@ -69,7 +69,8 @@ const ayalon: Template = {
     { key: "insured.full_name", right: 562, y: 713, size: 9 },
     { key: "insured.id_number", right: 361, y: 713, size: 8 },
     { key: "insured.address_line", right: 244, y: 713, size: 7.5 },
-    { key: "insured.birth_date", right: 66, y: 703, size: 7 },
+    // "תאריך לידה" — value sits on the "__/__/__" template line (underscores at y:713)
+    { key: "insured.birth_date", right: 101, y: 715, size: 6.5 },
 
     { key: "insured.email", right: 130, y: 690, size: 7 },
     { key: "insured.mobile", right: 407, y: 690, size: 8 },
@@ -109,10 +110,12 @@ const ayalon: Template = {
     { key: "driver.relation_to_insured", right: 262, y: 623, size: 6.5 },
     { key: "driver.address_line", right: 175, y: 623, size: 6.5 },
 
-    { key: "driver.mobile", right: 475, y: 601, size: 6.5 },
-    { key: "driver.birth_date", right: 408, y: 601, size: 6 },
-    { key: "driver.license_type", right: 338, y: 601, size: 6.5 },
-    { key: "driver.license_number", right: 281, y: 601, size: 6.5 },
+    // line-2 labels sit at y=611; values centred under each (phone cell x≈445–520,
+    // birthdate template x=376–444). mobile was anchored left of its label — recentred.
+    { key: "driver.mobile", right: 515, y: 602, size: 6.5 },
+    { key: "driver.birth_date", right: 423, y: 603, size: 6 },
+    { key: "driver.license_type", right: 338, y: 602, size: 6.5 },
+    { key: "driver.license_number", right: 281, y: 602, size: 6.5 },
     {
       key: "driver.license_origin",
       type: "checkbox",
@@ -218,7 +221,7 @@ const ayalon: Template = {
     // Narrow left column: "תאריך" label at top (y=81), "חתימת הנהג / המבוטח" signature-line
     // label at bottom (y=65) — date goes in the gap between them, signatory name below the
     // signature-line label.
-    { key: "declarations.date", right: 146, y: 71, size: 6.5 },
+    { key: "declarations.date", right: 146, y: 75, size: 6.5 },
     { key: "declarations.signatory_name", right: 146, y: 54, size: 6.5 },
   ],
 };
