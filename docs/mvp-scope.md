@@ -8,7 +8,7 @@
 | Topic | Decision | Source |
 |---|---|---|
 | Client channel | **Manual web-link** (agent sends via WhatsApp) | T2 |
-| MVP scope | **Collection + accident-notice form + static per-track checklist.** Active task automation deferred to phase 2 | user decision + domain research |
+| MVP scope | **Collection + accident-notice form + per-track checklist.** Active task automation was deferred to phase 2, but the **task engine has since been pulled forward** (event-driven spawn/complete + status advance; reminders/notifications still deferred) | user decision + domain research |
 | Claim types | **4-way:** `own_policy` / `third_party_report` (דוח פרטי) / `third_party_settlement` (הסדר) / `unknown` | domain research |
 | Classification | **AI proposes + agent confirms**; defaults to `unknown` when unsure; revisable | user decision |
 | The form | per-insurer, ~80% shared, flat PDF → canonical schema + per-insurer overlay | [form-field-map.md](form-field-map.md) |
@@ -32,11 +32,11 @@ report → guided collection → AI summary + missing-info
 - **AI processing** (Claude): structured event summary + missing-info checklist.
 - **4-way classification** (label): AI proposes `own_policy` / `third_party_report` / `third_party_settlement` / `unknown`; agent confirms; revisable.
 - **Form fill** of the "הודעה על תאונה" form: canonical schema → overlay. Start with 1–2 insurers per the design partner's book.
-- **Static per-track checklist:** for the chosen track, show required documents/steps + what's missing + the next step. **Document items auto-check** from uploads (at intake, or the agent uploads later docs from the dashboard with a type tag — Option A); a few **action-milestones are manual ticks** (stored in `checklist_state` on the claim). No automation/chasing — that's phase 2. This is where the third-party value lives.
+- **Static per-track checklist:** for the chosen track, show required documents/steps + what's missing + the next step. **Document items auto-check** from uploads (at intake, or the agent uploads later docs from the dashboard with a type tag — Option A); a few **action-milestones are manual ticks** (stored in `checklist_state` on the claim). This is where the third-party value lives. Milestone ticks / doc uploads / submit / classify now also drive the **task engine** (below), which spawns and completes the per-track worklist and advances claim status.
 - **Basic dashboard**: claim list + status + claim card (documents, summary, generated form, checklist) + create client link.
 
 ## ⏭️ Out of MVP (phase 2+)
-- **Active** task workflow: reminders, chasing the garage / appraiser / insurer, status automation.
+- **Active** task workflow — **partly built** (`web/src/lib/tasks/`): the engine spawns/completes per-track tasks and advances status on events. Still deferred: automated reminders/notifications, outbound chasing of the garage / appraiser / insurer.
 - WhatsApp Business API (automated channel).
 - Document OCR, billing, multi-agency, subrogation track, payment tracking.
 

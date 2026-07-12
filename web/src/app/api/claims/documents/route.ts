@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { sniffFileType, SNIFF_MIME, SNIFF_EXT } from "@/lib/files/sniff";
+import { runEngine } from "@/lib/tasks/runner";
 
 export const runtime = "nodejs"; // needs the service client + Storage upload
 
@@ -92,6 +93,9 @@ export async function POST(request: Request) {
       payload_json: { type, after_submit: true },
     });
   }
+
+  // Reactive task engine: auto-complete chase tasks this doc satisfies.
+  await runEngine(claim.id, { type: "doc_uploaded", docType: type });
 
   return Response.json({ ok: true, id: doc.id, type, path });
 }

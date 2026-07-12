@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { runEngine } from "@/lib/tasks/runner";
 
 const VALID_TYPES = new Set([
   "own_policy",
@@ -38,18 +39,10 @@ export async function PATCH(
     .single();
   if (!claim) return Response.json({ error: "not found" }, { status: 404 });
 
-  // Only advance status forward from the pre-classification states; never regress a
-  // claim that's already further along just because the agent re-picked the track.
-  const advanceStatus =
-    claim.status === "submitted" || claim.status === "created" || claim.status === "in_progress";
-
   const svc = createServiceClient();
   const { error } = await svc
     .from("claims")
-    .update({
-      claim_type: claimType,
-      ...(advanceStatus ? { status: "classified" } : {}),
-    })
+    .update({ claim_type: claimType })
     .eq("id", id);
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
@@ -59,5 +52,12 @@ export async function PATCH(
     payload_json: { claim_type: claimType, by: user.email ?? null },
   });
 
-  return Response.json({ ok: true, claim_type: claimType });
+  // Reactive task engine: spawn track tasks + advance status (forward-only).
+  const engine = await runEngine(id, { type: "track_confirmed" });
+
+  return Response.json({
+    ok: true,
+    claim_type: claimType,
+    status: engine?.status ?? claim.status,
+  });
 }

@@ -111,8 +111,20 @@
 ה-Dashboard אמור לשקף "השעון טרם החל — חסר: X" ו-"הכרעה נדרשת תוך N ימים".
 פרטים, ציטוטים ומועדי התיישנות: [regulatory-clock.md](regulatory-clock.md).
 
-## 5. מודל המשימות (שלב 2 — workflow אקטיבי)
-טבלת `tasks` לכל תיק: `title`, `track`, `status`, `due_at`, `assignee`. במעבר ל-workflow אקטיבי, תבנית משימות נטענת לפי `claim_type`. **ב-MVP ה-checklist הוא תצוגה סטטית נגזרת — לא מנוע משימות.** ראה [architecture.md](architecture.md).
+## 5. מודל המשימות (מנוע משימות — מיושם)
+טבלת `tasks` לכל תיק: `title`, `track`, `status`, `due_at`, `assignee`, ועמודות מנוע-המשימות `key`/`source`/`note`/`completed_at` (מיגרציה 006). **המנוע כבר מיושם** (`web/src/lib/tasks/`): פונקציה טהורה ואידמפוטנטית (`advanceTasks`) מריצה טבלת חוקים לכל `claim_type` — אירועים (הגשה / אישור track / סימון milestone / העלאת מסמך) יוצרים משימות, מסמנים משימות שהתנאי שלהן התקיים, ומקדמים את סטטוס התיק קדימה-בלבד. משימות ידניות של הסוכן (`source='manual'`, ללא `key`) לעולם לא נסגרות אוטומטית. ה-checklist נותר תצוגה נגזרת שהמנוע קורא ממנה. ראה [architecture.md](architecture.md).
+
+> **סטטוס (2026-07-08):** מנוע המשימות (שלב 2 · צעד A) מומש — ראה הספק ב-[superpowers/specs/2026-07-08-task-engine-design.md](superpowers/specs/2026-07-08-task-engine-design.md) והמימוש ב-`web/src/lib/tasks/` (מנוע טהור `engine.ts` + חוקים דקלרטיביים `templates.ts` + runner ל-I/O). עדיין ללא שליחה אוטומטית (צעד C) או דירוג AI (צעד B).
+
+### שרשראות המשימות לפי מסלול
+כל אירוע (הגשה / סיווג / סימון אבן-דרך / העלאת מסמך) מוליד את המשימה הבאה בשרשרת, עם מועד יעד יחסי; השלמת משימה (אבן-הדרך או המסמך שהיא ממתינה לו) היא שמולידה את הבאה. טורקיז = פעולה/רדיפה, ענבר = מעקב. **מועדי היעד הם הנחות שדה** (`DUE_OFFSETS`), לא SLA רגולטורי — לכיול מול הסוכן.
+
+![שרשראות המשימות לפי מסלול](diagrams/task-engine-per-track-chains.svg)
+
+### מכניקת המנוע — מאירוע בודד לפעולות
+ה-runner (I/O, best-effort) מושך את מצב התיק, קורא ל-`advanceTasks` (פונקציה טהורה, מכוסה ב-unit tests) שמחזירה `{spawn, complete, statusAdvance}`, ואז מיישם את הכתיבות. כשל של המנוע לעולם אינו מפיל את ה-route שהפעיל אותו.
+
+![מכניקת המנוע — מאירוע בודד לפעולות](diagrams/task-engine-event-flow.svg)
 
 ---
 

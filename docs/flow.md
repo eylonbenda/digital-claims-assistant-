@@ -7,7 +7,7 @@
 ## 0. Full lifecycle
 ```
 report accident → collect documents → classify claim type → fill "הודעה על תאונה" form
-                → static per-track checklist → (phase 2: manage tasks by type)
+                → per-track checklist → task engine manages per-track workflow (spawn/complete + status advance)
 ```
 Collection (section 1) is the first half. Classification, form fill, and the per-track checklist are detailed in [claim-management.md](claim-management.md).
 
@@ -85,7 +85,7 @@ created → in_progress → submitted → classified → form_generated → chec
 
 **Cross-cutting dimensions:**
 - `urgent` (injuries) — an attribute, not a state; affects sorting and color in the dashboard. Also triggers the גוף/רכוש scope split (see Step 1).
-- `claim_type` (`own_policy` / `third_party_report` / `third_party_settlement` / `unknown`) — can start `unknown` and be revised; drives the per-track checklist (and the phase-2 task track). See [claim-management.md](claim-management.md).
+- `claim_type` (`own_policy` / `third_party_report` / `third_party_settlement` / `unknown`) — can start `unknown` and be revised; drives the per-track checklist and the task-engine rule track. See [claim-management.md](claim-management.md).
 
 **Time/SLA dimension (cross-cutting):**
 - `sla_clock_started_at` — set when all *blocking* required docs are present; `decision_due_at = +30 calendar days`; expect a 90-day continued-investigation notice if unresolved.
