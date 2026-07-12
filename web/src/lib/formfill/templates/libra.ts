@@ -35,7 +35,7 @@ const libra: Template = {
     // ── פרטי המבוטח (page1) ──────────────────────────────────────────────────
     { key: "insured.full_name", right: 375, y: 682 },
     { key: "insured.id_number", right: 227, y: 682 },
-    { key: "insured.birth_date", right: 128, y: 682, size: 9 },
+    { key: "insured.birth_date", right: 128, y: 685, size: 9 },
 
     // ── פרטי התקשרות (page1) ─────────────────────────────────────────────────
     { key: "insured.address_line", right: 382, y: 628, size: 9 },
@@ -62,7 +62,7 @@ const libra: Template = {
     { key: "driver.phone", right: 275, y: 439, size: 9 },
     { key: "driver.email", right: 157, y: 439, size: 8 },
     // Row 3: תאריך לידה | תאריך הוצאת רישיון נהיגה | מספר רישיון נהיגה
-    { key: "driver.birth_date", right: 397, y: 402, size: 9 },
+    { key: "driver.birth_date", right: 397, y: 406, size: 9 },
     { key: "driver.license_date", right: 312, y: 402, size: 9 },
     { key: "driver.license_number", right: 163, y: 402, size: 9 },
 
@@ -80,10 +80,10 @@ const libra: Template = {
       type: "checkbox",
       page: 1,
       options: {
-        urban: [322, 647],
-        intercity: [413, 647],
-        parking: [145, 647],
-        junction: [145, 629],
+        urban: [318, 644],
+        intercity: [409, 644],
+        parking: [141, 644],
+        junction: [141, 626],
       },
     },
 
@@ -124,8 +124,8 @@ const libra: Template = {
       type: "checkbox",
       page: 1,
       options: {
-        yes: [384, 243],
-        no: [344, 242],
+        yes: [380, 240],
+        no: [340, 239],
       },
     },
 
@@ -139,7 +139,7 @@ const libra: Template = {
       key: "declarations.poa_third_party",
       type: "checkbox",
       page: 2,
-      options: { yes: [541, 655] },
+      options: { yes: [537, 652] },
     },
   ],
 };

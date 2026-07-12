@@ -87,6 +87,7 @@ const sampleClaim: ClaimData = {
       address: "רחוב הרצל ראשון לציון",
       injury_nature: "חבלה קלה בצוואר",
       age: "36",
+      birth_date: "01/01/1990",
       hospitalized: false,
       hospital: "",
     },

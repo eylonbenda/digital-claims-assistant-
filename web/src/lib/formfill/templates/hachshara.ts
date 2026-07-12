@@ -34,7 +34,7 @@ const hachshara: Template = {
     // ── א. פרטי המבוטח ──────────────────────────────────────────────────────
     { key: "insured.first_name", right: 455, y: 645 },
     { key: "insured.last_name", right: 300, y: 645 },
-    { key: "insured.id_number", right: 200, y: 645 },
+    { key: "insured.id_number", right: 163, y: 645, size: 9 },
     // Single address cell — map city (wizard-collected) here; address_line dropped
     // to avoid collision with insured.city.
     { key: "insured.city", right: 488, y: 617 },
@@ -44,7 +44,7 @@ const hachshara: Template = {
     // ── ב. פרטי הנהג ────────────────────────────────────────────────────────
     { key: "driver.first_name", right: 455, y: 558 },
     { key: "driver.last_name", right: 300, y: 558 },
-    { key: "driver.id_number", right: 200, y: 558 },
+    { key: "driver.id_number", right: 163, y: 558, size: 9 },
     { key: "driver.address_line", right: 488, y: 530 },
     { key: "driver.relation_to_insured", right: 455, y: 503 },
     { key: "driver.birth_date", right: 330, y: 503 },
@@ -65,13 +65,13 @@ const hachshara: Template = {
 
     // ── תאור המקרה (right column, 4 blank lines) ────────────────────────────
     // First line only — long text will overflow naturally into it
-    { key: "accident.description", right: 555, y: 335, size: 9 },
+    { key: "accident.description", right: 555, y: 337, size: 9 },
 
     // ── מי אשם + המקרה אירע ─────────────────────────────────────────────────
     {
       key: "fault",
       type: "checkbox",
-      options: { me: [446, 256], third_party: [411, 256], unknown: [365, 256] },
+      options: { me: [451, 256], third_party: [416, 256], unknown: [370, 256] },
     },
     // המקרה אירע: the form has 3 work-related boxes only.
     // 'private', 'paid_transport', 'taxi' have no checkbox on this form — nothing is
@@ -111,7 +111,7 @@ const hachshara: Template = {
     { key: "injured_persons.0.injury_nature", page: 1, right: 115, y: 365 },
 
     // ── Page 2: תאריך חתימה ─────────────────────────────────────────────────
-    { key: "declarations.date", page: 1, right: 555, y: 269 },
+    { key: "declarations.date", page: 1, right: 517, y: 272, size: 9 },
   ],
 };
 
