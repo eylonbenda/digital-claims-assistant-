@@ -229,9 +229,12 @@ export default async function ClaimDetailPage({
   const nextMilestone =
     checklistItems.find((i) => i.kind === "milestone" && !i.done) ?? null;
 
+  // Server Component renders once per request, so a single clock read is stable for this render.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
   const daysOpen = Math.max(
     0,
-    Math.floor((Date.now() - new Date(claim.created_at).getTime()) / 86_400_000),
+    Math.floor((now - new Date(claim.created_at).getTime()) / 86_400_000),
   );
   // Latest touch on the case file: submission, any doc upload, or agent note.
   const lastActivityTs = Math.max(
@@ -240,7 +243,7 @@ export default async function ClaimDetailPage({
     ...notes.map((n) => new Date(n.created_at).getTime()),
   );
   const daysSinceActivity = lastActivityTs
-    ? Math.floor((Date.now() - lastActivityTs) / 86_400_000)
+    ? Math.floor((now - lastActivityTs) / 86_400_000)
     : null;
 
   const confirmed = claim.claim_type !== "unknown";

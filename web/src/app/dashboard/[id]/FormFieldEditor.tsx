@@ -278,7 +278,7 @@ export default function FormFieldEditor({
               <details key={section.title} className="rounded-lg border border-zinc-200 p-3">
                 <summary className="cursor-pointer text-sm font-semibold text-zinc-500">
                   {section.title}{" "}
-                  <span className="font-normal text-zinc-400">(רלוונטי לתביעת צד ג')</span>
+                  <span className="font-normal text-zinc-400">(רלוונטי לתביעת צד ג׳)</span>
                 </summary>
                 <div className="mt-3">{grid}</div>
               </details>
