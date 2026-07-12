@@ -46,6 +46,7 @@ export interface InjuredPerson {
   address?: string;
   injury_nature?: string;
   age?: string;
+  birth_date?: string; // some forms (איילון) ask for DOB instead of age
   hospitalized?: boolean;
   hospital?: string;
 }

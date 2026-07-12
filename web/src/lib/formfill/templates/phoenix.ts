@@ -66,7 +66,11 @@ const phoenix: Template = {
     { key: "insured.last_name", right: 458, y: 640, size: 6 },
     { key: "insured.first_name", right: 428, y: 640, size: 6 },
     { key: "insured.address_line", right: 388, y: 640, size: 7 },
-    { key: "insured.id_number", right: 290, y: 640, size: 7 },
+    // id_number cell is narrow (x≈128-262) and hosts a 9-digit comb spanning most of its width
+    // (ticks ≈143-240); right=254/size 5.5 keeps the digits inside the cell, clear of the
+    // "כתובת" address cell that starts at x≈262 (was right=290, which fell INSIDE the address
+    // cell and collided with insured.address_line's own text) and clear of the label below.
+    { key: "insured.id_number", right: 254, y: 640, size: 5.5 },
     { key: "insured.phone", right: 95, y: 640, size: 7 },
 
     // ── ב. פרטי הנהג ─────────────────────────────────────────────────────────
@@ -85,7 +89,12 @@ const phoenix: Template = {
 
     // תאריך לידה מלא / מספר זיהוי (driver) / מס' רשיון נהיגה / סוג-דרגת הרשיון — y=584 row
     { key: "driver.birth_date", right: 534, y: 591, size: 7 },
-    { key: "driver.id_number", right: 420, y: 600, size: 6 },
+    // id_number cell (x≈300-460) is a 9-digit comb spanning its FULL width (unlike the insured
+    // cell) — box top border y=600, ticks y≈594-600, divider/label baseline y≈587-592. There is
+    // no fully blank band; right=452 (a few pt inside the 460 divider) + y=594 keeps the digits
+    // in the sliver just above the divider line, clear of the box border and the label below,
+    // touching at most the very end ticks (unavoidable given 9 digits across 8 comb ticks).
+    { key: "driver.id_number", right: 452, y: 594, size: 6 },
     { key: "driver.license_number", right: 320, y: 591, size: 6 },
     { key: "driver.license_type", right: 259, y: 591, size: 6 },
     // תוקף רשיון מ:___ עד:___ — "עד:" cell only (no canonical key for "מ:" from-date);
@@ -130,8 +139,10 @@ const phoenix: Template = {
     // תוך כדי עבודה / בדרך לעבודה (page 2, see below) drives accident.trip_type instead of a
     // page-1 box — this form has no trip-type row on page 1.
 
-    // תאור נסיבות המקרה — first blank line (label baseline 523, first line below it 503)
-    { key: "accident.description", right: 560, y: 503, size: 8 },
+    // תאור נסיבות המקרה — single ruled writing-line inside the box at y=505; baseline raised to
+    // 508 (was 503, which sat the glyphs ON the rule — strikethrough look) for clean clearance
+    // above the line.
+    { key: "accident.description", right: 560, y: 508, size: 8 },
 
     // תאור מקים ברכב המבוטח — blank row directly below the label (label baseline y=460)
     { key: "damage.insured_vehicle", right: 545, y: 443, size: 8 },
@@ -154,7 +165,11 @@ const phoenix: Template = {
     { key: "third_parties.0.policy_number", right: 95, y: 264, size: 8 },
     { key: "third_parties.0.driver_name", right: 558, y: 244, size: 9 },
     { key: "third_parties.0.address", right: 455, y: 244, size: 8 },
-    { key: "third_parties.0.id_number", right: 315, y: 244, size: 8 },
+    // id_number cell spans x≈240-310 (ticks fill most of it); the blank gap between this cell's
+    // right border (310) and where the address text actually starts (≈388) is the safe zone —
+    // right=378 clears both the comb and third_parties.0.address's own text (was right=315,
+    // sitting on the comb; a first attempt at right=390 landed inside the address cell instead).
+    { key: "third_parties.0.id_number", right: 378, y: 244, size: 8 },
     { key: "third_parties.0.phone", right: 95, y: 244, size: 8 },
 
     // ── מעורבים נוספים — block 1 (third_parties[1]) ─────────────────────────

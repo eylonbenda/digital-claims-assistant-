@@ -63,11 +63,11 @@ const aig: Template = {
       type: "checkbox",
       size: 9,
       options: {
-        work: [298, 259],
-        to_from_work: [298, 259],
-        private: [227, 259],
-        taxi: [227, 259],
-        paid_transport: [227, 259],
+        work: [267, 259],
+        to_from_work: [267, 259],
+        private: [220, 259],
+        taxi: [220, 259],
+        paid_transport: [220, 259],
       },
     },
     {
@@ -82,9 +82,10 @@ const aig: Template = {
     {
       key: "accident.police.notified",
       type: "checkbox",
+      size: 9,
       options: {
-        yes: [105, 199],
-        no: [60, 199],
+        yes: [90, 200],
+        no: [45, 200],
       },
     },
     { key: "accident.police.station", right: 304, y: 168, size: 8 },
@@ -131,10 +132,11 @@ const aig: Template = {
       key: "third_parties.0.insurance_type",
       type: "checkbox",
       page: 1,
+      size: 9,
       options: {
-        comprehensive: [451, 155],
-        third_party: [408, 155],
-        mandatory: [363, 155],
+        comprehensive: [481, 155],
+        third_party: [434, 155],
+        mandatory: [390, 155],
       },
     },
 
@@ -143,9 +145,12 @@ const aig: Template = {
       key: "declarations.poa_third_party",
       type: "checkbox",
       page: 1,
+      size: 9,
+      // Same two-cell כן/לא layout as page 1's police row — divider at x≈86, so
+      // "yes" must sit right of it inside the כן cell (mirrors police.notified's x=90).
       options: {
-        yes: [105, 414],
-        no: [60, 414],
+        yes: [90, 415],
+        no: [45, 415],
       },
     },
 

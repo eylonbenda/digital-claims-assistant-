@@ -22,16 +22,18 @@ const migdal: Template = {
     { key: "insured.phone", right: 537, y: 605, size: 9 },
     { key: "insured.email", right: 284, y: 605, size: 8 },
     // "האם משטרת ישראל התערבה באירוע?" — box sits immediately left of each label (RTL).
+    // Box centres (416,77)/(438,77) from boxdetect.mjs; offset -4,-4 like other checkboxes
+    // on this form so the X glyph sits centred inside the box instead of high-and-right.
     {
       key: "accident.police.notified",
       type: "checkbox",
-      options: { yes: [416, 77], no: [438, 77] },
+      options: { yes: [412, 73], no: [434, 73] },
     },
     // "האם הרכב שימש... להסעת נוסעים בשכר..." (same convention as police row above).
     {
       key: "accident.is_paid_transport",
       type: "checkbox",
-      options: { yes: [131, 90], no: [151, 90] },
+      options: { yes: [127, 86], no: [147, 86] },
     },
 
     // ב. פרטי כלי רכב

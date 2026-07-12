@@ -69,9 +69,12 @@ const ayalon: Template = {
     { key: "insured.full_name", right: 562, y: 713, size: 9 },
     { key: "insured.id_number", right: 361, y: 713, size: 8 },
     { key: "insured.address_line", right: 244, y: 713, size: 7.5 },
-    { key: "insured.birth_date", right: 66, y: 703, size: 7 },
+    // Date blank line "_____ / _____ / _____" sits at x=32-104, y=713 — write just above it.
+    { key: "insured.birth_date", right: 102, y: 715, size: 6.5 },
 
-    { key: "insured.email", right: 130, y: 690, size: 7 },
+    // Cell right edge ~196 (label's own right edge); avoid the form's pre-printed "@" glyph
+    // sitting at x=89-96 by right-anchoring near the cell's right side.
+    { key: "insured.email", right: 193, y: 690, size: 6.5 },
     { key: "insured.mobile", right: 407, y: 690, size: 8 },
 
     { key: "agent_name", right: 471, y: 668, size: 7.5 },
@@ -109,10 +112,10 @@ const ayalon: Template = {
     { key: "driver.relation_to_insured", right: 262, y: 623, size: 6.5 },
     { key: "driver.address_line", right: 175, y: 623, size: 6.5 },
 
-    { key: "driver.mobile", right: 475, y: 601, size: 6.5 },
-    { key: "driver.birth_date", right: 408, y: 601, size: 6 },
-    { key: "driver.license_type", right: 338, y: 601, size: 6.5 },
-    { key: "driver.license_number", right: 281, y: 601, size: 6.5 },
+    { key: "driver.mobile", right: 558, y: 601, size: 6.5 },
+    { key: "driver.birth_date", right: 441, y: 602, size: 6 },
+    { key: "driver.license_type", right: 338, y: 598, size: 6.5 },
+    { key: "driver.license_number", right: 310, y: 598, size: 6.5 },
     {
       key: "driver.license_origin",
       type: "checkbox",
@@ -149,11 +152,17 @@ const ayalon: Template = {
     { key: "third_parties.0.vehicle_type", right: 397, y: 407, size: 6 },
     { key: "third_parties.0.insurer", right: 327, y: 407, size: 6 },
     { key: "third_parties.0.policy_number", right: 222, y: 407, size: 6.5 },
-    // Owner/driver combined name line (y=398)
+    // Owner/driver combined name line (y=398). Sub-row has 4 cells R->L: name (466-563),
+    // address (329-466), phone — 2 stacked labels "טל. בית"/"טל. עבודה" (right-packed at
+    // 299-329, cell extends left to 224), agent name — 2 stacked labels "שם הסוכן"/"טל."
+    // (right-packed at 196-224, cell extends left to ~120). The row band is only ~20pt tall
+    // (398->378, next row's header) — too cramped to stack the value BELOW both label lines,
+    // so phone/agent values are placed in the free HORIZONTAL space to the LEFT of their
+    // (right-aligned) stacked labels, on the top label's baseline.
     { key: "third_parties.0.owner_name", right: 561, y: 388, size: 6.5 },
     { key: "third_parties.0.address", right: 464, y: 388, size: 5.5 },
-    { key: "third_parties.0.phone", right: 296, y: 396, size: 6 },
-    { key: "third_parties.0.agent_name", right: 193, y: 394, size: 6 },
+    { key: "third_parties.0.phone", right: 297, y: 398, size: 6 },
+    { key: "third_parties.0.agent_name", right: 194, y: 398, size: 6 },
 
     // ── row 2 ─────────────────────────────────────────────────────────────
     { key: "third_parties.1.vehicle_plate", right: 561, y: 368, size: 6.5 },
@@ -162,8 +171,8 @@ const ayalon: Template = {
     { key: "third_parties.1.policy_number", right: 222, y: 368, size: 6.5 },
     { key: "third_parties.1.owner_name", right: 561, y: 349, size: 6.5 },
     { key: "third_parties.1.address", right: 464, y: 349, size: 5.5 },
-    { key: "third_parties.1.phone", right: 296, y: 357, size: 6 },
-    { key: "third_parties.1.agent_name", right: 193, y: 355, size: 6 },
+    { key: "third_parties.1.phone", right: 297, y: 358, size: 6 },
+    { key: "third_parties.1.agent_name", right: 194, y: 358, size: 6 },
 
     // "אני מאשר לאיילון לפצות את תובע צד ג' בגין התאונה... (על פי סעיף 68)" — כן/לא circles
     {
@@ -177,8 +186,11 @@ const ayalon: Template = {
     { key: "injured_persons.0.name", right: 560, y: 287, size: 7.5 },
     { key: "injured_persons.0.address", right: 438, y: 287, size: 6.5 },
     { key: "injured_persons.0.id_number", right: 327, y: 287, size: 6.5 },
-    { key: "injured_persons.0.injury_nature", right: 521, y: 253, size: 6.5 },
-    { key: "injured_persons.0.birth_date", right: 294, y: 253, size: 6.5 },
+    // "מהות הפגיעה" is a wide cell (330-563) at top of this sub-row (label y=274); value
+    // written below it, right-anchored near the cell's own right edge (561).
+    { key: "injured_persons.0.injury_nature", right: 561, y: 263, size: 6.5 },
+    // Birth-date blank line "____ / ___ / ____" sits at x=274-330, y=263 — write just above it.
+    { key: "injured_persons.0.birth_date", right: 328, y: 265, size: 6 },
     {
       key: "injured_persons.0.hospitalized",
       type: "checkbox",
@@ -190,8 +202,8 @@ const ayalon: Template = {
     { key: "injured_persons.1.name", right: 560, y: 240, size: 7.5 },
     { key: "injured_persons.1.address", right: 438, y: 240, size: 6.5 },
     { key: "injured_persons.1.id_number", right: 327, y: 240, size: 6.5 },
-    { key: "injured_persons.1.injury_nature", right: 521, y: 207, size: 6.5 },
-    { key: "injured_persons.1.birth_date", right: 294, y: 207, size: 6.5 },
+    { key: "injured_persons.1.injury_nature", right: 561, y: 217, size: 6.5 },
+    { key: "injured_persons.1.birth_date", right: 328, y: 219, size: 6 },
     {
       key: "injured_persons.1.hospitalized",
       type: "checkbox",

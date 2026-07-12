@@ -61,12 +61,12 @@ const harel: Template = {
     // label's left (same pattern as accident.location below).
     { key: "driver.license_number", right: 493, y: 531, size: 8 },
     { key: "driver.license_type", right: 339, y: 531, size: 8 },
-    // Cell is narrow (225-301) and the label "שנת הוצאת רישיון" occupies almost its entire width
-    // (leaving only ~10pt clear at x=225-235) — the form really only expects a year here, but the
-    // canonical field can hold a full date string. Shrunk to the smallest legible size; a full
-    // dd/mm/yyyy value will still touch the label — documented as a known tight-cell limitation.
-    { key: "driver.license_date", right: 234, y: 531, size: 5.5 },
-    // בתוקף עד -  (cell grid: x=135-225, label "בתוקף עד -" occupies its right portion 180-222,
+    // Cell (grid x=225.3-301.1, y=518.3-539.4) is tall — the label "שנת הוצאת רישיון" sits on the
+    // top line (y=531) and occupies almost the full cell width there, but the cell has clear blank
+    // room below the label down to the bottom border. Drop the date to that blank lower line
+    // (y=521) instead of squeezing it beside the label — fully clear of "נהיגה" now.
+    { key: "driver.license_date", right: 299, y: 521, size: 8 },
+    // בתוקף עד -  (cell grid: x=135.2-225.3, label "בתוקף עד -" occupies its right portion 180-222,
     // leaving ~45pt clear at x=135-176 — wide enough for a full date at normal size, unlike the
     // narrow license_date cell to its right).
     { key: "driver.license_expiry", right: 176, y: 531, size: 8 },
@@ -159,8 +159,12 @@ const harel: Template = {
         no: [274, 131],
       },
     },
-    { key: "declarations.date", right: 524, y: 81, size: 8 },
-    { key: "declarations.signatory_name", right: 178, y: 81, size: 8 },
+    // Both cells are dotted fill-in lines whose dots sit right at/just above the label baseline
+    // (y=81) — text drawn at that same y lands on top of the dots. Lift 4pt above the line.
+    { key: "declarations.date", right: 524, y: 85, size: 8 },
+    // right pulled in from 178 to clear a small pen-icon glyph at x≈173-176 just left of the
+    // "חתימת המבוטח/ת" label (183).
+    { key: "declarations.signatory_name", right: 168, y: 85, size: 8 },
   ],
 };
 
