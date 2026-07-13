@@ -14,7 +14,21 @@ const MARK = rgb(0.75, 0.05, 0.05);
 // Path is process.cwd()-relative and bundled via next.config `outputFileTracingIncludes`.
 const ASSETS = path.join(process.cwd(), "src", "lib", "formfill", "assets");
 
-export type TextField = { key: string; page?: number; right: number; y: number; size?: number };
+export type TextField = {
+  key: string;
+  page?: number;
+  right: number;
+  y: number;
+  size?: number;
+  // Multi-line support for long free text (e.g. accident.description) drawn over a form's
+  // ruled lines: `width` = max line width in pt; overflowing text word-wraps onto extra
+  // lines, each `lineHeight` pt below the previous (default size+3), up to `maxLines`
+  // (default 1 → no wrap). If it still doesn't fit, the font size is stepped down until
+  // it does (min 5pt), then the last line is clipped.
+  width?: number;
+  lineHeight?: number;
+  maxLines?: number;
+};
 export type CheckboxField = {
   key: string;
   type: "checkbox";
@@ -79,7 +93,46 @@ export async function fillForm(
     // third_parties.0.vehicle_type resolves LABELS["third_parties.vehicle_type"].
     const labelKey = f.key.replace(/\.\d+(?=\.)/g, "");
     const s = (LABELS[f.key] ?? LABELS[labelKey])?.[String(raw)] ?? String(raw);
-    const size = f.size ?? 10;
+    let size = f.size ?? 10;
+    const maxLines = f.maxLines ?? 1;
+
+    if (f.width && maxLines > 1) {
+      // Word-wrap into up to maxLines lines of at most f.width pt, shrinking the font
+      // until it fits. Splitting on spaces keeps logical order; each line is drawn
+      // right-anchored, so Hebrew reads correctly line by line.
+      const wrap = (sz: number): string[] => {
+        const lines: string[] = [];
+        let line = "";
+        for (const word of s.split(/\s+/)) {
+          const cand = line ? line + " " + word : word;
+          if (line && font.widthOfTextAtSize(cand, sz) > f.width!) {
+            lines.push(line);
+            line = word;
+          } else {
+            line = cand;
+          }
+        }
+        if (line) lines.push(line);
+        return lines;
+      };
+      let lines = wrap(size);
+      while (lines.length > maxLines && size > 5) {
+        size -= 0.5;
+        lines = wrap(size);
+      }
+      lines.slice(0, maxLines).forEach((line, i) => {
+        const lw = font.widthOfTextAtSize(line, size);
+        page.drawText(line, {
+          x: f.right - lw,
+          y: f.y - i * (f.lineHeight ?? size + 3),
+          size,
+          font,
+          color: FILL,
+        });
+      });
+      continue;
+    }
+
     const w = font.widthOfTextAtSize(s, size);
     // Hebrew drawn in logical order — pdf-lib + fontkit shape RTL. Right-anchored.
     page.drawText(s, { x: f.right - w, y: f.y, size, font, color: FILL });
