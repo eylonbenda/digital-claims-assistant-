@@ -72,7 +72,21 @@ const libra: Template = {
     { key: "accident.location", right: 175, y: 341, size: 8 },
 
     // ── תיאור מפורט של האירוע והנזק — free-text lines (right column, page1) ─
-    { key: "accident.description", right: 494, y: 254, size: 8 },
+    // Ruled lines measured via raw line-op extraction: 9 rules, x=[376.1,493.9] (width
+    // ~117.8pt), y = 235.0, 218.8, 202.7, 186.5, 170.3, 154.2, 138.0, 121.9, 105.7 (spacing
+    // ~16.15pt, top rule highest). Baselines sit ~3.5pt ABOVE each rule (PDF y-up: a larger
+    // y draws higher) so the text rests on top of its ruled line like handwriting, instead
+    // of the line cutting through the glyphs. Width kept a hair inside the rule span so
+    // wrapped text never bleeds into the diagram column (rules end right of diagram x=342).
+    {
+      key: "accident.description",
+      right: 493,
+      y: 238.5,
+      size: 8,
+      width: 114,
+      lineHeight: 16.15,
+      maxLines: 9,
+    },
 
     // ── מקום האירוע checkboxes (page2) — 4 of 8 boxes have a canonical match ─
     {

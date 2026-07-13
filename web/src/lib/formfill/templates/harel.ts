@@ -47,7 +47,10 @@ const harel: Template = {
     { key: "insured.email", right: 496, y: 629, size: 8 },
 
     // ב. פרטי הנהג
-    { key: "driver.first_name", right: 517, y: 592, size: 8 },
+    // שם הנהג is a single blank cell (x≈301-517, ~216pt wide) with no separate last-name
+    // column, unlike the insured row above — use the synthetic .full_name key (engine.ts)
+    // to join first+last rather than dropping the surname.
+    { key: "driver.full_name", right: 517, y: 592, size: 8 },
     // מס' ת.ז. / תאריך לידה are per-digit grid cells (right edges 301 / 165); label sits on the
     // row's top line (y=592), the digit boxes are lower (y≈580) — offset down to avoid collision.
     { key: "driver.id_number", right: 297, y: 580, size: 8 },
@@ -81,7 +84,19 @@ const harel: Template = {
     { key: "accident.police.station", right: 409, y: 473, size: 8 },
     { key: "accident.police.log_number", right: 344, y: 473, size: 8 },
 
-    { key: "damage.insured_vehicle", right: 407, y: 445, size: 8 },
+    // תיאור הנזק / מיקום הנזק ברכב המבוטח — single blank row (label sits top-right at
+    // y≈453, cell spans left border x≈25 to the label at x≈410, bottom border y≈430).
+    // One line normally fits, but wrap as a safety net for longer damage descriptions —
+    // 2 lines max (445/435) to stay clear of the y≈430 bottom border.
+    {
+      key: "damage.insured_vehicle",
+      right: 407,
+      y: 445,
+      size: 8,
+      width: 380,
+      lineHeight: 10,
+      maxLines: 2,
+    },
 
     // המקרה אירע — trip-type glyph checkboxes, y=260. This form only offers work-related options
     // (to/during/from work); private/taxi/paid_transport have no matching box and are left
@@ -96,8 +111,19 @@ const harel: Template = {
       },
     },
 
-    // תיאור מפורט של התאונה — first dotted line right of the diagram box, top-right area
-    { key: "accident.description", right: 548, y: 401, size: 8 },
+    // תיאור מפורט של התאונה — free-text area right of the diagram box has 3 dotted ruled
+    // lines (y≈400/390/380, 10pt apart), spanning x≈310 (diagram's right border) to the
+    // table's right edge (548). Wrap long descriptions across the 3 lines rather than
+    // overflowing into/past the diagram, shrinking the font if it still doesn't fit.
+    {
+      key: "accident.description",
+      right: 548,
+      y: 401,
+      size: 8,
+      width: 236,
+      lineHeight: 10,
+      maxLines: 3,
+    },
 
     // עדים — witness 1 / witness 2 (name / phone rows share a baseline; address on the row below)
     { key: "witnesses.0.name", right: 510, y: 345, size: 8 },
@@ -146,7 +172,17 @@ const harel: Template = {
 
     { key: "third_parties.0.insurer", right: 482, y: 169, size: 8 },
     { key: "third_parties.0.policy_number", right: 337, y: 169, size: 8 },
-    { key: "third_parties.0.damage_description", right: 134, y: 169, size: 8 },
+    // תיאור הנזק / מיקום הנזק לצד ג' — narrow cell (x≈25-134, ~109pt wide, label at top
+    // y=169, cell floor y≈160): wrap to 2 lines for longer damage descriptions.
+    {
+      key: "third_parties.0.damage_description",
+      right: 134,
+      y: 169,
+      size: 8,
+      width: 105,
+      lineHeight: 9,
+      maxLines: 2,
+    },
 
     // ה. הצהרת המבוטח — "הנני מעוניין כי תביעת צד ג'... יטופל ע"י החברה" כן/לא (y=131).
     // Engine checkboxes now match boolean values via yes/no option keys.

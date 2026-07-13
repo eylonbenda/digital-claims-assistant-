@@ -93,10 +93,41 @@ const aig: Template = {
     { key: "accident.passengers", right: 126, y: 168, size: 9 },
 
     // ===== PAGE 2 =====
-    { key: "accident.description", page: 1, right: 548, y: 733, size: 9 },
+    // תיאור המקרה box has 3 ruled lines (borders at y=743.5/727.5/711.0/695.5, left=42.5,
+    // right=552) — wrap across all 3 rather than overflowing a single line past the box.
+    {
+      key: "accident.description",
+      page: 1,
+      right: 548,
+      y: 733,
+      size: 9,
+      width: 500,
+      lineHeight: 16.5,
+      maxLines: 3,
+    },
 
-    { key: "damage.insured_vehicle", page: 1, right: 216, y: 504, size: 8 },
-    { key: "damage.third_party_vehicle", page: 1, right: 216, y: 475, size: 8 },
+    // Damage boxes are single-row (left=42, right=220, ~19pt tall) — allow a shrink-to-fit
+    // 2nd line for unusually long descriptions rather than overflowing past the left border.
+    {
+      key: "damage.insured_vehicle",
+      page: 1,
+      right: 216,
+      y: 504,
+      size: 8,
+      width: 170,
+      lineHeight: 9,
+      maxLines: 2,
+    },
+    {
+      key: "damage.third_party_vehicle",
+      page: 1,
+      right: 216,
+      y: 475,
+      size: 8,
+      width: 170,
+      lineHeight: 9,
+      maxLines: 2,
+    },
 
     {
       key: "fault",
