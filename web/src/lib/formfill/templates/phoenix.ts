@@ -74,7 +74,9 @@ const phoenix: Template = {
     { key: "insured.phone", right: 95, y: 640, size: 7 },
 
     // ── ב. פרטי הנהג ─────────────────────────────────────────────────────────
-    { key: "driver.last_name", right: 558, y: 616, size: 7 },
+    // right pulled in from 558 -> 540: at 558 a two-word last_name (e.g. "בן דוד") collided
+    // with the rotated "פרטי הנהג" section-label column, which starts at x≈545.
+    { key: "driver.last_name", right: 540, y: 616, size: 7 },
     { key: "driver.first_name", right: 520, y: 616, size: 7 },
     { key: "driver.address_line", right: 455, y: 616, size: 7 },
     { key: "driver.relation_to_insured", right: 320, y: 616, size: 7 },
@@ -139,16 +141,21 @@ const phoenix: Template = {
     // תוך כדי עבודה / בדרך לעבודה (page 2, see below) drives accident.trip_type instead of a
     // page-1 box — this form has no trip-type row on page 1.
 
-    // תאור נסיבות המקרה — single ruled writing-line inside the box at y=505; baseline raised to
-    // 508 (was 503, which sat the glyphs ON the rule — strikethrough look) for clean clearance
-    // above the line.
-    { key: "accident.description", right: 560, y: 508, size: 8 },
+    // תאור נסיבות המקרה — box has exactly 2 ruled rows (top border y=520, mid divider y=490,
+    // bottom border y=460, each 30pt tall), usable width x≈70-560 (490pt). Line 1 baseline
+    // raised to 508 (was 503, which sat glyphs ON the rule) for clearance above the divider;
+    // line 2 at y=482, centred in the second 30pt row. Long text wraps/shrinks (min 5pt) via
+    // the engine before the last line is clipped.
+    { key: "accident.description", right: 560, y: 508, size: 8, width: 480, lineHeight: 26, maxLines: 2 },
 
-    // תאור מקים ברכב המבוטח — blank row directly below the label (label baseline y=460)
-    { key: "damage.insured_vehicle", right: 545, y: 443, size: 8 },
-    // תאור מקים צד ג' — single-line cell; label sits at y=400 with no blank row below it
-    // (that space belongs to the next question), so write inline, above the label baseline
-    { key: "damage.third_party_vehicle", right: 545, y: 405, size: 7 },
+    // תאור מקים ברכב המבוטח — blank row directly below the label, band y≈420-455 (35pt tall,
+    // divider left edge x≈310); line 1 at y=447, line 2 at y=435 (lineHeight 12) — tight but
+    // clear of the "תאור מקים צד ג'" label row below (baseline 420, ascenders reach ~429).
+    { key: "damage.insured_vehicle", right: 545, y: 447, size: 7.5, width: 230, lineHeight: 12, maxLines: 2 },
+    // תאור מקים צד ג' — tight single answer band y≈400-420 (only ~18pt after the label);
+    // room for at most 2 short lines at a smaller font — line 2 sits right at the y=400
+    // divider, which beats the alternative (text overflowing the cell's left border).
+    { key: "damage.third_party_vehicle", right: 545, y: 405, size: 6.5, width: 230, lineHeight: 9, maxLines: 2 },
 
     // ── עדים (page 1 — first 2 witness rows) ────────────────────────────────
     { key: "witnesses.0.name", right: 502, y: 320, size: 6 },

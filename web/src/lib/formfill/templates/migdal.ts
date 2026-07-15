@@ -80,8 +80,19 @@ const migdal: Template = {
     },
     // מקום האירוע — blank underline to left of the label (same row, y=317)
     { key: "accident.location", right: 350, y: 317, size: 9 },
-    // תיאור האירוע — first blank line below the label
-    { key: "accident.description", right: 561, y: 225, size: 8 },
+    // תיאור האירוע — 2 ruled writing lines below the label (rules at pdf y=220 and y=203;
+    // label itself occupies the row above at y~237-240 so isn't available for wrap).
+    // width=525 matches the ruled-line span (x=31..564); lineHeight=17 matches the rule
+    // spacing; engine shrinks font (min 5pt) before it would overflow either line.
+    {
+      key: "accident.description",
+      right: 561,
+      y: 225,
+      size: 8,
+      width: 525,
+      lineHeight: 17,
+      maxLines: 2,
+    },
 
     // ── Page 2 (index 1) ────────────────────────────────────────────────────
 

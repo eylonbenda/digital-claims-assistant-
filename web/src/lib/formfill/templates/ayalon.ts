@@ -135,8 +135,19 @@ const ayalon: Template = {
     },
     { key: "accident.police.station", right: 82, y: 578, size: 6 },
 
-    // תיאור האירוע: — large blank box, right column of the diagram row
-    { key: "accident.description", right: 558, y: 535, size: 8 },
+    // תיאור האירוע: — large blank box, right column of the diagram row. Box measured via
+    // CTM-aware vector-path scan (.pdfwork boxdetect-style): x=402-567, y=446-563 (label
+    // "תיאור האירוע:" sits at y=553), a single unruled rectangle (no internal lines) ~165pt
+    // wide x ~117pt tall. Word-wraps right-anchored within the box, shrinking font if needed.
+    {
+      key: "accident.description",
+      right: 560,
+      y: 540,
+      size: 8,
+      width: 155,
+      lineHeight: 11,
+      maxLines: 8,
+    },
 
     // מי אשם בתאונה? — אני / צד ג' / לא יודע
     {

@@ -34,7 +34,9 @@ const hachshara: Template = {
     // ── א. פרטי המבוטח ──────────────────────────────────────────────────────
     { key: "insured.first_name", right: 455, y: 645 },
     { key: "insured.last_name", right: 300, y: 645 },
-    { key: "insured.id_number", right: 163, y: 645, size: 9 },
+    // 9-digit Israeli ID at size 9 crowds the box's digit-tick guides; size 8 + a
+    // touch of right-margin clears the right border and minimizes tick overlap.
+    { key: "insured.id_number", right: 160, y: 645, size: 8 },
     // Single address cell — map city (wizard-collected) here; address_line dropped
     // to avoid collision with insured.city.
     { key: "insured.city", right: 488, y: 617 },
@@ -44,7 +46,7 @@ const hachshara: Template = {
     // ── ב. פרטי הנהג ────────────────────────────────────────────────────────
     { key: "driver.first_name", right: 455, y: 558 },
     { key: "driver.last_name", right: 300, y: 558 },
-    { key: "driver.id_number", right: 163, y: 558, size: 9 },
+    { key: "driver.id_number", right: 160, y: 558, size: 8 },
     { key: "driver.address_line", right: 488, y: 530 },
     { key: "driver.relation_to_insured", right: 455, y: 503 },
     { key: "driver.birth_date", right: 330, y: 503 },
@@ -60,12 +62,38 @@ const hachshara: Template = {
     { key: "garage.name", right: 470, y: 416 },
     { key: "garage.address", right: 300, y: 416 },
     { key: "garage.phone", right: 130, y: 416 },
-    // תאור כללי של הנזק הנגרם לרכב המבוטח — first line
-    { key: "damage.insured_vehicle", right: 488, y: 386 },
+    // תאור כללי של הנזק הנגרם לרכב המבוטח — full-width box, 2 ruled lines
+    // (header ~y402, rules at ~388/~368, box closes ~363).
+    {
+      key: "damage.insured_vehicle",
+      right: 488,
+      y: 386,
+      width: 415,
+      lineHeight: 18,
+      maxLines: 2,
+    },
+    // תאור כללי של הנזק הנגרם לרכב צד ג' — same box structure lower on the page
+    // (header ~y209, mirrors the insured-vehicle damage box). Was unmapped until 2026-07-13.
+    {
+      key: "damage.third_party_vehicle",
+      right: 488,
+      y: 193,
+      width: 415,
+      lineHeight: 18,
+      maxLines: 2,
+    },
 
-    // ── תאור המקרה (right column, 4 blank lines) ────────────────────────────
-    // First line only — long text will overflow naturally into it
-    { key: "accident.description", right: 555, y: 337, size: 9 },
+    // ── תאור המקרה (right column, 4 ruled lines; box x≈460–555, rules at
+    // y≈337/317/297/277) ────────────────────────────────────────────────────
+    {
+      key: "accident.description",
+      right: 555,
+      y: 337,
+      size: 9,
+      width: 90,
+      lineHeight: 20,
+      maxLines: 4,
+    },
 
     // ── מי אשם + המקרה אירע ─────────────────────────────────────────────────
     {

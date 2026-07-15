@@ -19,8 +19,14 @@ const menora: Template = {
     { key: "insured.mobile", right: 108, y: 744, size: 9 },
 
     // ב. פרטי הנהג — כתובת cell (x≈185–412) carries insured city (no separate city field)
-    { key: "driver.first_name", right: 489, y: 731 },
-    { key: "driver.last_name", right: 455, y: 731 },
+    // Name cell is narrow (blank zone x≈432-490, ~58pt total for BOTH first+last name,
+    // unlike the roomier insured-name cell above) — stress-tested 2026-07-13 with long
+    // names ("אילון"/"בן דוד"): the old right:489/right:455 default-size anchors collided
+    // (last name ran into first name). Shrunk to size 8 and tightened anchors so both
+    // fit with margin: first_name right edge pulled in from the cell border (488), last_name
+    // anchored with a 3pt gap to its left, still comfortably clear of the "כתובת" label at x=431.
+    { key: "driver.first_name", right: 488, y: 731, size: 8 },
+    { key: "driver.last_name", right: 470, y: 731, size: 8 },
     { key: "insured.city", right: 408, y: 731, size: 8 },
     { key: "driver.id_number", right: 420, y: 668, size: 8 },
     // רישיון נהיגה cell: x≈288–332 (label right-edge 332), data right≈330
@@ -110,16 +116,31 @@ const menora: Template = {
       },
     },
 
-    // תאור נסיבות המקרה — first blank line right of the label (y=561)
-    // Underlines are vector rules; first line baseline ≈ y=556 (right side, x=281-548)
-    { key: "accident.description", right: 548, y: 556, size: 8 },
+    // תאור נסיבות המקרה — measured the 5 vector rule lines under the label (2026-07-13):
+    // they span x≈277-550, baselines (bottom-based y) ≈ 548.4/536.2/523.8/511.0/497.7
+    // (~12.3pt pitch). Line 1 shares its row with the "תאור נסיבות המקרה:" label itself
+    // (label occupies x≈476-554), so the wrap width is capped at 474 (not the full 550)
+    // on EVERY line — the engine draws all wrapped lines at the same right/width, so this
+    // trades a little space on lines 2-5 for guaranteed clearance under the label on line 1.
+    // Stress-tested with a ~90-char description: wraps to 2 lines at size 8 well within the
+    // 5-line/195pt budget, so maxLines:5 is a generous ceiling for even longer real text.
+    { key: "accident.description", right: 474, y: 548, size: 8, width: 195, lineHeight: 12.3, maxLines: 5 },
 
     // נזקים — תאור הנזקים
-    // Labels sit at y=421 (top of cell); data underline is within the cell at y≈411
-    // Right column (insured vehicle): x=296-553, right≈546
-    { key: "damage.insured_vehicle", right: 546, y: 411, size: 8 },
-    // Left column (TP vehicle damage): x=34-276, right≈276
-    { key: "damage.third_party_vehicle", right: 276, y: 411, size: 8 },
+    // Single-line cell (no ruled sub-lines): row spans bottom-based y≈410 (bottom border) to
+    // 431 (top border, where the "תאור הנזקים..." labels sit at y=421); vertical dividers at
+    // x≈31/279/553 confirmed via rule-line scan 2026-07-13. That leaves only ~8pt of clear
+    // vertical space between the label and the border — genuinely too tight for 2 comfortable
+    // text lines. Stress-tested with a ~100-char damage string: size 7/lineHeight 7.5 still had
+    // line 1 crash into the label above (y=418 too close to the y=421 label baseline) or line 2
+    // spill past the border. Settled on size 6.5/lineHeight 6.3/y=416.5 — line 1 clears the
+    // label, line 2 lands right at the border (y≈410.2), the least-bad compromise for the rare
+    // long-text case. Most real damage descriptions (<40 chars) stay on one line and sit
+    // comfortably centered in the row.
+    // Right column (insured vehicle): x=279-553, right≈546, usable width≈262 (margin off the divider)
+    { key: "damage.insured_vehicle", right: 546, y: 416.5, size: 6.5, width: 262, lineHeight: 6.3, maxLines: 2 },
+    // Left column (TP vehicle damage): x=31-279, right≈276, usable width≈238
+    { key: "damage.third_party_vehicle", right: 276, y: 416.5, size: 6.5, width: 238, lineHeight: 6.3, maxLines: 2 },
 
     // פרטי רכבים מעורבים / נפגעים — first TP row
     // Column header row y=361; data underline below labels at y≈351

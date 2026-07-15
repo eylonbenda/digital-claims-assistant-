@@ -15,10 +15,10 @@ const shlomo: Template = {
   srcFile: "shlomo.pdf",
   fields: [
     // ===== פרטי המבוטח =====
-    { key: "insured.last_name", right: 562, y: 718, size: 8.5 },
-    { key: "insured.first_name", right: 484, y: 718, size: 8.5 },
-    { key: "policy_number", right: 373, y: 718, size: 9 },
-    { key: "insured.id_number", right: 257, y: 730.5, size: 6.5 }, // digit-comb cell — sit above the ticks
+    { key: "insured.last_name", right: 560, y: 727, size: 8 },
+    { key: "insured.first_name", right: 473, y: 727, size: 8 },
+    { key: "policy_number", right: 405, y: 727, size: 8 },
+    { key: "insured.id_number", right: 260, y: 729, size: 8 }, // digit-comb cell — sit above the ticks
     { key: "insured.phone", right: 100, y: 737, size: 7 }, // טל' בעבודה — value left of label
     { key: "insured.mobile", right: 100, y: 727, size: 7 }, // טל' בית
 
@@ -62,7 +62,7 @@ const shlomo: Template = {
       options: { yes: [229.5, 580.5], no: [230, 569.3] },
     },
 
-    { key: "accident.description", right: 470, y: 552, size: 8 },
+    { key: "accident.description", right: 470, y: 552, size: 8, width: 200, lineHeight: 15.5, maxLines: 4 },
 
     // ===== תאור הנזקים =====
     { key: "damage.insured_vehicle", right: 565, y: 425, size: 8 },
