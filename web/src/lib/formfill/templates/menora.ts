@@ -153,6 +153,17 @@ const menora: Template = {
       options: { yes: [548, 435] },
     },
 
+    // Declaration row (bottom of page): "הריני מצהיר בזאת כי כל הפרטים שמסרתי לעיל
+    // הינם נכונים ומלאים.   ______ תאריך:   ______ חתימת הנהג:" — both blanks are the
+    // underline segments to the LEFT of their labels (measured via render.mjs pixel scan:
+    // תאריך underline x≈199-295, חתימת הנהג underline x≈49-143; row baseline y≈45).
+    { key: "declarations.date", right: 293, y: 47, size: 8 },
+    // NOTE (2026-07-14): the only signature line here is "חתימת הנהג" (driver). We print the
+    // INSURED's typed name (declarations.signatory_name) here as a typed-signature stand-in,
+    // per product decision (name+date, no drawn signature). Revisit if we later distinguish
+    // driver vs. insured signatures per-line.
+    { key: "declarations.signatory_name", right: 142, y: 47, size: 8 },
+
     // מוסך + שמאי (תחתית הטופס)
     { key: "garage.name", right: 492, y: 62 },
     { key: "garage.phone", right: 383, y: 62, size: 9 },

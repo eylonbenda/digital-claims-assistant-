@@ -104,6 +104,15 @@ declarations: {
 
 ## Out of scope / notes
 
+- **Typed name as signature stand-in (revisit later).** `declarations.signatory_name`
+  holds the **insured's** full name and is printed on each form's signature line as a
+  typed-signature stand-in (the "name + date, no drawn signature" decision). Some forms'
+  only signature line is labeled **"חתימת הנהג" (the driver)** — e.g. מנורה, שלמה, and one
+  of הפניקס's two boxes. Per product decision (2026-07-14) we still print the insured's
+  typed name there rather than leave it blank. This is semantically loose when the driver
+  differs from the insured; if we later capture a distinct driver signature or a real drawn
+  signature, revisit these driver-labeled lines. Each affected template carries an inline
+  `NOTE (2026-07-14)` comment at the field.
 - **Drawn signature image** — deferred; needs engine image-draw support + canvas UI +
   storage + per-template signature-box coords.
 - **`accident.date` ISO quirk** — `accident.date` flows to the PDF as ISO `YYYY-MM-DD`

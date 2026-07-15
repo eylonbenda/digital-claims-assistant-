@@ -243,6 +243,13 @@ const phoenix: Template = {
     { key: "insured.city", page: 1, right: 278, y: 357, size: 6 },
     { key: "insured.postal_code", page: 1, right: 198, y: 357, size: 6 },
     { key: "insured.email", page: 1, right: 118, y: 357, size: 5 },
+
+    // ── הצהרה / חתימה (bottom of page 2) ─────────────────────────────────────
+    // NOTE (2026-07-14): typed insured name printed in the "חתימת המבוטח" box as a typed-
+    // signature stand-in, per product decision (name+date, no drawn signature). The adjacent
+    // "חתימת הנהג" box is left for a physical signature. Phoenix's consent is pre-printed in
+    // the paragraph text, so there is no consent checkbox to fill.
+    { key: "declarations.signatory_name", page: 1, right: 325, y: 158, size: 8 },
   ],
 };
 
