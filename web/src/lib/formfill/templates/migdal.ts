@@ -126,6 +126,13 @@ const migdal: Template = {
       page: 2,
       options: { yes: [428, 370] },
     },
+    // Signature block at page bottom — two boxes found via mupdf pixel-scan
+    // (dark-pixel edges at scale=8): signature box x=[31,143.5], date box
+    // x=[465.6,541.5], both y=[101.9,130.3]. Labels "חתימת המבוטח" / "תאריך"
+    // sit just below each box (y≈103). Text baseline set a few pt above the
+    // box bottom, right-anchored a few pt inside each box's right edge.
+    { key: "declarations.signatory_name", page: 2, right: 138, y: 110, size: 9 },
+    { key: "declarations.date", page: 2, right: 536, y: 110, size: 9 },
   ],
 };
 

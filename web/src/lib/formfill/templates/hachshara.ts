@@ -112,6 +112,9 @@ const hachshara: Template = {
 
     // ── Page 2: תאריך חתימה ─────────────────────────────────────────────────
     { key: "declarations.date", page: 1, right: 517, y: 272, size: 9 },
+    // חתימת המבוטח — blank signature line at x≈50-164 (before the ✍ icon at
+    // x≈164 and the "חתימת המבוטח" label at x≈177-235), same baseline as date/labels.
+    { key: "declarations.signatory_name", page: 1, right: 160, y: 272, size: 9 },
   ],
 };
 
