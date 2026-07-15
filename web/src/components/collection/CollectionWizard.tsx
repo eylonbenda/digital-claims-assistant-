@@ -14,10 +14,12 @@ const EMPTY: State = {
   policyInsurer: "",
   insuranceType: "",
   insured: { first_name: "", last_name: "", id_number: "", mobile: "", city: "" },
+  driver: { isInsured: null, first_name: "", last_name: "", id_number: "", license_number: "", relation_to_insured: "" },
   vehicle: { plate: "", manufacturer: "", year: "" },
   accident: { date: "", time: "", location: "", description: "" },
   fault: null,
   thirdParty: { present: null, name: "", phone: "", plate: "", insurer: "" },
+  declaration: { data_consent: false, poa_third_party: false, signed_date: "" },
   documents: [],
 };
 
