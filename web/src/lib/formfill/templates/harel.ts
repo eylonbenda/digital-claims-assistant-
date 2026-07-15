@@ -149,14 +149,18 @@ const harel: Template = {
     { key: "third_parties.0.damage_description", right: 134, y: 169, size: 8 },
 
     // ה. הצהרת המבוטח — "הנני מעוניין כי תביעת צד ג'... יטופל ע"י החברה" כן/לא (y=131).
-    // Engine checkboxes now match boolean values via yes/no option keys.
+    // Engine checkboxes match boolean values via yes/no option keys.
+    // Box order on this form is (RTL) ...החברה [לא] [כן]: the לא box is the rightmost
+    // (higher x=295), the כן box is left of it (x=274). Fixed 2026-07-14 — the two were
+    // swapped, so poa_third_party=true (client authorized handling) marked לא. Verified by
+    // render: yes now lands in the כן box.
     {
       key: "declarations.poa_third_party",
       type: "checkbox",
       size: 8,
       options: {
-        yes: [295, 131],
-        no: [274, 131],
+        yes: [274, 131],
+        no: [295, 131],
       },
     },
     // Both cells are dotted fill-in lines whose dots sit right at/just above the label baseline
