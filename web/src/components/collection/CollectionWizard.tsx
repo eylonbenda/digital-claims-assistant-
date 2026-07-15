@@ -8,6 +8,16 @@ import { type State, type DocType, type UploadedDoc, toClaimData, INSURERS } fro
 
 export type { State };
 
+// Local calendar date as ISO yyyy-mm-dd (avoids the UTC off-by-one of toISOString near midnight).
+function todayISO(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+// yyyy-mm-dd -> dd/mm/yyyy for the on-screen declaration preview.
+const formatDateILDisplay = (iso: string) => iso.split("-").reverse().join("/");
+
 const EMPTY: State = {
   consent: false,
   injuries: null,
@@ -52,6 +62,7 @@ const STEP_TITLES = [
   "הסכמה",
   "נפגעים",
   "הפרטים שלך",
+  "מי נהג",
   "הרכב שלך",
   "מתי ואיפה",
   "מה קרה",
@@ -161,14 +172,21 @@ export default function CollectionWizard({
           filled(s.insuranceType)
         );
       case 3:
-        return filled(s.vehicle.plate) && filled(s.vehicle.manufacturer) && filled(s.vehicle.year);
+        // must pick who drove; if someone other than the insured, require their identity.
+        return (
+          s.driver.isInsured !== null &&
+          (s.driver.isInsured ||
+            (filled(s.driver.first_name) && filled(s.driver.last_name) && filled(s.driver.id_number)))
+        );
       case 4:
-        return filled(s.accident.date) && filled(s.accident.time) && filled(s.accident.location);
+        return filled(s.vehicle.plate) && filled(s.vehicle.manufacturer) && filled(s.vehicle.year);
       case 5:
-        return filled(s.accident.description);
+        return filled(s.accident.date) && filled(s.accident.time) && filled(s.accident.location);
       case 6:
-        return s.fault !== null;
+        return filled(s.accident.description);
       case 7:
+        return s.fault !== null;
+      case 8:
         // present must be chosen; if a third party is involved, require its key identifiers.
         return (
           s.thirdParty.present !== null &&
@@ -411,6 +429,31 @@ export default function CollectionWizard({
         )}
 
         {step === 3 && (
+          <div>
+            <h2 className="text-xl font-bold">מי נהג ברכב בזמן התאונה?</h2>
+            <div className="mt-4">
+              <Choice<"insured" | "other">
+                value={s.driver.isInsured === null ? null : s.driver.isInsured ? "insured" : "other"}
+                options={[
+                  { v: "insured", label: "אני (המבוטח)" },
+                  { v: "other", label: "מישהו אחר" },
+                ]}
+                onChange={(v) => set({ driver: { ...s.driver, isInsured: v === "insured" } })}
+              />
+            </div>
+            {s.driver.isInsured === false && (
+              <div className="mt-4 space-y-3">
+                <Text required label="שם פרטי" value={s.driver.first_name} onChange={(v) => set({ driver: { ...s.driver, first_name: v } })} />
+                <Text required label="שם משפחה" value={s.driver.last_name} onChange={(v) => set({ driver: { ...s.driver, last_name: v } })} />
+                <Text required label="תעודת זהות" value={s.driver.id_number} onChange={(v) => set({ driver: { ...s.driver, id_number: v } })} />
+                <Text label="מספר רישיון נהיגה" value={s.driver.license_number} onChange={(v) => set({ driver: { ...s.driver, license_number: v } })} />
+                <Text label="קרבה למבוטח" value={s.driver.relation_to_insured} onChange={(v) => set({ driver: { ...s.driver, relation_to_insured: v } })} placeholder="בן/בת זוג, עובד, בן משפחה…" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 4 && (
           <div className="space-y-3">
             <h2 className="text-xl font-bold">הרכב שלך</h2>
             <Text required label="מספר רישוי" value={s.vehicle.plate} onChange={(v) => set({ vehicle: { ...s.vehicle, plate: v } })} />
@@ -419,7 +462,7 @@ export default function CollectionWizard({
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <div className="space-y-3">
             <h2 className="text-xl font-bold">מתי ואיפה קרתה התאונה?</h2>
             <Text required label="תאריך" type="date" value={s.accident.date} onChange={(v) => set({ accident: { ...s.accident, date: v } })} />
@@ -428,7 +471,7 @@ export default function CollectionWizard({
           </div>
         )}
 
-        {step === 5 && (
+        {step === 6 && (
           <div>
             <h2 className="text-xl font-bold">
               מה קרה?<span className="text-red-500"> *</span>
@@ -444,7 +487,7 @@ export default function CollectionWizard({
           </div>
         )}
 
-        {step === 6 && (
+        {step === 7 && (
           <div>
             <h2 className="text-xl font-bold">מי אשם בתאונה?</h2>
             <p className="mt-1 text-sm text-zinc-500">לפי דעתך — אפשר לשנות בהמשך.</p>
@@ -462,7 +505,7 @@ export default function CollectionWizard({
           </div>
         )}
 
-        {step === 7 && (
+        {step === 8 && (
           <div>
             <h2 className="text-xl font-bold">היה צד שני מעורב?</h2>
             <div className="mt-4">
@@ -486,7 +529,7 @@ export default function CollectionWizard({
           </div>
         )}
 
-        {step === 8 && (
+        {step === 9 && (
           <div className="space-y-3">
             <h2 className="text-xl font-bold">מסמכים ותמונות</h2>
             <p className="text-sm text-zinc-500">
@@ -498,12 +541,13 @@ export default function CollectionWizard({
           </div>
         )}
 
-        {step === 9 && (
+        {step === 10 && (
           <div>
             <h2 className="text-xl font-bold">סיכום</h2>
             <dl className="mt-3 divide-y divide-zinc-200 rounded-xl border border-zinc-200 text-sm">
               <Row k="שם" v={`${s.insured.first_name} ${s.insured.last_name}`.trim() || "—"} />
               <Row k="רכב" v={[s.vehicle.plate, s.vehicle.manufacturer].filter(Boolean).join(" · ") || "—"} />
+              <Row k="נהג" v={s.driver.isInsured === false ? `${s.driver.first_name} ${s.driver.last_name}`.trim() || "—" : s.driver.isInsured ? "המבוטח" : "—"} />
               <Row k="מתי" v={[s.accident.date, s.accident.time].filter(Boolean).join(" ") || "—"} />
               <Row k="איפה" v={s.accident.location || "—"} />
               <Row k="מי אשם" v={s.fault === "me" ? "אני" : s.fault === "third_party" ? "הצד השני" : "לא בטוח"} />
@@ -583,6 +627,48 @@ export default function CollectionWizard({
               )}
             </div>
 
+            <div className="mt-5 rounded-xl border border-zinc-200 p-4">
+              <p className="text-sm font-medium">הצהרת המבוטח</p>
+              <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+                אני החתום/ה מטה מצהיר/ה כי הפרטים שמסרתי נכונים ומלאים, ומסכים/ה כי המידע יועבר
+                לחברת הביטוח ולסוכן לצורך טיפול בתביעה, לרבות העברת מידע מהאגף לרישוי במשרד התחבורה.
+              </p>
+              <label className="mt-3 flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={s.declaration.data_consent}
+                  onChange={(e) =>
+                    set({
+                      declaration: {
+                        ...s.declaration,
+                        data_consent: e.target.checked,
+                        signed_date: e.target.checked ? s.declaration.signed_date || todayISO() : "",
+                      },
+                    })
+                  }
+                  className="mt-1 h-5 w-5"
+                />
+                <span className="text-sm">אני מאשר/ת את ההצהרה ואת העברת המידע.</span>
+              </label>
+              {s.thirdParty.present && (
+                <label className="mt-2 flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={s.declaration.poa_third_party}
+                    onChange={(e) => set({ declaration: { ...s.declaration, poa_third_party: e.target.checked } })}
+                    className="mt-1 h-5 w-5"
+                  />
+                  <span className="text-sm">
+                    אני מייפה את כוח חברת הביטוח לטפל בתביעת צד ג' (סעיף 68 לחוק חוזה הביטוח).
+                  </span>
+                </label>
+              )}
+              <p className="mt-3 text-xs text-zinc-500">
+                חתימה: <span className="font-medium">{`${s.insured.first_name} ${s.insured.last_name}`.trim() || "—"}</span>
+                {s.declaration.signed_date && <> · {formatDateILDisplay(s.declaration.signed_date)}</>}
+              </p>
+            </div>
+
             {submitError && (
               <p className="mt-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
                 {submitError}
@@ -592,7 +678,7 @@ export default function CollectionWizard({
         )}
       </div>
 
-      {step < last && [2, 3, 4, 5, 7].includes(step) && !canNext() && (
+      {step < last && [2, 3, 4, 5, 6, 8].includes(step) && !canNext() && (
         <p className="mt-3 text-center text-xs text-amber-600">
           יש למלא את שדות החובה המסומנים בכוכבית (*)
         </p>
@@ -621,7 +707,7 @@ export default function CollectionWizard({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitBusy}
+            disabled={submitBusy || !s.declaration.data_consent}
             className="flex-1 rounded-lg bg-green-600 px-4 py-3 font-medium text-white disabled:opacity-50"
           >
             {submitBusy ? "שולח…" : "שליחה לסוכן"}
