@@ -418,7 +418,7 @@ export default function CollectionWizard({
               >
                 <option value="">בחר/י סוג ביטוח…</option>
                 <option value="comprehensive">מקיף</option>
-                <option value="third_party">צד ג'</option>
+                <option value="third_party">צד ג׳</option>
                 <option value="mandatory">חובה בלבד</option>
               </select>
               <span className="mt-1 block text-xs text-zinc-400">
@@ -659,7 +659,7 @@ export default function CollectionWizard({
                     className="mt-1 h-5 w-5"
                   />
                   <span className="text-sm">
-                    אני מייפה את כוח חברת הביטוח לטפל בתביעת צד ג' (סעיף 68 לחוק חוזה הביטוח).
+                    אני מייפה את כוח חברת הביטוח לטפל בתביעת צד ג׳ (סעיף 68 לחוק חוזה הביטוח).
                   </span>
                 </label>
               )}
