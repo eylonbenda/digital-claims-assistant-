@@ -37,6 +37,7 @@ Each step = one screen, one action. Auto-save after each step (resumable).
 | 3 | Vehicle photos | photos (camera) | guided angles: front, back, side, damage close-up |
 | 4 | Driver's license | photo | stored, **not sent to the LLM** in MVP |
 | 5 | Vehicle registration | photo | same |
+| — | Who was driving ("מי נהג") | choice + form | insured or someone else; if other, capture name/ID (+ optional license no. / relation) |
 | 6 | Third-party details | form + photo (optional) | name, phone, ID, plate number, insurer |
 | 7 | Police report / incident number | text (optional) | if relevant |
 | 8 | Who's at fault ("מי אשם") | choice | me / third party / unknown — classification input |
@@ -50,6 +51,7 @@ Each step = one screen, one action. Auto-save after each step (resumable).
 
 ### Step 4 — Confirm & submit
 - The client sees a readable summary, confirms/edits, and submits.
+- The summary screen carries the **insured declaration**: a mandatory data-consent / information-transfer checkbox (captures the signatory name + signing date, and **gates the submit button**) plus, only when a third party is involved, an optional צד-ג' **power-of-attorney** consent (סעיף 68 לחוק חוזה הביטוח). These map into `declarations` on the canonical claim (`toClaimData`, `web/src/lib/collection/claim-state.ts`).
 - Receives a confirmation message + (optional) a status-tracking link.
 - **On submit** (`POST /api/claims/submit`), if a template exists for the client's insurer, the "הודעה על תאונה" form is filled **once** and stored in the case file (`generated_forms` + `form_generated` event). Best-effort — a fill error never blocks submission.
 

@@ -155,6 +155,11 @@ const shlomo: Template = {
 
     // ===== הצהרה =====
     { key: "declarations.date", right: 209, y: 43, size: 9 },
+    // NOTE (2026-07-14): the signature line here is "חתימת הנהג" (driver). We print the
+    // INSURED's typed name (declarations.signatory_name) as a typed-signature stand-in, per
+    // product decision (name+date, no drawn signature). Revisit if we later distinguish
+    // driver vs. insured signatures per-line.
+    { key: "declarations.signatory_name", right: 100, y: 43, size: 9 },
   ],
 };
 

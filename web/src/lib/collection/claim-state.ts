@@ -17,10 +17,23 @@ export type State = {
   policyInsurer: string; // the claimant's own insurer (drives which accident-notice form gets filled)
   insuranceType: InsuranceType | ""; // מקיף / חובה / צד ג' — pivots own_policy viability
   insured: { first_name: string; last_name: string; id_number: string; mobile: string; city: string };
+  driver: {
+    isInsured: boolean | null;
+    first_name: string;
+    last_name: string;
+    id_number: string;
+    license_number: string;
+    relation_to_insured: string;
+  };
   vehicle: { plate: string; manufacturer: string; year: string };
   accident: { date: string; time: string; location: string; description: string };
   fault: Fault | null;
   thirdParty: { present: boolean | null; name: string; phone: string; plate: string; insurer: string };
+  declaration: {
+    data_consent: boolean;
+    poa_third_party: boolean;
+    signed_date: string; // ISO yyyy-mm-dd, captured when data_consent is first ticked
+  };
   documents: UploadedDoc[];
 };
 
@@ -38,6 +51,12 @@ export const INSURERS: { key: string; label: string; templated: boolean }[] = [
   { key: "libra", label: "ליברה", templated: false },
   { key: "aig", label: "AIG", templated: false },
 ];
+
+// ISO yyyy-mm-dd -> dd/mm/yyyy (Israeli form convention). Passes through anything else.
+function formatDateIL(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
 
 // Maps the wizard State to the canonical ClaimData the form-fill engine consumes.
 // Shared so the claimant preview and the agent-side PDF generation stay identical.
@@ -77,6 +96,37 @@ export function toClaimData(s: State): ClaimData {
               insurer: s.thirdParty.insurer,
             },
           ],
+        }
+      : {}),
+    // Driver — only once the "who was driving" question is answered. When the insured
+    // drove, copy their identity into the driver section the forms expect.
+    ...(s.driver?.isInsured == null
+      ? {}
+      : {
+          driver: s.driver.isInsured
+            ? {
+                first_name: s.insured.first_name,
+                last_name: s.insured.last_name,
+                id_number: s.insured.id_number,
+                relation_to_insured: "המבוטח",
+              }
+            : {
+                first_name: s.driver.first_name,
+                last_name: s.driver.last_name,
+                id_number: s.driver.id_number,
+                ...(s.driver.license_number ? { license_number: s.driver.license_number } : {}),
+                ...(s.driver.relation_to_insured ? { relation_to_insured: s.driver.relation_to_insured } : {}),
+              },
+        }),
+    // Insured declaration (bottom-of-form). signatory + date always; poa only when a TP exists.
+    ...(s.declaration
+      ? {
+          declarations: {
+            signatory_name: `${s.insured.first_name} ${s.insured.last_name}`.trim(),
+            ...(s.declaration.signed_date ? { date: formatDateIL(s.declaration.signed_date) } : {}),
+            data_consent: s.declaration.data_consent,
+            ...(s.thirdParty.present ? { poa_third_party: s.declaration.poa_third_party } : {}),
+          },
         }
       : {}),
   };
