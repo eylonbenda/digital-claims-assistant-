@@ -8,9 +8,7 @@ const FILL = rgb(0.05, 0.13, 0.55);
 const MARK = rgb(0.75, 0.05, 0.05);
 
 // Blank template PDFs + the Hebrew font live next to this module.
-// NOTE: app-hebrew.ttf is currently Windows Arial (dev only). Replace with a bundled
-// OFL font (Rubik / Heebo / Noto Sans Hebrew) before deploying — Arial is not
-// redistributable and won't exist on a Linux host.
+// NOTE: app-hebrew.ttf is Noto Sans Hebrew (OFL 1.1 — license bundled as OFL.txt).
 // Path is process.cwd()-relative and bundled via next.config `outputFileTracingIncludes`.
 const ASSETS = path.join(process.cwd(), "src", "lib", "formfill", "assets");
 
