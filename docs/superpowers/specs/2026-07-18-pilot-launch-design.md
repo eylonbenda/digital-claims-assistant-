@@ -54,12 +54,13 @@ A dashboard view listing every **open task due today or overdue** across the age
 claims, so the day starts from one screen.
 
 - **Selection:** `tasks` where `status in ('todo','in_progress','blocked')` and
-  `due_date <= today`, joined to claims;
+  `due_at <= end of today`, joined to claims;
   grouped by claim; ordered most-overdue first. Read-only — **no schema change, no cron**.
-- **Row:** task title, days-overdue badge, link to `/dashboard/[id]`, and — for
-  chase-type tasks (client docs, insurer response) — a pre-filled `wa.me` link reusing
-  the `ReadinessStrip` doc-chase pattern. Hebrew message templates per task kind
-  (doc chase includes the client's `/c/[token]` link; insurer chase is agent-directed text).
+- **Row:** task title, days-overdue badge, link to `/dashboard/[id]`, and — for the
+  client-facing doc-chase task (`chase_missing_docs`) — a pre-filled `wa.me` link reusing
+  the `ReadinessStrip` pattern (Hebrew message + the client's `/c/[token]` upload link).
+  Insurer-facing tasks get no WhatsApp link: the data model has no insurer phone, and
+  agents chase insurers by phone/email; those rows link into the cockpit only.
 - **Placement:** section at the top of `/dashboard` (collapsed when empty) — not a
   separate route, so agents see it without navigating.
 - **Structure:** pure selection/grouping/message-building function in
