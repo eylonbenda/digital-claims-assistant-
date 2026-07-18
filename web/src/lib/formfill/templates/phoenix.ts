@@ -170,7 +170,11 @@ const phoenix: Template = {
     { key: "third_parties.0.vehicle_type", right: 335, y: 264, size: 8 },
     { key: "third_parties.0.insurer", right: 215, y: 264, size: 8 },
     { key: "third_parties.0.policy_number", right: 95, y: 264, size: 8 },
-    { key: "third_parties.0.driver_name", right: 558, y: 244, size: 9 },
+    // right pulled in from 558→540: under Noto Sans Hebrew (wider than the old Arial), a long
+    // driver_name's rightmost glyph landed on/behind the rotated "פרטי רכב..." column label that
+    // starts at x≈557 in this row's y-band (244); 540 gives clearance (matches the same-row
+    // vehicle_plate's already-tighter right=520 for the same reason).
+    { key: "third_parties.0.driver_name", right: 540, y: 244, size: 9 },
     { key: "third_parties.0.address", right: 455, y: 244, size: 8 },
     // id_number cell spans x≈240-310 (ticks fill most of it); the blank gap between this cell's
     // right border (310) and where the address text actually starts (≈388) is the safe zone —
