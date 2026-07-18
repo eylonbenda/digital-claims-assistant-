@@ -54,6 +54,8 @@ export function buildDigest(
   const tomorrow = new Date(now);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   tomorrow.setUTCHours(0, 0, 0, 0);
+  // Day boundary is the UTC calendar day (deliberate: TZ-independent across dev/CI/Vercel).
+  // For an Israel-based agent the day flips at 03:00 local — acceptable for a morning-read digest.
   const endOfToday = new Date(tomorrow.getTime() - 1);
 
   const byClaim = new Map(claims.map((c) => [c.id, c]));
