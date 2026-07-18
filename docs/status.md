@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-15**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-18**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -114,6 +114,6 @@ cd web ; npm run dev
 → open `/c/demo` → fill the wizard → review step → **"סכם עם AI"**.
 
 ## Pre-deploy gotchas (don't forget)
-- **Swap the dev font** `web/src/lib/formfill/assets/app-hebrew.ttf` (Windows Arial) for an **OFL font** (Rubik / Heebo / Noto Sans Hebrew) before shipping — licensing.
+- ~~Swap the dev font for an OFL font~~ — **done**: `web/src/lib/formfill/assets/app-hebrew.ttf` is now **Noto Sans Hebrew** (OFL 1.1, static Regular; license bundled as `assets/OFL.txt`); all 9 forms re-QA'd under it (phoenix `driver_name` nudged right=558→540 for the wider glyphs).
 - This Next.js is **v16** — its `web/AGENTS.md` says read `web/node_modules/next/dist/docs/` before writing Next code (async `params`/`cookies()`/`headers()`).
 - Always consult the **`claude-api` skill** before touching Anthropic SDK code.
