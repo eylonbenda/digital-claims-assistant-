@@ -2,18 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { waPhone } from "@/lib/wa";
 
 export type BlockingItem = { key: string; label: string };
 export type NextMilestone = { key: string; label: string };
 export type NextTask = { title: string; due_at: string | null; overdue: boolean };
-
-// Israeli local mobile → wa.me international format (0521234567 → 972521234567).
-function waPhone(phone: string): string | null {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("972")) return digits;
-  if (digits.startsWith("0") && digits.length >= 9) return `972${digits.slice(1)}`;
-  return null;
-}
 
 // The page's thesis: is this claim submittable, and if not — what unblocks it.
 // Red = blocking items missing (with a one-click WhatsApp chase), amber = not
