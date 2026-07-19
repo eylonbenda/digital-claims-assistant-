@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import NewClaimForm from "./NewClaimForm";
 import ClaimsTable from "./ClaimsTable";
+import FollowupsPanel from "./FollowupsPanel";
+import { buildDigest } from "@/lib/tasks/digest";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -22,7 +25,7 @@ export default async function DashboardPage() {
   // last, so row 1 per claim = the next dated action.
   const { data: taskRows } = await supabase
     .from("tasks")
-    .select("claim_id, title, due_at")
+    .select("id, claim_id, key, title, status, due_at")
     .neq("status", "done")
     .order("due_at", { ascending: true, nullsFirst: false });
 
@@ -36,6 +39,25 @@ export default async function DashboardPage() {
     ...c,
     next_task: nextTaskByClaim.get(c.id) ?? null,
   }));
+
+  // Absolute origin for links baked into rendered HTML (e.g. the WhatsApp
+  // message body) — computed server-side so SSR and client hydration match.
+  const hdrs = await headers();
+  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const origin = host ? `${proto}://${host}` : "";
+
+  const digest = buildDigest(
+    (taskRows ?? []) as Parameters<typeof buildDigest>[0],
+    (claims ?? []).map((c) => ({
+      id: c.id,
+      client_name: c.client_name,
+      client_phone: c.client_phone,
+      access_token: c.access_token,
+    })),
+    new Date(),
+    origin
+  );
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -54,6 +76,8 @@ export default async function DashboardPage() {
           <h2 className="text-xl font-semibold text-zinc-900">תביעות</h2>
           <NewClaimForm />
         </div>
+
+        <FollowupsPanel groups={digest} />
 
         <ClaimsTable claims={claimsWithTasks} />
       </main>
