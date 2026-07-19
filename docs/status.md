@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-18**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-19**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -9,6 +9,32 @@ cd C:\Users\eylon\digital-claims-assistant   # launch from here so CLAUDE.md aut
 claude
 ```
 Then read this file + `CLAUDE.md`. The work lives in the repo, not in chat history.
+
+---
+
+## Deploy topology (pilot, set 2026-07-19)
+
+Two **separate Supabase projects**, mapped to Vercel env **scopes** on one Vercel project (root dir = `web`, production branch = `main`):
+
+| Vercel scope | Supabase project | Reached by |
+|---|---|---|
+| **Production** | `claims-pilot` (real client PII) | merge to `main` → prod deploy |
+| **Preview** | dev/sandbox project | any branch push / PR → preview deploy |
+| **Development** | dev/sandbox project | `vercel env pull`; local `npm run dev` actually reads `web/.env.local` (dev keys) |
+
+Env vars per scope: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (prod vs dev values); `ANTHROPIC_API_KEY` same across scopes. **Never put prod keys in `web/.env.local`.** `NEXT_PUBLIC_SUPABASE_URL` = bare project origin `https://<ref>.supabase.co` — no `/rest/v1/` suffix.
+
+### Promoting a change to prod — checklist
+Vercel deploys **code**, not **schema**. There is no auto-migration. So:
+
+1. Develop on a branch; run any new `web/db/migrations/NNN_*.sql` **against the dev Supabase** SQL editor while building.
+2. PR → CI (lint/test/build) must be green. The preview URL runs against dev — eyeball it.
+3. **If the branch added a migration:** before or in lockstep with the merge, paste that same migration into the **prod (`claims-pilot`) SQL editor** and run it. Prod schema must be ready *before* the new code goes live.
+4. Merge to `main` → Vercel auto-deploys Production against prod Supabase.
+5. Post-deploy smoke: hit `/api/health` (key wiring) + `/api/version`.
+
+**The trap:** a merged PR whose migration you forgot to apply to prod deploys green, then 500s at runtime on the missing column/table. Migrations are a *two-place* change — code by merge, schema by hand.
+**PII rule:** schema flows **up** (dev → prod); production data never flows **down** to dev (חוק הגנת הפרטיות).
 
 ---
 
