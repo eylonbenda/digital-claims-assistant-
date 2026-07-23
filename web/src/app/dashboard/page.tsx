@@ -16,13 +16,20 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   // Agent row (agents.id ≠ auth uid). No row yet → no claims → no brief.
-  const svc = createServiceClient();
-  const { data: agentRow } = await svc
-    .from("agents")
-    .select("id")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-  const brief = agentRow ? await getOrCreateBrief(agentRow.id) : null;
+  // Best-effort: the brief must never break the dashboard, so a missing
+  // service key or any lookup failure degrades to no-brief, not a 500.
+  let brief = null;
+  try {
+    const svc = createServiceClient();
+    const { data: agentRow } = await svc
+      .from("agents")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    brief = agentRow ? await getOrCreateBrief(agentRow.id) : null;
+  } catch {
+    brief = null;
+  }
 
   const { data: claims } = await supabase
     .from("claims")

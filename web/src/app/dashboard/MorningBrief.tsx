@@ -67,13 +67,18 @@ export default function MorningBrief({ brief, origin }: { brief: Brief; origin: 
   async function refresh() {
     setBusy(true);
     setError(null);
-    const res = await fetch("/api/brief/refresh", { method: "POST" });
-    setBusy(false);
-    if (!res.ok) {
+    try {
+      const res = await fetch("/api/brief/refresh", { method: "POST" });
+      if (!res.ok) {
+        setError("רענון נכשל");
+        return;
+      }
+      router.refresh();
+    } catch {
       setError("רענון נכשל");
-      return;
+    } finally {
+      setBusy(false);
     }
-    router.refresh();
   }
 
   if (brief.items.length === 0) return null;

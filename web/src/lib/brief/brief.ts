@@ -134,9 +134,14 @@ export async function getOrCreateBrief(
     const signals = await rankClaims(sheets);
     const brief = assembleBrief(sheets, signals, now);
 
-    await svc
-      .from("agent_briefs")
-      .upsert({ agent_id: agentId, brief_date: date, payload_json: brief }, { onConflict: "agent_id,brief_date" });
+    // Don't persist a degraded (AI-unavailable) brief — caching ai:false for the
+    // whole day would keep serving rules-only even after the AI recovers. Return
+    // it for this render; the next load recomputes and can cache a real one.
+    if (signals !== null) {
+      await svc
+        .from("agent_briefs")
+        .upsert({ agent_id: agentId, brief_date: date, payload_json: brief }, { onConflict: "agent_id,brief_date" });
+    }
 
     return brief;
   } catch (err) {
