@@ -81,7 +81,7 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Run `web/db/schema.sql` in the SQL editor
-3. Run `web/db/migrations/001_agent_setup.sql` (agent trigger + insert policy), then `web/db/migrations/002_grants.sql` (PostgREST grants — without these, writes fail even with the service-role key), then `web/db/migrations/003_storage.sql` (creates the private `claim-docs` bucket — without it, document upload + form persistence fail with "Bucket not found"), then `web/db/migrations/004_doc_types_and_claim_flags.sql` (expands the `doc_type` enum + adds the circumstance-flag columns the checklist reads), then `web/db/migrations/005_claim_notes.sql` (the `claim_notes` table backing the agent-notes scratchpad), then `web/db/migrations/006_tasks_engine.sql` (task-engine columns + idempotency index on `tasks`)
+3. Run `web/db/migrations/001_agent_setup.sql` (agent trigger + insert policy), then `web/db/migrations/002_grants.sql` (PostgREST grants — without these, writes fail even with the service-role key), then `web/db/migrations/003_storage.sql` (creates the private `claim-docs` bucket — without it, document upload + form persistence fail with "Bucket not found"), then `web/db/migrations/004_doc_types_and_claim_flags.sql` (expands the `doc_type` enum + adds the circumstance-flag columns the checklist reads), then `web/db/migrations/005_claim_notes.sql` (the `claim_notes` table backing the agent-notes scratchpad), then `web/db/migrations/006_tasks_engine.sql` (task-engine columns + idempotency index on `tasks`), then `web/db/migrations/007_agent_briefs.sql` (morning-brief cache table)
 4. Copy keys into `web/.env.local`:
    ```
    NEXT_PUBLIC_SUPABASE_URL=...
