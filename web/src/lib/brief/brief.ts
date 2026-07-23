@@ -12,6 +12,12 @@ export type BriefItem = {
 
 export type Brief = { brief_date: string; generated_at: string; ai: boolean; items: BriefItem[] };
 
+// Only the AI judgment (tier/reason/flags per claim) is cached per day — it's the
+// expensive part. The deterministic action fields (blocking_labels, next_task) are
+// recomputed live on every read, so a doc uploaded after the AI ran can't leave a
+// stale one-click chase on the brief.
+type CachedRanking = { generated_at: string; signals: RankSignal[] };
+
 // UTC calendar day — same deliberate convention the old digest used.
 export function briefDate(now: Date): string {
   return now.toISOString().slice(0, 10);
@@ -52,16 +58,6 @@ export async function getOrCreateBrief(
     const svc = createServiceClient();
     const now = new Date();
     const date = briefDate(now);
-
-    if (!opts?.refresh) {
-      const { data: cached } = await svc
-        .from("agent_briefs")
-        .select("payload_json")
-        .eq("agent_id", agentId)
-        .eq("brief_date", date)
-        .maybeSingle();
-      if (cached?.payload_json) return cached.payload_json as Brief;
-    }
 
     const { data: claims } = await svc
       .from("claims")
@@ -131,19 +127,45 @@ export async function getOrCreateBrief(
       );
     });
 
-    const signals = await rankClaims(sheets);
-    const brief = assembleBrief(sheets, signals, now);
+    // Resolve the AI judgment: reuse today's cached ranking unless refreshing,
+    // else call the LLM once and cache it. Fact sheets above are always live.
+    let signals: RankSignal[] | null;
+    let generatedAt: string;
 
-    // Don't persist a degraded (AI-unavailable) brief — caching ai:false for the
-    // whole day would keep serving rules-only even after the AI recovers. Return
-    // it for this render; the next load recomputes and can cache a real one.
-    if (signals !== null) {
-      await svc
+    let cached: CachedRanking | null = null;
+    if (!opts?.refresh) {
+      const { data } = await svc
         .from("agent_briefs")
-        .upsert({ agent_id: agentId, brief_date: date, payload_json: brief }, { onConflict: "agent_id,brief_date" });
+        .select("payload_json")
+        .eq("agent_id", agentId)
+        .eq("brief_date", date)
+        .maybeSingle();
+      const payload = data?.payload_json as CachedRanking | null;
+      // Guard: only a lean ranking row (has `signals`) is reusable; an older
+      // full-Brief row from a prior deploy is ignored and recomputed.
+      if (payload && Array.isArray(payload.signals)) cached = payload;
     }
 
-    return brief;
+    if (cached) {
+      signals = cached.signals; // AI ran when cached → ai:true via assembleBrief
+      generatedAt = cached.generated_at;
+    } else {
+      signals = await rankClaims(sheets);
+      generatedAt = now.toISOString();
+      // Only persist a real ranking — never cache a degraded (AI-down) day, so a
+      // transient failure doesn't pin rules-only until tomorrow.
+      if (signals !== null) {
+        await svc.from("agent_briefs").upsert(
+          { agent_id: agentId, brief_date: date, payload_json: { generated_at: generatedAt, signals } },
+          { onConflict: "agent_id,brief_date" },
+        );
+      }
+    }
+
+    // Merge live sheets + AI signals; stamp with when the ranking was produced
+    // (not this render), so "עודכן" reflects the AI run and stays stable per day.
+    const brief = assembleBrief(sheets, signals, now);
+    return { ...brief, generated_at: generatedAt };
   } catch (err) {
     console.error("morning brief failed:", err);
     return null;
