@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { waPhone } from "@/lib/wa";
+import { chaseHref } from "@/lib/wa";
 
 export type BlockingItem = { key: string; label: string };
 export type NextMilestone = { key: string; label: string };
@@ -64,15 +64,11 @@ export default function ReadinessStrip({
   }
 
   if (blocking.length > 0) {
-    const wa = clientPhone ? waPhone(clientPhone) : null;
-    const msg = [
-      `שלום${clientName ? ` ${clientName.split(" ")[0]}` : ""}, בהמשך לתביעה שלך —`,
-      `כדי שנוכל להתקדם מול חברת הביטוח חסרים המסמכים הבאים:`,
-      ...blocking.map((b) => `• ${b.label}`),
-      ``,
-      `אפשר להעלות אותם כאן: ${uploadUrl}`,
-      `תודה!`,
-    ].join("\n");
+    const href = chaseHref(clientPhone, {
+      firstName: clientName?.split(" ")[0] ?? null,
+      items: blocking.map((b) => b.label),
+      uploadUrl,
+    });
 
     return (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-5 py-3">
@@ -84,9 +80,9 @@ export default function ReadinessStrip({
             {blocking.map((b) => b.label).join(" · ")}
           </p>
         </div>
-        {wa && (
+        {href && (
           <a
-            href={`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`}
+            href={href}
             target="_blank"
             rel="noopener noreferrer"
             className="shrink-0 rounded-lg bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800"

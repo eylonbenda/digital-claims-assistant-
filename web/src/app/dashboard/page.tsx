@@ -3,8 +3,9 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import NewClaimForm from "./NewClaimForm";
 import ClaimsTable from "./ClaimsTable";
-import FollowupsPanel from "./FollowupsPanel";
-import { buildDigest } from "@/lib/tasks/digest";
+import MorningBrief from "./MorningBrief";
+import { getOrCreateBrief } from "@/lib/brief/brief";
+import { createServiceClient } from "@/lib/supabase/service";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -13,6 +14,22 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
+
+  // Agent row (agents.id ≠ auth uid). No row yet → no claims → no brief.
+  // Best-effort: the brief must never break the dashboard, so a missing
+  // service key or any lookup failure degrades to no-brief, not a 500.
+  let brief = null;
+  try {
+    const svc = createServiceClient();
+    const { data: agentRow } = await svc
+      .from("agents")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    brief = agentRow ? await getOrCreateBrief(agentRow.id) : null;
+  } catch {
+    brief = null;
+  }
 
   const { data: claims } = await supabase
     .from("claims")
@@ -47,18 +64,6 @@ export default async function DashboardPage() {
   const proto = hdrs.get("x-forwarded-proto") ?? "https";
   const origin = host ? `${proto}://${host}` : "";
 
-  const digest = buildDigest(
-    (taskRows ?? []) as Parameters<typeof buildDigest>[0],
-    (claims ?? []).map((c) => ({
-      id: c.id,
-      client_name: c.client_name,
-      client_phone: c.client_phone,
-      access_token: c.access_token,
-    })),
-    new Date(),
-    origin
-  );
-
   return (
     <div className="min-h-screen bg-zinc-50">
       <header className="border-b border-zinc-200 bg-white px-6 py-4">
@@ -77,7 +82,7 @@ export default async function DashboardPage() {
           <NewClaimForm />
         </div>
 
-        <FollowupsPanel groups={digest} />
+        {brief && <MorningBrief brief={brief} origin={origin} />}
 
         <ClaimsTable claims={claimsWithTasks} />
       </main>
