@@ -1,7 +1,6 @@
 import type { NextRequest } from "next/server";
 import { templates, fillForm } from "@/lib/formfill";
 import type { Template } from "@/lib/formfill/engine";
-import sampleClaim from "@/lib/formfill/sample-claim";
 
 export const runtime = "nodejs"; // needs fs to read the template PDF + font
 
@@ -27,17 +26,9 @@ function notFound(insurer: string) {
   );
 }
 
-// GET — fill with the demo claim (preview).
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ insurer: string }> }
-) {
-  const { insurer } = await params;
-  const template = resolve(insurer);
-  return template ? pdfResponse(template, sampleClaim, insurer) : notFound(insurer);
-}
-
 // POST — fill with the canonical claim data in the request body.
+// (The demo GET that filled from sample-claim was removed when the homepage
+// became a public landing page; sample-claim stays for scripts/fill.ts QA.)
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ insurer: string }> }

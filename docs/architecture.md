@@ -5,9 +5,10 @@
 ---
 
 ## 1. Overview
-- **Frontend + Backend:** Next.js (App Router) + TypeScript, on Vercel. Two surfaces:
-  1. **Collection web-app** (public, no login, access via signed token) — the client.
-  2. **Agent dashboard** (authenticated) — the agent.
+- **Frontend + Backend:** Next.js (App Router) + TypeScript, on Vercel. Three surfaces:
+  1. **Marketing landing page** at `/` (public, static, Hebrew/RTL — `web/src/app/page.tsx`, "OpenTik") — the prospect. Links to `/login`; wa.me demo CTA.
+  2. **Collection web-app** (public, no login, access via signed token) — the client.
+  3. **Agent dashboard** (authenticated) — the agent.
 - **DB + Auth + Storage:** Supabase (Postgres, Supabase Auth, Storage).
 - **AI:** Anthropic Claude SDK.
 - **Deploy:** `git push` → Vercel.
