@@ -1,4 +1,5 @@
 import type { ClaimData, Fault, InsuranceType } from "@/lib/formfill/types";
+import { toILDate } from "@/lib/dates";
 
 // The wizard's working shape. Persisted verbatim to `claims.summary_json.collected`
 // at submit, so the agent side can re-derive the canonical ClaimData server-side.
@@ -51,12 +52,6 @@ export const INSURERS: { key: string; label: string; templated: boolean }[] = [
   { key: "libra", label: "ליברה", templated: false },
   { key: "aig", label: "AIG", templated: false },
 ];
-
-// ISO yyyy-mm-dd -> dd/mm/yyyy (Israeli form convention). Passes through anything else.
-function formatDateIL(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
-}
 
 // Maps the wizard State to the canonical ClaimData the form-fill engine consumes.
 // Shared so the claimant preview and the agent-side PDF generation stay identical.
@@ -123,7 +118,7 @@ export function toClaimData(s: State): ClaimData {
       ? {
           declarations: {
             signatory_name: `${s.insured.first_name} ${s.insured.last_name}`.trim(),
-            ...(s.declaration.signed_date ? { date: formatDateIL(s.declaration.signed_date) } : {}),
+            ...(s.declaration.signed_date ? { date: toILDate(s.declaration.signed_date) } : {}),
             data_consent: s.declaration.data_consent,
             ...(s.thirdParty.present ? { poa_third_party: s.declaration.poa_third_party } : {}),
           },
