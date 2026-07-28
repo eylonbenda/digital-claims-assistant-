@@ -82,6 +82,7 @@
 ## בנייה (Build Notes)
 - **Overlay:** טוענים PDF ריק של המבטח, מציירים טקסט בקואורדינטות. כלים: `pdf-lib` (Node) או `reportlab`+`pypdf` (Python). פונט עברי מוטמע חובה.
 - **מיפוי לכל תבנית:** קובץ `{ field: { page, x, y, maxWidth } }`. בחירות/checkbox = ציור "✓"/"X" בקואורדינטה.
+- ‏**תאריכים:** בסכמה הקנונית נשמרים ISO (`yyyy-mm-dd` — מה ש-`<input type="date">` מפיק), ומומרים ל-**dd/mm/yyyy** בגבול המילוי: `fillForm` מריץ `normalizeClaimDates` (`web/src/lib/formfill/dates.ts`) לפני הציור, כך שכל הנתיבים מכוסים (הגשת לקוח · יצירה מחדש ע"י הסוכן · `summary_json.form_data` ערוך). ההמרה לפי שם שדה (`date`, `birth_date`, `license_date`, `license_expiry`), ולכן חלה גם על מערכים כמו `injured_persons[]`; ערך שאינו ISO עובר כמו שהוא.
 - **פלט:** PDF נשמר ב-`generated_forms` (ראה [architecture.md](architecture.md)).
 
 ## נכסים
