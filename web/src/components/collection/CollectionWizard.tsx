@@ -742,8 +742,9 @@ function DocField({
           {mine.length ? "הוסף/י" : "צילום / קובץ"}
           <input
             type="file"
-            accept="image/*"
-            capture="environment"
+            // No `capture` attribute — see FollowupUpload: it would force the camera and
+            // hide gallery/Files on mobile.
+            accept="image/*,application/pdf"
             multiple={multiple}
             className="hidden"
             onChange={(e) => {
