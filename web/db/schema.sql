@@ -102,8 +102,20 @@ create table tasks (
   status task_status not null default 'todo',
   due_at timestamptz,
   assignee text,
+  -- task-engine columns (migration 006).
+  key text,                                    -- stable template id ('chase_appraiser'); null for manual
+  source text not null default 'template',     -- 'template' (engine-spawned) | 'manual' (agent-created)
+  note text,
+  completed_at timestamptz,
   created_at timestamptz not null default now()
 );
+create index tasks_claim_status_due_idx on tasks (claim_id, status, due_at);
+-- At most one OPEN template task per (claim, key). A 'done' task frees the key,
+-- allowing a justified re-spawn. Races between concurrent requests resolve here
+-- as a 23505 that `runEngine` ignores — this index is load-bearing, not just a perf hint.
+create unique index tasks_claim_key_open_uniq
+  on tasks (claim_id, key)
+  where key is not null and status <> 'done';
 
 create table claim_events (
   id uuid primary key default gen_random_uuid(),
