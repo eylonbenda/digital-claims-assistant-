@@ -53,7 +53,16 @@ describe("computeChecklist — own_policy conditional docs", () => {
   });
 });
 
-describe("computeChecklist — third_party_report is unaffected", () => {
+describe("computeChecklist — third_party_report", () => {
+  it("lists the repair receipt as required but does not let it gate readiness", () => {
+    const items = computeChecklist("third_party_report", new Set(), false, {}, NO_FLAGS);
+    const receipt = items.find((i) => i.key === "repair_receipt");
+    expect(receipt?.mandatory).toBe(true);
+    expect(receipt?.blocking).toBe(false);
+    // The invoice it's paired with still blocks — only the receipt was relaxed.
+    expect(blockingKeys(items)).toContain("garage_invoice");
+  });
+
   it("still swaps no_claim_confirmation for loss_confirmation on policy_activated", () => {
     const off = computeChecklist("third_party_report", new Set(), false, {}, NO_FLAGS);
     expect(off.map((i) => i.key)).toContain("no_claim_confirmation");
