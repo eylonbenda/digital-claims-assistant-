@@ -157,6 +157,10 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **Blast radius, all in the intended direction:** blocking state is what drives the cockpit readiness strip (submittable-or-chase), the morning brief's `blocking_labels` + priority score, and the task engine's `blockingMissing` / `submit_to_insurer` spawn — all three stop firing on documents the claim never needed.
 - New `web/src/lib/claims/checklist.test.ts` (Vitest) covers flag-off vs flag-on blocking, still-listed items, upload clearing a blocking conditional, and the untouched `third_party_report` swap. **No migration** — the flag columns already exist from `004`.
 
+### Done since last sync (2026-07-29, PR #28 — repair receipt non-blocking)
+- **The payment receipt no longer gates `third_party_report` readiness.** `repair_receipt` ("קבלה על תשלום") was `blocking: true` in the track's `late` section, but it can only arrive after the repair is paid — i.e. after the original invoice — so otherwise-ready claims sat at "not submittable" waiting for it. It is now `blocking: false` while staying `mandatory: true` (still listed and still required for the file); `garage_invoice` remains blocking. Same three consumers as PR #27 — readiness strip, morning-brief blocking-docs/score, task engine `blockingMissing` — stop firing on it.
+- Covered by a new case in `web/src/lib/claims/checklist.test.ts` (receipt mandatory + non-blocking, `garage_invoice` still blocking). **No migration**, no schema or route change.
+
 ---
 
 ## To run the AI path live
