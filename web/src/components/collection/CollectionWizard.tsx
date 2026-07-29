@@ -5,6 +5,7 @@ import type { Fault } from "@/lib/formfill/types";
 import type { ClaimAnalysis } from "@/lib/ai/analyze";
 import { compressImage } from "@/lib/images/compress";
 import { type State, type DocType, type UploadedDoc, toClaimData, INSURERS } from "@/lib/collection/claim-state";
+import { toILDate } from "@/lib/dates";
 
 export type { State };
 
@@ -14,9 +15,6 @@ function todayISO(): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
-
-// yyyy-mm-dd -> dd/mm/yyyy for the on-screen declaration preview.
-const formatDateILDisplay = (iso: string) => iso.split("-").reverse().join("/");
 
 const EMPTY: State = {
   consent: false,
@@ -548,7 +546,7 @@ export default function CollectionWizard({
               <Row k="שם" v={`${s.insured.first_name} ${s.insured.last_name}`.trim() || "—"} />
               <Row k="רכב" v={[s.vehicle.plate, s.vehicle.manufacturer].filter(Boolean).join(" · ") || "—"} />
               <Row k="נהג" v={s.driver.isInsured === false ? `${s.driver.first_name} ${s.driver.last_name}`.trim() || "—" : s.driver.isInsured ? "המבוטח" : "—"} />
-              <Row k="מתי" v={[s.accident.date, s.accident.time].filter(Boolean).join(" ") || "—"} />
+              <Row k="מתי" v={[toILDate(s.accident.date), s.accident.time].filter(Boolean).join(" ") || "—"} />
               <Row k="איפה" v={s.accident.location || "—"} />
               <Row k="מי אשם" v={s.fault === "me" ? "אני" : s.fault === "third_party" ? "הצד השני" : "לא בטוח"} />
               <Row k="נפגעים" v={s.injuries ? "כן" : "לא"} />
@@ -665,7 +663,7 @@ export default function CollectionWizard({
               )}
               <p className="mt-3 text-xs text-zinc-500">
                 חתימה: <span className="font-medium">{`${s.insured.first_name} ${s.insured.last_name}`.trim() || "—"}</span>
-                {s.declaration.signed_date && <> · {formatDateILDisplay(s.declaration.signed_date)}</>}
+                {s.declaration.signed_date && <> · {toILDate(s.declaration.signed_date)}</>}
               </p>
             </div>
 
@@ -744,8 +742,9 @@ function DocField({
           {mine.length ? "הוסף/י" : "צילום / קובץ"}
           <input
             type="file"
-            accept="image/*"
-            capture="environment"
+            // No `capture` attribute — see FollowupUpload: it would force the camera and
+            // hide gallery/Files on mobile.
+            accept="image/*,application/pdf"
             multiple={multiple}
             className="hidden"
             onChange={(e) => {

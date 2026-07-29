@@ -34,7 +34,7 @@ Each step = one screen, one action. Auto-save after each step (resumable).
 |---|---|---|---|
 | 1 | When & where the accident happened | date/time + location | GPS suggestion with manual confirm |
 | 2 | Event description | free text **or voice recording** | voice → transcript → Claude structures it |
-| 3 | Vehicle photos | photos (camera) | guided angles: front, back, side, damage close-up |
+| 3 | Vehicle photos | photos (camera, gallery or file) | guided angles: front, back, side, damage close-up |
 | 4 | Driver's license | photo | stored, **not sent to the LLM** in MVP |
 | 5 | Vehicle registration | photo | same |
 | — | Who was driving ("מי נהג") | choice + form | insured or someone else; if other, capture name/ID (+ optional license no. / relation) |
@@ -47,7 +47,7 @@ Each step = one screen, one action. Auto-save after each step (resumable).
 - Produces: a **structured event summary** + a **missing-info checklist** + narrative **signals** (`incident_kind`, `inferred_fault`). Claude does **not** pick the track — a deterministic classifier (`web/src/lib/claims/classify.ts`) turns those signals + the structured fields into a **proposed `claim_type`** with a confidence and, for third-party claims, a report-vs-settlement recommendation the agent must confirm. See [claim-management.md](claim-management.md).
 - If critical info is missing → the client is asked to complete it before submitting.
 
-> **Implemented:** the wizard also captures the client's **own insurer** (`policy_insurer`) and **coverage type** (`insurance_type` — מקיף / חובה / צד ג', which pivots own-policy viability) on the identity step; the insurer selects the per-insurer form template. Photos / license / registration uploads persist to the private `claim-docs` Storage bucket via `POST /api/claims/documents` (magic-byte sniffed).
+> **Implemented:** the wizard also captures the client's **own insurer** (`policy_insurer`) and **coverage type** (`insurance_type` — מקיף / חובה / צד ג', which pivots own-policy viability) on the identity step; the insurer selects the per-insurer form template. Photos / license / registration uploads persist to the private `claim-docs` Storage bucket via `POST /api/claims/documents` (magic-byte sniffed). The file pickers set **no `capture` attribute** — forcing it hides gallery + Files on iOS/Android — so the phone offers camera, gallery *and* the file browser; they accept `image/*,application/pdf`, matching the server sniff (JPEG / PNG / WebP / HEIC / PDF, `web/src/lib/files/sniff.ts`). This holds for both upload surfaces: the wizard's upload step and the post-submit follow-up upload screen (`FollowupUpload`, shown at `/c/[token]` once the claim is submitted).
 
 ### Step 4 — Confirm & submit
 - The client sees a readable summary, confirms/edits, and submits.

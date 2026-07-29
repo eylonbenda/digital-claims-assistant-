@@ -3,6 +3,7 @@ import fontkit from "@pdf-lib/fontkit";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { LABELS } from "./labels";
+import { normalizeClaimDates } from "./dates";
 
 const FILL = rgb(0.05, 0.13, 0.55);
 const MARK = rgb(0.75, 0.05, 0.05);
@@ -61,9 +62,11 @@ const isCheckbox = (f: Field): f is CheckboxField => "type" in f && f.type === "
 
 export async function fillForm(
   template: Template,
-  data: unknown,
+  rawData: unknown,
   fontFile = "app-hebrew.ttf"
 ): Promise<Uint8Array> {
+  // ISO dates in, dd/mm/yyyy on the form. Done here so every caller is covered.
+  const data = normalizeClaimDates(rawData);
   const pdf = await PDFDocument.load(readFileSync(path.join(ASSETS, template.srcFile)));
   pdf.registerFontkit(fontkit);
   const font = await pdf.embedFont(readFileSync(path.join(ASSETS, fontFile)), {
