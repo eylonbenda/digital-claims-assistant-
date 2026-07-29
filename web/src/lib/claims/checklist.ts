@@ -62,7 +62,9 @@ const THIRD_PARTY_REPORT: ChecklistItemDef[] = [
   { key: "assessor_fee_invoice",     label: 'חשבון שכ"ט שמאי',                         kind: "doc",  docType: "assessor_fee_invoice",     mandatory: true,  blocking: false, section: "late" },
   { key: "assessor_fee_receipt",     label: 'קבלה על שכ"ט שמאי',                       kind: "doc",  docType: "assessor_fee_receipt",     mandatory: true,  blocking: false, section: "late" },
   { key: "garage_invoice",           label: "חשבונית תיקון מקורית",                     kind: "doc",  docType: "garage_invoice",           mandatory: true,  blocking: true,  section: "late" },
-  { key: "repair_receipt",           label: "קבלה על תשלום (≠ חשבונית)",               kind: "doc",  docType: "repair_receipt",           mandatory: true,  blocking: true,  section: "late", note: "נדרשת בנפרד מהחשבונית" },
+  // Still required for the file, but deliberately not gating readiness for now —
+  // the receipt lands well after the invoice and was stalling otherwise-ready claims.
+  { key: "repair_receipt",           label: "קבלה על תשלום (≠ חשבונית)",               kind: "doc",  docType: "repair_receipt",           mandatory: true,  blocking: false, section: "late", note: "נדרשת בנפרד מהחשבונית" },
   { key: "bank_details",             label: "פרטי חשבון בנק",                           kind: "doc",  docType: "bank_details",             mandatory: true,  blocking: false, section: "late" },
   // Mutually exclusive — filtered by policy_activated flag in computeChecklist
   { key: "no_claim_confirmation",    label: "אישור אי-הגשת תביעה",                      kind: "doc",  docType: "no_claim_confirmation",    mandatory: true,  blocking: true,  section: "late", note: "כשלא הופעלה פוליסת הלקוח" },
