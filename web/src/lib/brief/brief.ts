@@ -134,12 +134,21 @@ export async function getOrCreateBrief(
 
     let cached: CachedRanking | null = null;
     if (!opts?.refresh) {
-      const { data } = await svc
+      const { data, error } = await svc
         .from("agent_briefs")
         .select("payload_json")
         .eq("agent_id", agentId)
         .eq("brief_date", date)
         .maybeSingle();
+      // A failed read is NOT "no cache yet" — it means the day-cache is unusable and
+      // every page load re-runs the LLM. Most likely cause: migration 007 was never
+      // applied to this database, so `agent_briefs` doesn't exist. Swallowing this
+      // silently is what made that indistinguishable from normal operation.
+      if (error) {
+        console.error(
+          `morning brief: cache read failed (${error.message}) — the AI ranking will re-run on EVERY page load. Check that migration 007_agent_briefs.sql has been applied to this database.`,
+        );
+      }
       const payload = data?.payload_json as CachedRanking | null;
       // Guard: only a lean ranking row (has `signals`) is reusable; an older
       // full-Brief row from a prior deploy is ignored and recomputed.
@@ -155,10 +164,17 @@ export async function getOrCreateBrief(
       // Only persist a real ranking — never cache a degraded (AI-down) day, so a
       // transient failure doesn't pin rules-only until tomorrow.
       if (signals !== null) {
-        await svc.from("agent_briefs").upsert(
+        const { error } = await svc.from("agent_briefs").upsert(
           { agent_id: agentId, brief_date: date, payload_json: { generated_at: generatedAt, signals } },
           { onConflict: "agent_id,brief_date" },
         );
+        // Same reasoning as the read above: a dropped write means tomorrow's — and the
+        // next refresh's — ranking pays for the LLM again.
+        if (error) {
+          console.error(
+            `morning brief: cache write failed (${error.message}) — the AI ranking will re-run on EVERY page load. Check that migration 007_agent_briefs.sql has been applied to this database.`,
+          );
+        }
       }
     }
 
