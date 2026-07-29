@@ -10,6 +10,11 @@ export type ChecklistItemDef = {
   blocking: boolean;
   section: ItemSection;
   note?: string;
+  // Circumstance that makes this item actually required. While the flag is off the
+  // item stays listed (the agent may still know it applies and upload it) but never
+  // counts as blocking — a plain own-policy collision must not be held up by a
+  // police report or a lien release that the case never called for.
+  requiresFlag?: keyof ClaimFlags;
 };
 
 export type ClaimFlags = {
@@ -39,10 +44,10 @@ const OWN_POLICY: ChecklistItemDef[] = [
   { key: "appraiser_report",     label: "דוח שמאי",                        kind: "doc",  docType: "appraiser_report",     mandatory: true,  blocking: false, section: "late" },
   { key: "garage_invoice",       label: "חשבונית תיקון",                   kind: "doc",  docType: "garage_invoice",       mandatory: true,  blocking: false, section: "late" },
   { key: "bank_details",         label: "פרטי חשבון בנק",                  kind: "doc",  docType: "bank_details",         mandatory: true,  blocking: false, section: "late" },
-  { key: "police_report",        label: "אישור משטרה",                     kind: "doc",  docType: "police_report",        mandatory: false, blocking: true,  section: "conditional", note: "גניבה / ונדליזם" },
-  { key: "keys",                 label: "מפתחות הרכב",                     kind: "doc",  docType: "keys",                 mandatory: false, blocking: true,  section: "conditional", note: "גניבה בלבד" },
-  { key: "lien_release",         label: "אישור הסרת שיעבוד",               kind: "doc",  docType: "lien_release",         mandatory: false, blocking: true,  section: "conditional", note: "רכב משועבד" },
-  { key: "vat_offset_confirmation", label: 'אישור רו"ח — קיזוז מע"מ',    kind: "doc",  docType: "vat_offset_confirmation", mandatory: false, blocking: false, section: "conditional", note: "לקוח עסקי" },
+  { key: "police_report",        label: "אישור משטרה",                     kind: "doc",  docType: "police_report",        mandatory: false, blocking: true,  section: "conditional", note: "גניבה / ונדליזם", requiresFlag: "theft" },
+  { key: "keys",                 label: "מפתחות הרכב",                     kind: "doc",  docType: "keys",                 mandatory: false, blocking: true,  section: "conditional", note: "גניבה בלבד", requiresFlag: "theft" },
+  { key: "lien_release",         label: "אישור הסרת שיעבוד",               kind: "doc",  docType: "lien_release",         mandatory: false, blocking: true,  section: "conditional", note: "רכב משועבד", requiresFlag: "lien" },
+  { key: "vat_offset_confirmation", label: 'אישור רו"ח — קיזוז מע"מ',    kind: "doc",  docType: "vat_offset_confirmation", mandatory: false, blocking: false, section: "conditional", note: "לקוח עסקי", requiresFlag: "business_use" },
   { key: "car_at_garage",        label: "רכב נכנס למוסך",                  kind: "milestone", mandatory: true,  blocking: false, section: "milestone" },
   { key: "submitted_to_insurer", label: "הוגש למבטח",                      kind: "milestone", mandatory: true,  blocking: false, section: "milestone" },
   { key: "payment_received",     label: "התקבל תשלום",                      kind: "milestone", mandatory: true,  blocking: false, section: "milestone" },
@@ -118,6 +123,13 @@ export function computeChecklist(
       items = items.filter((i) => i.key !== "loss_confirmation");
     }
   }
+
+  // A conditional item only blocks once its circumstance flag is on. Flags default
+  // to false, so an ordinary claim is never held up by a document its facts never
+  // called for; the item still renders so the agent can act on it if they know better.
+  items = items.map((i) =>
+    i.requiresFlag && !flags[i.requiresFlag] ? { ...i, blocking: false } : i,
+  );
 
   return items.map((item) => ({
     ...item,
