@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-28**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-29**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -43,7 +43,7 @@ Vercel deploys **code**, not **schema**. There is no auto-migration. So:
 | # | Step | State |
 |---|---|---|
 | 1 | Scaffold (Next 16 + TS + Tailwind v4, RTL) | ✅ done — `web/`. **Not yet deployed to Vercel.** |
-| 2 | Data model + agent Auth + claim creation + link | ✅ **done** (pending Supabase provisioning) — schema + RLS in `web/db/schema.sql`; migrations in `web/db/migrations/` (001 agent setup, 002 PostgREST grants); auth routes + middleware + dashboard written. **Needs real Supabase keys in `web/.env.local`.** |
+| 2 | Data model + agent Auth + claim creation + link | ✅ **done** (pending Supabase provisioning) — schema + RLS in `web/db/schema.sql` (now folds in migrations 004/005/007 — expanded `doc_type`, circumstance flags, `claim_notes`, `agent_briefs`); migrations in `web/db/migrations/` (001 agent setup, 002 PostgREST grants, 003 storage bucket, 004–007); auth routes + middleware + dashboard written. **Needs real Supabase keys in `web/.env.local`.** |
 | 3 | Collection web-app | ✅ done — `web/src/components/collection/CollectionWizard.tsx` (11-step RTL wizard, incl. **own-insurer select**, a **"מי נהג" (who was driving)** step, a **document-upload step**, and an **insured declaration** — data-consent + optional צד-ג' power-of-attorney — gating the submit). Submit calls `POST /api/claims/submit`. |
 | 4 | AI processing | ✅ done — `POST /api/analyze` → `web/src/lib/ai/analyze.ts`. **Now a two-layer classifier**: the LLM emits narrative signals only; a deterministic `web/src/lib/claims/classify.ts` owns the track + confidence. Analysis cached in `summary_json.analysis`. Wired into the wizard's review step + agent detail page. |
 | 5 | Form overlay fill | ✅ **done + persisted** — `POST /api/forms/[insurer]` (fill from a canonical claim body; the demo `GET` preview was removed when the homepage became a public landing page). All 9 insurer templates wired: הכשרה, מגדל, מנורה, הראל, AIG, שלמה, ליברה, הפניקס, איילון. **Now written to `generated_forms` + Storage**: auto-filled at submit from the claimant's insurer, and `GET /api/claims/[id]/form/[insurer]` (agent, RLS-gated) regenerates on demand (latest-per-insurer). **Agent can now edit/complete the canonical form fields** (`FormFieldEditor` → `PATCH /api/claims/[id]/form-data`, stored in `summary_json.form_data`; `effectiveClaimData` prefers it, client `collected` left untouched). הפניקס is mapped **visually from a render** (no OCR — its text layer is broken); איילון maps the insurer's **new official form** (extractable text layer, bundled as `assets/ayalon.pdf`). |
@@ -53,7 +53,7 @@ Vercel deploys **code**, not **schema**. There is no auto-migration. So:
 
 Beyond the original build order, the **task engine** (phase-2 active workflow, pulled forward) is now built: `web/src/lib/tasks/` (pure `advanceTasks` + `runEngine` + per-track rule table) drives event-driven task spawn/complete + forward-only status advance; `TasksPanel` on `/dashboard/[id]` + next-task column on the dashboard list; `POST`/`PATCH /api/claims/[id]/tasks[/taskId]` for manual tasks. Migration `006` adds the `tasks` columns + idempotency index. Vitest wired (`web/vitest.config.ts`, engine/template unit tests).
 
-**In one line:** the full pipeline is built end-to-end — collection + upload + two-layer classification + form persistence + per-track checklist + agent surfacing + a task engine. Blocked only on Supabase provisioning (run migrations `001`–`006`, incl. the `claim-docs` bucket).
+**In one line:** the full pipeline is built end-to-end — collection + upload + two-layer classification + form persistence + per-track checklist + agent surfacing + a task engine. Blocked only on Supabase provisioning (fresh DB: run `web/db/schema.sql`, then migrations `001` / `003` / `006` — see the provisioning steps below; existing DBs still need `004`–`007`).
 
 ---
 
@@ -81,7 +81,9 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Run `web/db/schema.sql` in the SQL editor
-3. Run `web/db/migrations/001_agent_setup.sql` (agent trigger + insert policy), then `web/db/migrations/002_grants.sql` (PostgREST grants — without these, writes fail even with the service-role key), then `web/db/migrations/003_storage.sql` (creates the private `claim-docs` bucket — without it, document upload + form persistence fail with "Bucket not found"), then `web/db/migrations/004_doc_types_and_claim_flags.sql` (expands the `doc_type` enum + adds the circumstance-flag columns the checklist reads), then `web/db/migrations/005_claim_notes.sql` (the `claim_notes` table backing the agent-notes scratchpad), then `web/db/migrations/006_tasks_engine.sql` (task-engine columns + idempotency index on `tasks`), then `web/db/migrations/007_agent_briefs.sql` (morning-brief cache table)
+3. Run `web/db/migrations/001_agent_setup.sql` (agent trigger + insert policy), then `web/db/migrations/003_storage.sql` (creates the private `claim-docs` bucket — without it, document upload + form persistence fail with "Bucket not found"), then `web/db/migrations/006_tasks_engine.sql` (task-engine columns `key`/`source`/`note`/`completed_at` + idempotency index on `tasks` — **the one migration `schema.sql` does not yet include**; without it the task engine 500s on the missing columns).
+   - `schema.sql` already contains `002_grants.sql`'s grants and the `004` / `005` / `007` additions (expanded `doc_type` enum, circumstance flags, `claim_notes`, `agent_briefs`, and their RLS policies), so on a **fresh** DB those four are unnecessary — and re-running `005` / `007` on top of it **errors** (`create policy … already exists`, no `if not exists` in Postgres).
+   - An **existing** DB created from an older `schema.sql` still needs `002`–`007` applied in order, as before.
 4. Copy keys into `web/.env.local`:
    ```
    NEXT_PUBLIC_SUPABASE_URL=...
@@ -138,6 +140,11 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **Demo `GET /api/forms/[insurer]` removed** — the route is `POST`-only now (fills from a canonical claim body). `web/src/lib/formfill/sample-claim.ts` stays for `web/scripts/fill.ts` QA renders.
 - **Morning brief** (`web/src/lib/brief/`) **supersedes the follow-ups digest** (`digest.ts` + `FollowupsPanel.tsx` deleted) — phase-2 step B v1, PR #23. Per open claim, `facts.ts` builds a fact sheet (track, days-open, overdue tasks, blocking docs from `computeChecklist`, staleness, urgent/unclassified) and `score.ts` computes a deterministic priority score from hard signals only. `rank.ts` sends the sheets to Claude (`CLAIMS_MODEL`, adaptive thinking, `json_schema` output) for a per-claim **tier** (`act_now`/`this_week`/`waiting`/`ok`) + one Hebrew reason + soft `flags`; `sanitizeSignals` gates the LLM output (drops unknown ids/malformed entries — a hallucinated `claim_id` can't reach the UI) and `fallbackTier` gives a rules-only tiering when AI is unavailable. The prompt carries only id/name/score/facts — **no phone, no access token**. `brief.ts` (`getOrCreateBrief`) is a best-effort I/O wrapper: it caches **only the AI ranking** per agent per UTC day (**never** persists a degraded one) and **recomputes the deterministic action fields — blocking docs, next task — live on every read**, so a doc uploaded after the ranking ran can't produce a stale one-click chase; returns `null` on any failure so the dashboard still renders. Rendered by `MorningBrief.tsx` (tiered sections, per-claim wa.me chase, refresh button). New `agent_briefs` table (**migration `007`** — ⚠️ not yet applied to Supabase; RLS: agent reads own, writes service-only). `POST /api/brief/refresh` re-runs the ranking. Unit-tested (`brief`/`facts`/`rank`/`score`.test.ts).
 - **`wa.ts` chase copy centralized:** added `chaseMessage`/`chaseHref` (one builder for the cockpit strip + brief), alongside the existing `waPhone`.
+
+### Done since last sync (2026-07-28 → 07-29)
+- **Morning-brief day-cache made real + non-silent** (PR #26). Two halves:
+  - `web/db/schema.sql` now includes the `agent_briefs` table (+ RLS: agent reads own, writes service-only), plus migration `004`'s `doc_type` values and circumstance-flag columns and migration `005`'s `claim_notes` — so a DB provisioned from the schema file has the cache table instead of silently missing it. Migration `006`'s `tasks` columns are still **not** in `schema.sql`.
+  - `web/src/lib/brief/brief.ts` no longer swallows cache I/O errors: a failed `agent_briefs` read **or** upsert now `console.error`s that the AI ranking will re-run on every page load and names migration `007` as the likely cause. Behaviour is unchanged (still best-effort, still returns `null` on failure) — the failure is just no longer indistinguishable from a cold cache.
 
 ---
 

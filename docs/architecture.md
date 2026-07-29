@@ -116,6 +116,7 @@ collection_progress  -- can live as JSON on claims or as a separate table
 ```
 
 Notes:
+- **Where the schema lives:** `web/db/schema.sql` is the fresh-install snapshot and now folds in migrations `004` (expanded `doc_type` + circumstance flags), `005` (`claim_notes`) and `007` (`agent_briefs`), including their RLS policies. Migration `006`'s task-engine columns on `tasks` (`key`/`source`/`note`/`completed_at` + the idempotency index) are **not** in it — they must still be applied from `web/db/migrations/006_tasks_engine.sql`.
 - `access_token` — non-sequential identifier for client access (never expose `claims.id`).
 - `summary_json` — the client's `collected` submission + Claude's structured output (`analysis`: summary + missing-info checklist). When the agent edits/completes the accident-notice fields, the corrected canonical `ClaimData` is stored alongside as `form_data` (`effectiveClaimData` prefers it over `collected`; the original `collected` is never mutated, for audit).
 - **Per-track checklist** (implemented — `web/src/lib/claims/checklist.ts`) = a per-track config (`claim_type` → required docs/steps, grouped into `base` / `late` / `conditional` / `milestone` sections) ⊕ a presence check against `claim_documents` / collected fields. `computeChecklist()` is a pure function, run server-side on the claim detail page — a **derived view**, distinct from the task engine (below), which reads this checklist to decide what work to spawn.
