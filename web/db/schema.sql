@@ -9,7 +9,19 @@ create type claim_status as enum ('created', 'in_progress', 'submitted', 'classi
 create type fault_party as enum ('me', 'third_party', 'unknown');
 create type doc_type as enum (
   'car_photo', 'drivers_license', 'vehicle_reg', 'third_party_doc', 'police_report',
-  'garage_invoice', 'appraiser_report', 'no_claim_confirmation', 'insurance_history', 'demand_form', 'other'
+  'garage_invoice', 'appraiser_report', 'no_claim_confirmation', 'insurance_history', 'demand_form', 'other',
+  -- added by migration 004; the checklist references these by name
+  'id_card',                 -- ת"ז (מנורה דורשת)
+  'repair_receipt',          -- קבלה על תשלום (≠ garage_invoice)
+  'loss_confirmation',       -- אישור הפסדים (≠ no_claim_confirmation)
+  'lien_release',            -- אישור הסרת שיעבוד
+  'info_consent',            -- הסכמה למשרד הרישוי
+  'power_of_attorney',       -- ייפוי כוח §68
+  'bank_details',            -- טופס בנק / שיק מבוטל / IBAN
+  'vat_offset_confirmation', -- אישור רו"ח — עסקי
+  'keys',                    -- מפתחות (גניבה)
+  'assessor_fee_invoice',    -- חשבון שכ"ט שמאי
+  'assessor_fee_receipt'     -- קבלה שכ"ט שמאי
 );
 create type task_track as enum ('own_policy', 'third_party_report', 'third_party_settlement');
 create type task_status as enum ('todo', 'in_progress', 'blocked', 'done');
@@ -45,6 +57,12 @@ create table claims (
   at_fault_insurer text,
   summary_json jsonb,                            -- Claude structured summary + missing-info
   checklist_state jsonb not null default '{}'::jsonb,  -- manual milestone ticks
+  -- Circumstance flags (migration 004) — drive the conditional checklist sections.
+  theft                boolean not null default false,
+  lien                 boolean not null default false,
+  business_use         boolean not null default false,
+  policy_activated     boolean not null default false,
+  garage_network_rider boolean not null default false,
   created_at timestamptz not null default now(),
   submitted_at timestamptz,
   closed_at timestamptz
@@ -84,8 +102,20 @@ create table tasks (
   status task_status not null default 'todo',
   due_at timestamptz,
   assignee text,
+  -- task-engine columns (migration 006).
+  key text,                                    -- stable template id ('chase_appraiser'); null for manual
+  source text not null default 'template',     -- 'template' (engine-spawned) | 'manual' (agent-created)
+  note text,
+  completed_at timestamptz,
   created_at timestamptz not null default now()
 );
+create index tasks_claim_status_due_idx on tasks (claim_id, status, due_at);
+-- At most one OPEN template task per (claim, key). A 'done' task frees the key,
+-- allowing a justified re-spawn. Races between concurrent requests resolve here
+-- as a 23505 that `runEngine` ignores — this index is load-bearing, not just a perf hint.
+create unique index tasks_claim_key_open_uniq
+  on tasks (claim_id, key)
+  where key is not null and status <> 'done';
 
 create table claim_events (
   id uuid primary key default gen_random_uuid(),
@@ -93,6 +123,26 @@ create table claim_events (
   type text not null,                            -- consent_given, step_completed, classified, ...
   payload_json jsonb,
   created_at timestamptz not null default now()
+);
+
+-- Agent's free-text state-of-play notes on a claim (migration 005).
+create table claim_notes (
+  id uuid primary key default gen_random_uuid(),
+  claim_id uuid not null references claims(id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+create index claim_notes_claim_id_idx on claim_notes (claim_id, created_at desc);
+
+-- One cached morning brief per agent per UTC day (migration 007). Holds only the AI
+-- ranking; the deterministic action fields are recomputed live on every read.
+-- Without this table the brief silently re-runs the LLM on every dashboard load.
+create table agent_briefs (
+  agent_id   uuid not null references agents(id) on delete cascade,
+  brief_date date not null,
+  payload_json jsonb not null,
+  created_at timestamptz not null default now(),
+  primary key (agent_id, brief_date)
 );
 
 -- ---------- RLS ----------
@@ -103,6 +153,8 @@ alter table claim_documents enable row level security;
 alter table generated_forms enable row level security;
 alter table tasks enable row level security;
 alter table claim_events enable row level security;
+alter table claim_notes enable row level security;
+alter table agent_briefs enable row level security;
 
 create policy "agent reads own row" on agents
   for select using (auth_user_id = auth.uid());
@@ -132,6 +184,13 @@ create policy "child: tasks" on tasks for all
   using (claim_belongs_to_me(claim_id)) with check (claim_belongs_to_me(claim_id));
 create policy "child: claim_events" on claim_events for all
   using (claim_belongs_to_me(claim_id)) with check (claim_belongs_to_me(claim_id));
+create policy "child: claim_notes" on claim_notes for all
+  using (claim_belongs_to_me(claim_id)) with check (claim_belongs_to_me(claim_id));
+
+-- agent_briefs hangs off agents, not claims. Agents read their own briefs via the
+-- anon/auth client; writes go through the service client only (no insert/update policy).
+create policy "agent reads own briefs" on agent_briefs for select
+  using (agent_id in (select id from agents where auth_user_id = auth.uid()));
 
 -- ---------- grants ----------
 -- PostgREST needs explicit grants even with the service role key.
