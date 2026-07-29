@@ -126,8 +126,11 @@ function DocField({
           {mine.length ? "הוסף/י" : "צילום / קובץ"}
           <input
             type="file"
-            accept="image/*"
-            capture="environment"
+            // No `capture` attribute: it forces the camera on iOS/Android and hides the
+            // gallery + Files options. Without it the OS offers camera, gallery and file
+            // browser — which is what "צילום / קובץ" promises. PDFs are accepted too
+            // (the server sniffs magic bytes and already allows them).
+            accept="image/*,application/pdf"
             multiple={multiple}
             className="hidden"
             onChange={(e) => {
