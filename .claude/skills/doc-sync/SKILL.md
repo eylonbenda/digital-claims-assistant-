@@ -1,6 +1,6 @@
 ---
 name: doc-sync
-description: Reconcile docs/ with the actual code after building. Detects where the markdown specs in docs/ (architecture, flow, claim-management, form-field-map, status, mvp-scope) have drifted from what the code now does, applies the fixes, refreshes the docs/status.md breadcrumb, and keeps the "Docs index" in CLAUDE.md accurate. Invoke at checkpoints — after finishing a feature, before stopping a session, or whenever code and docs may have diverged. Use when the user says "sync the docs", "update docs to match code", "/doc-sync", or "docs are stale".
+description: Reconcile docs/ with the actual code after building. Detects where the markdown specs in docs/ (architecture, app-map, flow, claim-management, form-field-map, status, mvp-scope) have drifted from what the code now does, applies the fixes, refreshes the docs/status.md breadcrumb, and keeps the "Docs index" in CLAUDE.md accurate. Invoke at checkpoints — after finishing a feature, before stopping a session, or whenever code and docs may have diverged. Use when the user says "sync the docs", "update docs to match code", "/doc-sync", or "docs are stale".
 ---
 
 # doc-sync
@@ -20,6 +20,7 @@ Use this to know which code to diff a doc against. (Re-derive from the "Docs ind
 | Doc | Authoritative source in code |
 |---|---|
 | `architecture.md` | `web/src/` structure, `web/db/schema.sql` + migrations, `web/src/lib/ai/`, `next.config.ts` |
+| `app-map.md` | `web/src/app/` routes + pages, `web/src/lib/` module list, `web/package.json` scripts, `next.config.ts` assets — the file/route inventory, **not** the design rationale |
 | `flow.md` | `web/src/components/collection/`, claim state handling, API routes under `web/src/app/api/` |
 | `claim-management.md` | claim-type logic, `web/src/lib/ai/analyze.ts`, classification code, task workflows |
 | `form-field-map.md` | `web/src/lib/formfill/` (`types.ts`, `engine.ts`, `labels.ts`, `templates/*`); `.pdfwork/` coordinate lab |
