@@ -43,7 +43,10 @@ export async function POST(request: Request) {
 
   const insured = (collected?.insured ?? {}) as Record<string, string>;
   const thirdParty = (collected?.thirdParty ?? {}) as Record<string, unknown>;
-  const policyInsurer = (collected?.policyInsurer as string) || null;
+  // "unknown" is the wizard's "client isn't sure" sentinel — store as no insurer;
+  // the raw value is still preserved in summary_json.collected.
+  const rawInsurer = (collected?.policyInsurer as string) || null;
+  const policyInsurer = rawInsurer === "unknown" ? null : rawInsurer;
 
   const clientName =
     [insured.first_name, insured.last_name].filter(Boolean).join(" ") || null;

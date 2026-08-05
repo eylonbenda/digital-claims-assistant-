@@ -25,7 +25,7 @@ export default async function CollectPage({
   const svc = createServiceClient();
   const { data: claim } = await svc
     .from("claims")
-    .select("id, status, client_phone")
+    .select("id, status, client_name, client_phone")
     .eq("access_token", token)
     .single();
 
@@ -62,9 +62,16 @@ export default async function CollectPage({
     return <FollowupUpload token={token} existingCounts={existingCounts} />;
   }
 
-  const prefill = claim.client_phone
-    ? { insured: { mobile: claim.client_phone } }
-    : undefined;
+  // The agent already typed the client's name and phone when creating the claim —
+  // don't make a post-accident client retype them. Naive first/rest name split;
+  // both fields stay editable in the wizard.
+  const [firstName, ...restName] = (claim.client_name ?? "").trim().split(/\s+/);
+  const insuredPrefill = {
+    ...(firstName ? { first_name: firstName } : {}),
+    ...(restName.length ? { last_name: restName.join(" ") } : {}),
+    ...(claim.client_phone ? { mobile: claim.client_phone } : {}),
+  };
+  const prefill = Object.keys(insuredPrefill).length ? { insured: insuredPrefill } : undefined;
 
   return <CollectionWizard token={token} prefill={prefill} />;
 }
