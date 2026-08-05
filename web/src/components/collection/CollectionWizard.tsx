@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { Fault } from "@/lib/formfill/types";
-import type { ClaimAnalysis } from "@/lib/ai/analyze";
 import { compressImage } from "@/lib/images/compress";
-import { type State, type DocType, type UploadedDoc, toClaimData, INSURERS } from "@/lib/collection/claim-state";
+import { type State, type DocType, type UploadedDoc, INSURERS } from "@/lib/collection/claim-state";
 import { clearWizardState, loadWizardState, saveWizardState } from "@/lib/collection/persist";
 import { toILDate } from "@/lib/dates";
 
@@ -159,13 +158,8 @@ export default function CollectionWizard({
     if (!hydrated || done) return;
     saveWizardState(token, step, s);
   }, [hydrated, done, token, step, s]);
-  const insurerTemplated = INSURERS.find((i) => i.key === s.policyInsurer)?.templated ?? false;
-  const [busy, setBusy] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiResult, setAiResult] = useState<ClaimAnalysis | null>(null);
 
   const last = STEP_TITLES.length - 1;
   const set = (patch: Partial<State>) => setS((p) => ({ ...p, ...patch }));
@@ -215,61 +209,6 @@ export default function CollectionWizard({
         return true;
     }
   };
-
-  async function downloadForm() {
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/forms/${s.policyInsurer}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(toClaimData(s)),
-      });
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${s.policyInsurer}-הודעה-על-תאונה.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const TYPE_LABELS: Record<string, string> = {
-    own_policy: "פוליסת הלקוח",
-    third_party_report: "צד ג' — דוח פרטי",
-    third_party_settlement: "צד ג' — הסדר",
-    unknown: "לא ידוע",
-  };
-
-  const CONFIDENCE_LABELS: Record<string, string> = {
-    high: "גבוהה",
-    medium: "בינונית",
-    low: "נמוכה",
-  };
-
-  async function runAnalyze() {
-    setAiBusy(true);
-    setAiError(null);
-    try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(toClaimData(s)),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setAiError(json.error ?? "שגיאה בניתוח");
-        return;
-      }
-      setAiResult(json as ClaimAnalysis);
-    } catch {
-      setAiError("שגיאת רשת");
-    } finally {
-      setAiBusy(false);
-    }
-  }
 
   async function handleSubmit() {
     setSubmitBusy(true);
@@ -565,88 +504,18 @@ export default function CollectionWizard({
         {step === 10 && (
           <div>
             <h2 className="text-xl font-bold">סיכום</h2>
+            <p className="mt-1 text-sm text-zinc-500">לחיצה על שורה חוזרת לשלב המתאים לתיקון.</p>
             <dl className="mt-3 divide-y divide-zinc-200 rounded-xl border border-zinc-200 text-sm">
-              <Row k="שם" v={`${s.insured.first_name} ${s.insured.last_name}`.trim() || "—"} />
-              <Row k="רכב" v={[s.vehicle.plate, s.vehicle.manufacturer].filter(Boolean).join(" · ") || "—"} />
-              <Row k="נהג" v={s.driver.isInsured === false ? `${s.driver.first_name} ${s.driver.last_name}`.trim() || "—" : s.driver.isInsured ? "המבוטח" : "—"} />
-              <Row k="מתי" v={[toILDate(s.accident.date), s.accident.time].filter(Boolean).join(" ") || "—"} />
-              <Row k="איפה" v={s.accident.location || "—"} />
-              <Row k="מי אשם" v={s.fault === "me" ? "אני" : s.fault === "third_party" ? "הצד השני" : "לא בטוח"} />
-              <Row k="נפגעים" v={s.injuries ? "כן" : "לא"} />
-              <Row k="מסמכים" v={docDone ? `${docDone} צורפו` : "—"} />
+              <Row k="שם" v={`${s.insured.first_name} ${s.insured.last_name}`.trim() || "—"} onEdit={() => setStep(2)} />
+              <Row k="רכב" v={[s.vehicle.plate, s.vehicle.manufacturer].filter(Boolean).join(" · ") || "—"} onEdit={() => setStep(4)} />
+              <Row k="נהג" v={s.driver.isInsured === false ? `${s.driver.first_name} ${s.driver.last_name}`.trim() || "—" : s.driver.isInsured ? "המבוטח" : "—"} onEdit={() => setStep(3)} />
+              <Row k="מתי" v={[toILDate(s.accident.date), s.accident.time].filter(Boolean).join(" ") || "—"} onEdit={() => setStep(5)} />
+              <Row k="איפה" v={s.accident.location || "—"} onEdit={() => setStep(5)} />
+              <Row k="מה קרה" v={s.accident.description || "—"} onEdit={() => setStep(6)} />
+              <Row k="מי אשם" v={s.fault === "me" ? "אני" : s.fault === "third_party" ? "הצד השני" : "לא בטוח"} onEdit={() => setStep(7)} />
+              <Row k="נפגעים" v={s.injuries ? "כן" : "לא"} onEdit={() => setStep(1)} />
+              <Row k="מסמכים" v={docDone ? `${docDone} צורפו` : "—"} onEdit={() => setStep(9)} />
             </dl>
-
-            <div className="mt-5 rounded-xl border border-zinc-200 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">סיכום חכם (AI)</p>
-                <button
-                  type="button"
-                  onClick={runAnalyze}
-                  disabled={aiBusy}
-                  className="rounded-lg border border-blue-600 px-3 py-1.5 text-sm text-blue-700 disabled:opacity-50"
-                >
-                  {aiBusy ? "מסכם…" : "סכם עם AI"}
-                </button>
-              </div>
-              {aiError && <p className="mt-2 text-sm text-red-600">{aiError}</p>}
-              {aiResult && (
-                <div className="mt-3 space-y-2 text-sm">
-                  <p>{aiResult.summary}</p>
-                  <p>
-                    <span className="text-zinc-500">סוג תביעה מוצע: </span>
-                    <strong>{TYPE_LABELS[aiResult.proposed_claim_type]}</strong>
-                    <span className="mr-1 text-xs text-zinc-400">
-                      (ודאות: {CONFIDENCE_LABELS[aiResult.confidence]})
-                    </span>
-                    {aiResult.rationale ? ` — ${aiResult.rationale}` : ""}
-                  </p>
-                  {aiResult.needs_agent_choice && (
-                    <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
-                      ⓘ הסוכן יבחר בין &quot;דוח פרטי&quot; ל&quot;הסדר&quot; לפי אסטרטגיית הטיפול.
-                    </p>
-                  )}
-                  {aiResult.fault_assessment.mismatch && (
-                    <p className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
-                      ⚠️ אי-התאמה בין האשמה שסומנה לתיאור האירוע — לבדיקת הסוכן.
-                    </p>
-                  )}
-                  {aiResult.viability_warning && (
-                    <p className="rounded bg-red-50 px-2 py-1 text-xs text-red-700">
-                      ⚠️ {aiResult.viability_warning}
-                    </p>
-                  )}
-                  {aiResult.missing.length > 0 && (
-                    <div>
-                      <span className="text-zinc-500">חסר / לא ברור:</span>
-                      <ul className="mr-4 list-disc">
-                        {aiResult.missing.map((m, i) => (
-                          <li key={i}>{m}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-5 rounded-xl border border-zinc-200 p-4">
-              <p className="text-sm text-zinc-600">
-                תצוגה מקדימה: טופס &quot;הודעה על תאונה&quot; ממולא מהפרטים שמסרת
-                {insurerTemplated ? "." : " — הסוכן יכין את הטופס עבור חברת הביטוח שלך."}
-              </p>
-              {insurerTemplated && (
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={downloadForm}
-                    disabled={busy}
-                    className="rounded-lg border border-blue-600 px-3 py-2 text-sm text-blue-700 disabled:opacity-50"
-                  >
-                    {busy ? "מייצר…" : "צור טופס ממולא"}
-                  </button>
-                </div>
-              )}
-            </div>
 
             <div className="mt-5 rounded-xl border border-zinc-200 p-4">
               <p className="text-sm font-medium">הצהרת המבוטח</p>
@@ -805,11 +674,24 @@ function DocField({
   );
 }
 
-function Row({ k, v }: { k: string; v: string }) {
+// A summary line that jumps back to the step it came from — clients review by
+// tapping the row instead of hammering "חזרה" through the whole wizard.
+function Row({ k, v, onEdit }: { k: string; v: string; onEdit: () => void }) {
   return (
-    <div className="flex justify-between px-4 py-2">
-      <dt className="text-zinc-500">{k}</dt>
-      <dd className="font-medium">{v}</dd>
+    <div className="flex items-center justify-between gap-3 px-4 py-2">
+      <dt className="shrink-0 text-zinc-500">{k}</dt>
+      <dd className="min-w-0">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="flex max-w-full items-center gap-1.5 text-right font-medium"
+        >
+          <span className="truncate">{v}</span>
+          <span aria-label="עריכה" className="shrink-0 text-xs text-blue-600">
+            ✎
+          </span>
+        </button>
+      </dd>
     </div>
   );
 }
