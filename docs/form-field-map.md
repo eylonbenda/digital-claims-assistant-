@@ -81,9 +81,13 @@
 
 ## בנייה (Build Notes)
 - **Overlay:** טוענים PDF ריק של המבטח, מציירים טקסט בקואורדינטות. כלים: `pdf-lib` (Node) או `reportlab`+`pypdf` (Python). פונט עברי מוטמע חובה.
+- ‏⚠️ **עברית נמשכת בסדר לוגי — אין להפוך את המחרוזת.** `pdf-lib` + `fontkit` מבצעים shaping ל-RTL בעצמם; היפוך ידני מייצר ג'יבריש הפוך שנראה תקין בקוד. זו התקלה החוזרת ביותר במודול.
 - **מיפוי לכל תבנית:** קובץ `{ field: { page, x, y, maxWidth } }`. בחירות/checkbox = ציור "✓"/"X" בקואורדינטה.
 - ‏**תאריכים:** בסכמה הקנונית נשמרים ISO (`yyyy-mm-dd` — מה ש-`<input type="date">` מפיק), ומומרים ל-**dd/mm/yyyy** בגבול המילוי: `fillForm` מריץ `normalizeClaimDates` (`web/src/lib/formfill/dates.ts`) לפני הציור, כך שכל הנתיבים מכוסים (הגשת לקוח · יצירה מחדש ע"י הסוכן · `summary_json.form_data` ערוך). ההמרה לפי שם שדה (`date`, `birth_date`, `license_date`, `license_expiry`), ולכן חלה גם על מערכים כמו `injured_persons[]`; ערך שאינו ISO עובר כמו שהוא.
 - **פלט:** PDF נשמר ב-`generated_forms` (ראה [architecture.md](architecture.md)).
 
-## נכסים
-- קבצי מקור: `docs/accidentStatementPdf/`. טקסט שחולץ + סקריפט: `.pdfwork/` (`extract.mjs`, `full_*.txt`).
+## נכסים ומעבדת הקואורדינטות
+- **קבצי מקור:** `docs/accidentStatementPdf/` (9 טפסי מבטחים). טקסט שחולץ: `.pdfwork/full_*.txt`.
+- **המודול באפליקציה:** `web/src/lib/formfill/` — סכמה קנונית אחת (`types.ts`) → מנוע גנרי (`engine.ts`) + תבנית קואורדינטות למבטח (`templates/`). כל 9 המבטחים רשומים ב-`index.ts`: hachshara, migdal, menora, harel, aig, shlomo, libra, phoenix, ayalon. מפת המודול המלאה: [app-map.md](app-map.md).
+- **`.pdfwork/` = מעבדת הקואורדינטות** (לא נארז לאפליקציה): `extract.mjs` (חילוץ טקסט), `coords.mjs` (קואורדינטות טקסט), `boxdetect.mjs` (זיהוי תיבות), `inspect.mjs`, ו-`render.mjs` (רנדור mupdf — הבסיס למיפוי הוויזואלי של הפניקס).
+- **תהליך מיפוי מבטח חדש:** סוכן ה-`pdf-form-mapper` (`.claude/agents/`) מחלץ קואורדינטות ב-`.pdfwork/` וכותב את תבנית ה-TypeScript באפליקציה; QA ברנדור דרך `web/scripts/fill.ts`. השיטה המלאה: `poc/README.md`.
