@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-07-29**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-08-05**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -160,6 +160,11 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 ### Done since last sync (2026-07-29, PR #28 — repair receipt non-blocking)
 - **The payment receipt no longer gates `third_party_report` readiness.** `repair_receipt` ("קבלה על תשלום") was `blocking: true` in the track's `late` section, but it can only arrive after the repair is paid — i.e. after the original invoice — so otherwise-ready claims sat at "not submittable" waiting for it. It is now `blocking: false` while staying `mandatory: true` (still listed and still required for the file); `garage_invoice` remains blocking. Same three consumers as PR #27 — readiness strip, morning-brief blocking-docs/score, task engine `blockingMissing` — stop firing on it.
 - Covered by a new case in `web/src/lib/claims/checklist.test.ts` (receipt mandatory + non-blocking, `garage_invoice` still blocking). **No migration**, no schema or route change.
+
+### Done since last sync (2026-08-05, PR #31 — unknown insurer/coverage + name prefill)
+- **A client who doesn't know their insurer or coverage can now finish the wizard.** Both identity-step selects gained a **"לא בטוח/ה — הסוכן ישלים"** option (`unknown`), which satisfies the step's required-field gate. Downstream it is treated as *undetermined*, not as data: `toClaimData` omits `insurance_type` for `"unknown"` exactly as it does for `""` (`web/src/lib/collection/claim-state.ts`, `State.insuranceType` widened to `InsuranceType | "" | "unknown"`), and `POST /api/claims/submit` maps the insurer sentinel to `policy_insurer = null` — so the accident-notice auto-fill simply doesn't run and the agent picks the insurer + regenerates from the cockpit. The raw answer is still preserved in `summary_json.collected` for audit. In the classifier this lands on the existing `coverageKnown` path: no **אזהרת מימוש** is raised when coverage is unknown.
+- **Name + phone prefilled from the agent's claim record** (`web/src/app/c/[token]/page.tsx`): the page now selects `client_name` alongside `client_phone` and seeds `insured.first_name` / `last_name` (naive first-word / rest split) / `mobile`. Both fields stay editable — a post-accident client shouldn't retype what the agent already typed.
+- Covered by new cases in `web/src/lib/collection/claim-state.test.ts` (concrete type kept; `""` and `"unknown"` both omitted). **No migration**, no schema change.
 
 ---
 
