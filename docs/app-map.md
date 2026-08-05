@@ -36,6 +36,7 @@ Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod che
 | `ai/` | `analyze.ts` — the single structured Claude call (signals only, never the track) |
 | `collection/` | `claim-state.ts` — shared wizard↔server mapping (`State` + `toClaimData`); `persist.ts` — per-token `localStorage` save/restore of wizard progress |
 | `files/` | `sniff.ts` — magic-byte upload validation |
+| `validation/` | `il.ts` — Israeli input plausibility (`isValidIsraeliId` ת"ז check digit, `isPlausiblePlate`); powers the wizard's non-blocking warnings only |
 | `supabase/` | client/server/service-role clients |
 | `wa.ts` | wa.me links + Hebrew chase copy (`waPhone`, `chaseMessage`, `chaseHref`) |
 | `anthropic.ts` | SDK client construction |
