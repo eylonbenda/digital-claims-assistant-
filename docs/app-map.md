@@ -57,8 +57,8 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | `/api/claims/[id]/notes` | POST | append to the agent scratchpad |
 | `/api/claims/[id]/form-data` | PATCH | agent edits the canonical form fields |
 | `/api/claims/[id]/form/[insurer]` | GET | on-demand fill for one insurer |
-| `/api/forms/[insurer]` | POST | fill a PDF from a canonical claim body |
-| `/api/analyze` | POST | Claude analysis — **503 without `ANTHROPIC_API_KEY`** |
+| `/api/forms/[insurer]` | POST | fill a PDF from a canonical claim body — **no in-app caller** since the client summary stopped offering a download (PR #32); kept for direct/QA use |
+| `/api/analyze` | POST | Claude analysis — **503 without `ANTHROPIC_API_KEY`**; standalone (the agent page calls `getOrCreateAnalysis` server-side, the wizard no longer calls it) |
 | `/api/brief/refresh` | POST | re-run the morning-brief ranking |
 | `/api/auth/login` · `/api/auth/logout` | POST | session |
 | `/api/health` · `/api/version` | GET | which keys are wired · app name + version |
