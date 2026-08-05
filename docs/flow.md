@@ -28,7 +28,7 @@ The client gets a **personal link** from the agent (via WhatsApp) and opens an R
 - If **no** → normal continuation.
 
 ### Step 2 — Guided collection (step-by-step, not one long form)
-Each step = one screen, one action. Auto-save after each step (resumable).
+Each step = one screen, one action. **Auto-save is client-local**: the current step + answers are written to `localStorage` per token (`web/src/lib/collection/persist.ts`, key `claim-wizard:v1:<token>`) on every change and restored after mount, so an interrupted client reopens `/c/[token]` where they left off. On restore, in-flight and failed uploads are dropped (completed ones already reached Storage) and the save is merged over the empty+prefill state, so a save written by an older deploy still loads. Cleared on successful submit. Nothing is persisted server-side before submit.
 
 | # | What's collected | Input type | Notes |
 |---|---|---|---|
@@ -98,7 +98,7 @@ created → in_progress → submitted → classified → form_generated → chec
 ---
 
 ## 3. Edge cases (plan ahead)
-- **Client abandons mid-way** → save progress; reminder after X hours (future: job); otherwise `abandoned`.
+- **Client abandons mid-way** → progress is saved in the browser (`localStorage`, per token) so reopening the link resumes; reminder after X hours (future: job); otherwise `abandoned`.
 - **Unreadable / missing photo** → basic validation (size/format), ask to re-shoot.
 - **No third party** (single-vehicle) → skip step 6; default classification `own_policy`.
 - **Route unclear** → classification stays `unknown`; the checklist shows shared docs until the agent decides.
