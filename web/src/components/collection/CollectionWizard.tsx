@@ -403,6 +403,7 @@ export default function CollectionWizard({
                     {i.label}
                   </option>
                 ))}
+                <option value="unknown">לא בטוח/ה — הסוכן ישלים</option>
               </select>
             </label>
             <label className="block">
@@ -418,9 +419,10 @@ export default function CollectionWizard({
                 <option value="comprehensive">מקיף</option>
                 <option value="third_party">צד ג׳</option>
                 <option value="mandatory">חובה בלבד</option>
+                <option value="unknown">לא בטוח/ה — הסוכן ישלים</option>
               </select>
               <span className="mt-1 block text-xs text-zinc-400">
-                קובע אם ניתן לתבוע דרך הפוליסה שלך.
+                לא בטוח/ה? אין בעיה — בחר/י &quot;הסוכן ישלים&quot; והמשיכ/י.
               </span>
             </label>
           </div>

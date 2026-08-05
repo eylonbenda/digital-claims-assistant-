@@ -66,6 +66,17 @@ describe("toClaimData — declaration", () => {
   });
 });
 
+describe("toClaimData — insurance type", () => {
+  it("includes a concrete insurance_type", () => {
+    expect(toClaimData(base).insurance_type).toBe("comprehensive");
+  });
+
+  it('omits insurance_type for "" and for the "unknown" sentinel', () => {
+    expect(toClaimData({ ...base, insuranceType: "" }).insurance_type).toBeUndefined();
+    expect(toClaimData({ ...base, insuranceType: "unknown" }).insurance_type).toBeUndefined();
+  });
+});
+
 describe("toClaimData — backward compatibility", () => {
   it("does not throw on legacy state lacking driver/declaration blocks", () => {
     const legacy = { ...base } as Partial<State>;

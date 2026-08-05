@@ -15,8 +15,8 @@ export type UploadedDoc = {
 export type State = {
   consent: boolean;
   injuries: boolean | null;
-  policyInsurer: string; // the claimant's own insurer (drives which accident-notice form gets filled)
-  insuranceType: InsuranceType | ""; // מקיף / חובה / צד ג' — pivots own_policy viability
+  policyInsurer: string; // the claimant's own insurer (drives which accident-notice form gets filled); "unknown" = client isn't sure, agent completes
+  insuranceType: InsuranceType | "" | "unknown"; // מקיף / חובה / צד ג' — pivots own_policy viability; "unknown" = client isn't sure
   insured: { first_name: string; last_name: string; id_number: string; mobile: string; city: string };
   driver: {
     isInsured: boolean | null;
@@ -57,7 +57,8 @@ export const INSURERS: { key: string; label: string; templated: boolean }[] = [
 // Shared so the claimant preview and the agent-side PDF generation stay identical.
 export function toClaimData(s: State): ClaimData {
   return {
-    ...(s.insuranceType ? { insurance_type: s.insuranceType } : {}),
+    // "unknown" (client isn't sure) is omitted like "" — absent means undetermined downstream.
+    ...(s.insuranceType && s.insuranceType !== "unknown" ? { insurance_type: s.insuranceType } : {}),
     insured: {
       first_name: s.insured.first_name,
       last_name: s.insured.last_name,
