@@ -6,6 +6,7 @@ import { compressImage } from "@/lib/images/compress";
 import { type State, type DocType, type UploadedDoc, INSURERS } from "@/lib/collection/claim-state";
 import { clearWizardState, loadWizardState, saveWizardState } from "@/lib/collection/persist";
 import { isValidIsraeliId, isPlausiblePlate } from "@/lib/validation/il";
+import { reverseGeocode } from "@/lib/geo/reverse";
 import { toILDate } from "@/lib/dates";
 
 export type { State };
@@ -175,6 +176,8 @@ export default function CollectionWizard({
   // Third-party insurer: select of known insurers; "חברה אחרת…" reveals a free-text
   // field. A restored session with a custom name (not in the list) reopens it too.
   const [tpInsurerOther, setTpInsurerOther] = useState(false);
+  const [geoBusy, setGeoBusy] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const tpInsurerCustom =
     tpInsurerOther ||
     (!!s.thirdParty.insurer &&
@@ -201,6 +204,30 @@ export default function CollectionWizard({
       return "מספר רישוי הוא בדרך כלל 7–8 ספרות";
     return undefined;
   };
+
+  // Fill the location field from device GPS (clients are often still at the
+  // scene). Result stays fully editable; any failure degrades to a hint, and
+  // reverse-geocode failure degrades to raw coordinates inside reverseGeocode.
+  function useMyLocation() {
+    setGeoError(null);
+    if (!navigator.geolocation) {
+      setGeoError("הדפדפן לא תומך באיתור מיקום — אפשר להקליד ידנית");
+      return;
+    }
+    setGeoBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const label = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+        setS((p) => ({ ...p, accident: { ...p.accident, location: label } }));
+        setGeoBusy(false);
+      },
+      () => {
+        setGeoError("לא הצלחנו לקבל את המיקום — אפשר להקליד ידנית");
+        setGeoBusy(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  }
 
   const canNext = (): boolean => {
     switch (step) {
@@ -471,6 +498,15 @@ export default function CollectionWizard({
             <Text required label="תאריך" type="date" value={s.accident.date} onChange={(v) => set({ accident: { ...s.accident, date: v } })} />
             <Text required label="שעה" type="time" value={s.accident.time} onChange={(v) => set({ accident: { ...s.accident, time: v } })} />
             <Text required label="מיקום" value={s.accident.location} onChange={(v) => set({ accident: { ...s.accident, location: v } })} placeholder="צומת / כתובת / כביש" />
+            <button
+              type="button"
+              onClick={useMyLocation}
+              disabled={geoBusy}
+              className="rounded-lg border border-blue-600 px-3 py-2 text-sm text-blue-700 disabled:opacity-50"
+            >
+              {geoBusy ? "מאתר…" : "📍 המיקום הנוכחי שלי"}
+            </button>
+            {geoError && <p className="text-xs text-amber-600">{geoError}</p>}
           </div>
         )}
 
