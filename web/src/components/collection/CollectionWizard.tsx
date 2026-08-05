@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Fault } from "@/lib/formfill/types";
 import type { ClaimAnalysis } from "@/lib/ai/analyze";
 import { compressImage } from "@/lib/images/compress";
 import { type State, type DocType, type UploadedDoc, toClaimData, INSURERS } from "@/lib/collection/claim-state";
+import { clearWizardState, loadWizardState, saveWizardState } from "@/lib/collection/persist";
 import { toILDate } from "@/lib/dates";
 
 export type { State };
@@ -139,6 +140,25 @@ export default function CollectionWizard({
   const [s, setS] = useState<State>(() => mergeWithEmpty(prefill));
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
+  // Restore a saved session after mount (not in the initializer — the server render
+  // has no localStorage, and diverging from it would break hydration). The sync
+  // setState here is the point: one deliberate second render with the restored state.
+  const [hydrated, setHydrated] = useState(false);
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const saved = loadWizardState(token, mergeWithEmpty(prefill));
+    if (saved) {
+      setS(saved.state);
+      setStep(Math.min(Math.max(saved.step, 0), STEP_TITLES.length - 1));
+    }
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- restore once per token
+  }, [token]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!hydrated || done) return;
+    saveWizardState(token, step, s);
+  }, [hydrated, done, token, step, s]);
   const insurerTemplated = INSURERS.find((i) => i.key === s.policyInsurer)?.templated ?? false;
   const [busy, setBusy] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
@@ -265,6 +285,7 @@ export default function CollectionWizard({
         setSubmitError(json.error ?? "שגיאה בשליחה");
         return;
       }
+      clearWizardState(token);
       setDone(true);
     } catch {
       setSubmitError("שגיאת רשת");
