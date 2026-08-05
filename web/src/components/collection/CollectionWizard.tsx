@@ -141,8 +141,10 @@ export default function CollectionWizard({
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
   // Restore a saved session after mount (not in the initializer — the server render
-  // has no localStorage, and diverging from it would break hydration).
+  // has no localStorage, and diverging from it would break hydration). The sync
+  // setState here is the point: one deliberate second render with the restored state.
   const [hydrated, setHydrated] = useState(false);
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const saved = loadWizardState(token, mergeWithEmpty(prefill));
     if (saved) {
@@ -152,6 +154,7 @@ export default function CollectionWizard({
     setHydrated(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- restore once per token
   }, [token]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!hydrated || done) return;
     saveWizardState(token, step, s);
