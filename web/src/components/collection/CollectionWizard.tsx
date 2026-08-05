@@ -5,6 +5,7 @@ import type { Fault } from "@/lib/formfill/types";
 import { compressImage } from "@/lib/images/compress";
 import { type State, type DocType, type UploadedDoc, INSURERS } from "@/lib/collection/claim-state";
 import { clearWizardState, loadWizardState, saveWizardState } from "@/lib/collection/persist";
+import { isValidIsraeliId, isPlausiblePlate } from "@/lib/validation/il";
 import { toILDate } from "@/lib/dates";
 
 export type { State };
@@ -56,6 +57,9 @@ function mergeWithEmpty(prefill?: StatePrefill): State {
   };
 }
 
+// Select sentinel for "a company not in the list" — never stored in state.
+const OTHER_INSURER = "__other__";
+
 const STEP_TITLES = [
   "הסכמה",
   "נפגעים",
@@ -77,6 +81,8 @@ function Text({
   type = "text",
   placeholder,
   required = false,
+  inputMode,
+  warn,
 }: {
   label: string;
   value: string;
@@ -84,6 +90,8 @@ function Text({
   type?: string;
   placeholder?: string;
   required?: boolean;
+  inputMode?: "numeric" | "tel";
+  warn?: string; // gentle plausibility warning — never blocks continuing
 }) {
   return (
     <label className="block">
@@ -93,11 +101,15 @@ function Text({
       </span>
       <input
         type={type}
+        inputMode={inputMode}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-base outline-none focus:border-blue-500"
+        className={`mt-1 w-full rounded-lg border px-3 py-2 text-base outline-none focus:border-blue-500 ${
+          warn ? "border-amber-400" : "border-zinc-300"
+        }`}
       />
+      {warn && <span className="mt-1 block text-xs text-amber-600">{warn}</span>}
     </label>
   );
 }
@@ -160,12 +172,35 @@ export default function CollectionWizard({
   }, [hydrated, done, token, step, s]);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Third-party insurer: select of known insurers; "חברה אחרת…" reveals a free-text
+  // field. A restored session with a custom name (not in the list) reopens it too.
+  const [tpInsurerOther, setTpInsurerOther] = useState(false);
+  const tpInsurerCustom =
+    tpInsurerOther ||
+    (!!s.thirdParty.insurer &&
+      s.thirdParty.insurer !== "לא ידוע" &&
+      !INSURERS.some((i) => i.label === s.thirdParty.insurer));
 
   const last = STEP_TITLES.length - 1;
   const set = (patch: Partial<State>) => setS((p) => ({ ...p, ...patch }));
   const docDone = s.documents.filter((d) => d.status === "done").length;
 
   const filled = (v: string) => v.trim().length > 0;
+
+  // Plausibility warnings (amber, non-blocking). Warn only once enough is typed
+  // that it can't be a partial entry — mid-typing must stay quiet.
+  const idWarn = (v: string) =>
+    v.replace(/\D/g, "").length >= 9 && !isValidIsraeliId(v)
+      ? "מספר תעודת הזהות נראה שגוי — כדאי לבדוק שוב"
+      : undefined;
+  const plateWarn = (v: string) => {
+    const t = v.trim();
+    if (!t || isPlausiblePlate(t)) return undefined;
+    // under-length is likely mid-typing — stay quiet; letters / over-length are definite
+    if (/[^\d\s-]/.test(t) || t.replace(/\D/g, "").length > 8)
+      return "מספר רישוי הוא בדרך כלל 7–8 ספרות";
+    return undefined;
+  };
 
   const canNext = (): boolean => {
     switch (step) {
@@ -277,7 +312,10 @@ export default function CollectionWizard({
         <div className="text-5xl">✅</div>
         <h1 className="mt-4 text-2xl font-bold">הפרטים נשלחו לסוכן</h1>
         <p className="mt-2 text-zinc-600">
-          תודה. הסוכן יקבל תיק מסודר עם כל מה שמסרת. אם חסר משהו, ניצור איתך קשר.
+          תודה. הסוכן יעבור על הפרטים וייצור איתך קשר להמשך הטיפול.
+        </p>
+        <p className="mt-3 text-sm text-zinc-500">
+          נזכרת במשהו? אפשר לחזור לקישור הזה בכל שלב כדי להוסיף תמונות ומסמכים.
         </p>
       </div>
     );
@@ -303,8 +341,12 @@ export default function CollectionWizard({
           <div>
             <h2 className="text-xl font-bold">דיווח על תאונת רכב</h2>
             <p className="mt-2 text-zinc-600">
-              ניקח 3 דקות לאסוף את פרטי התאונה, כדי שהסוכן יוכל לטפל מהר. הפרטים מועברים
-              לסוכן הביטוח שלך בלבד.
+              מצטערים על התאונה — אנחנו כאן לעזור. כמה שאלות קצרות (כ־3 דקות), והסוכן
+              ייקח את זה מכאן.
+            </p>
+            <p className="mt-2 text-sm text-zinc-500">
+              הפרטים מועברים לסוכן הביטוח שלך בלבד, והתשובות נשמרות — אפשר לעצור ולחזור
+              לקישור בכל שלב.
             </p>
             <label className="mt-5 flex items-start gap-2">
               <input
@@ -334,7 +376,8 @@ export default function CollectionWizard({
             {s.injuries && (
               <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800">
                 <strong>אם יש סכנת חיים — חייגו 101 מיד.</strong> מומלץ גם להזעיק משטרה
-                (100). אפשר להמשיך במילוי לאחר מכן — הסוכן יקבל התראה דחופה.
+                (100). הסוכן יקבל התראה דחופה. אפשר לסגור עכשיו ולחזור לקישור מאוחר
+                יותר — התשובות שלך נשמרות.
               </div>
             )}
           </div>
@@ -345,7 +388,7 @@ export default function CollectionWizard({
             <h2 className="text-xl font-bold">הפרטים שלך</h2>
             <Text required label="שם פרטי" value={s.insured.first_name} onChange={(v) => set({ insured: { ...s.insured, first_name: v } })} />
             <Text required label="שם משפחה" value={s.insured.last_name} onChange={(v) => set({ insured: { ...s.insured, last_name: v } })} />
-            <Text required label="תעודת זהות" value={s.insured.id_number} onChange={(v) => set({ insured: { ...s.insured, id_number: v } })} />
+            <Text required label="תעודת זהות" inputMode="numeric" warn={idWarn(s.insured.id_number)} value={s.insured.id_number} onChange={(v) => set({ insured: { ...s.insured, id_number: v } })} />
             <Text required label="טלפון נייד" type="tel" value={s.insured.mobile} onChange={(v) => set({ insured: { ...s.insured, mobile: v } })} />
             <Text required label="עיר מגורים" value={s.insured.city} onChange={(v) => set({ insured: { ...s.insured, city: v } })} />
             <label className="block">
@@ -405,8 +448,8 @@ export default function CollectionWizard({
               <div className="mt-4 space-y-3">
                 <Text required label="שם פרטי" value={s.driver.first_name} onChange={(v) => set({ driver: { ...s.driver, first_name: v } })} />
                 <Text required label="שם משפחה" value={s.driver.last_name} onChange={(v) => set({ driver: { ...s.driver, last_name: v } })} />
-                <Text required label="תעודת זהות" value={s.driver.id_number} onChange={(v) => set({ driver: { ...s.driver, id_number: v } })} />
-                <Text label="מספר רישיון נהיגה" value={s.driver.license_number} onChange={(v) => set({ driver: { ...s.driver, license_number: v } })} />
+                <Text required label="תעודת זהות" inputMode="numeric" warn={idWarn(s.driver.id_number)} value={s.driver.id_number} onChange={(v) => set({ driver: { ...s.driver, id_number: v } })} />
+                <Text label="מספר רישיון נהיגה" inputMode="numeric" value={s.driver.license_number} onChange={(v) => set({ driver: { ...s.driver, license_number: v } })} />
                 <Text label="קרבה למבוטח" value={s.driver.relation_to_insured} onChange={(v) => set({ driver: { ...s.driver, relation_to_insured: v } })} placeholder="בן/בת זוג, עובד, בן משפחה…" />
               </div>
             )}
@@ -416,9 +459,9 @@ export default function CollectionWizard({
         {step === 4 && (
           <div className="space-y-3">
             <h2 className="text-xl font-bold">הרכב שלך</h2>
-            <Text required label="מספר רישוי" value={s.vehicle.plate} onChange={(v) => set({ vehicle: { ...s.vehicle, plate: v } })} />
+            <Text required label="מספר רישוי" inputMode="numeric" warn={plateWarn(s.vehicle.plate)} value={s.vehicle.plate} onChange={(v) => set({ vehicle: { ...s.vehicle, plate: v } })} />
             <Text required label="יצרן ודגם" value={s.vehicle.manufacturer} onChange={(v) => set({ vehicle: { ...s.vehicle, manufacturer: v } })} placeholder="לדוגמה: טויוטה קורולה" />
-            <Text required label="שנת ייצור" value={s.vehicle.year} onChange={(v) => set({ vehicle: { ...s.vehicle, year: v } })} />
+            <Text required label="שנת ייצור" inputMode="numeric" value={s.vehicle.year} onChange={(v) => set({ vehicle: { ...s.vehicle, year: v } })} />
           </div>
         )}
 
@@ -436,7 +479,10 @@ export default function CollectionWizard({
             <h2 className="text-xl font-bold">
               מה קרה?<span className="text-red-500"> *</span>
             </h2>
-            <p className="mt-1 text-sm text-zinc-500">תאר/י בקצרה את האירוע במילים שלך.</p>
+            <p className="mt-1 text-sm text-zinc-500">
+              תאר/י בקצרה את האירוע במילים שלך — גם 2–3 משפטים מספיקים. הסוכן ישלים
+              איתך פרטים אם צריך.
+            </p>
             <textarea
               value={s.accident.description}
               onChange={(e) => set({ accident: { ...s.accident, description: e.target.value } })}
@@ -482,8 +528,33 @@ export default function CollectionWizard({
               <div className="mt-4 space-y-3">
                 <Text required label="שם הנהג השני" value={s.thirdParty.name} onChange={(v) => set({ thirdParty: { ...s.thirdParty, name: v } })} />
                 <Text label="טלפון" type="tel" value={s.thirdParty.phone} onChange={(v) => set({ thirdParty: { ...s.thirdParty, phone: v } })} />
-                <Text required label="מספר רישוי" value={s.thirdParty.plate} onChange={(v) => set({ thirdParty: { ...s.thirdParty, plate: v } })} />
-                <Text required label="חברת הביטוח שלו" value={s.thirdParty.insurer} onChange={(v) => set({ thirdParty: { ...s.thirdParty, insurer: v } })} />
+                <Text required label="מספר רישוי" inputMode="numeric" warn={plateWarn(s.thirdParty.plate)} value={s.thirdParty.plate} onChange={(v) => set({ thirdParty: { ...s.thirdParty, plate: v } })} />
+                <label className="block">
+                  <span className="text-sm text-zinc-600">
+                    חברת הביטוח שלו<span className="text-red-500"> *</span>
+                  </span>
+                  <select
+                    value={tpInsurerCustom ? OTHER_INSURER : s.thirdParty.insurer}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setTpInsurerOther(v === OTHER_INSURER);
+                      set({ thirdParty: { ...s.thirdParty, insurer: v === OTHER_INSURER ? "" : v } });
+                    }}
+                    className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-base outline-none focus:border-blue-500"
+                  >
+                    <option value="">בחר/י חברת ביטוח…</option>
+                    {INSURERS.map((i) => (
+                      <option key={i.key} value={i.label}>
+                        {i.label}
+                      </option>
+                    ))}
+                    <option value="לא ידוע">לא ידוע כרגע</option>
+                    <option value={OTHER_INSURER}>חברה אחרת…</option>
+                  </select>
+                </label>
+                {tpInsurerCustom && (
+                  <Text required label="שם חברת הביטוח" value={s.thirdParty.insurer} onChange={(v) => set({ thirdParty: { ...s.thirdParty, insurer: v } })} />
+                )}
               </div>
             )}
           </div>
