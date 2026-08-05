@@ -34,7 +34,7 @@ Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod che
 | `tasks/` | task engine: pure `engine.ts` (`advanceTasks`), declarative `templates.ts` rule table, `runner.ts` (`runEngine`, best-effort) |
 | `brief/` | morning brief: `facts.ts` → `score.ts` (deterministic) → `rank.ts` (AI tier) → `brief.ts` (`getOrCreateBrief`) |
 | `ai/` | `analyze.ts` — the single structured Claude call (signals only, never the track) |
-| `collection/` | `claim-state.ts` — shared wizard↔server mapping (`State` + `toClaimData`) |
+| `collection/` | `claim-state.ts` — shared wizard↔server mapping (`State` + `toClaimData`); `persist.ts` — per-token `localStorage` save/restore of wizard progress |
 | `files/` | `sniff.ts` — magic-byte upload validation |
 | `supabase/` | client/server/service-role clients |
 | `wa.ts` | wa.me links + Hebrew chase copy (`waPhone`, `chaseMessage`, `chaseHref`) |
