@@ -164,6 +164,7 @@ We collect sensitive PII (ID, license, third-party details) under Israel's Priva
 - **Postgres RLS** — an agent sees only their agency's / their own claims.
 - **Explicit consent** at the start of the flow, recorded in `claim_events` with a timestamp.
 - **Client-side draft state:** the collection wizard mirrors in-progress answers (name, ID number, phone, licence number) into the device's own `localStorage`, keyed per token, so an interrupted client can resume (`web/src/lib/collection/persist.ts`). It is cleared on successful submit — an abandoned claim leaves the draft on the device.
+- **Outbound plate lookup:** the vehicle registry call (data.gov.il, `web/src/lib/vehicles/registry.ts`) goes out **server-side only** (`GET /api/vehicle/[plate]`) — the claimant's IP never reaches the government endpoint, and the only value sent is the plate, which carries no owner identity in that dataset. One egress point to cache or swap.
 - **Encryption at rest** (Supabase default) + consider field-level encryption for ID numbers.
 - **Least privilege** and a full audit log (`claim_events`).
 - **Assessor independence:** the UI/automation must never appear to direct שמאות or steer garage/assessor choice — regulations forbid commission or benefit-in-kind in the claims process (רשות שוק ההון).
