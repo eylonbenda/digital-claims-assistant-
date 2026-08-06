@@ -1,18 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Fault } from "@/lib/formfill/types";
 import { compressImage } from "@/lib/images/compress";
 import { type State, type DocType, type UploadedDoc, INSURERS } from "@/lib/collection/claim-state";
 import { clearWizardState, loadWizardState, saveWizardState } from "@/lib/collection/persist";
 import { isValidIsraeliId, isPlausiblePlate } from "@/lib/validation/il";
 import { reverseGeocode } from "@/lib/geo/reverse";
-import {
-  isLookupablePlate,
-  mergeVehicleInfo,
-  normalizePlate,
-  type VehicleInfo,
-} from "@/lib/vehicles/registry";
 import { toILDate } from "@/lib/dates";
 
 export type { State };
@@ -179,56 +173,6 @@ export default function CollectionWizard({
   }, [hydrated, done, token, step, s]);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const plateDigits = normalizePlate(s.vehicle.plate);
-  // Registry lookup by plate: "idle" | "looking" | "found" | "missing".
-  const [vehicleLookup, setVehicleLookup] = useState<"idle" | "looking" | "found" | "missing">("idle");
-  // What we last auto-filled, so a corrected plate can replace our own values
-  // while anything the claimant typed themselves is left untouched.
-  const autoFilled = useRef<{ manufacturer: string; year: string } | null>(null);
-  // Latest state, readable from async callbacks without re-running the effect.
-  // Decisions are made here rather than inside a setS updater: React may invoke
-  // an updater more than once, so an updater that also wrote `autoFilled` would
-  // see its own write on the second pass and overwrite the claimant's typing.
-  const sRef = useRef(s);
-  useEffect(() => {
-    sRef.current = s;
-  }, [s]);
-  // Guards against out-of-order responses: only the newest lookup may write.
-  const lookupSeq = useRef(0);
-
-  // Look the vehicle up in the Ministry of Transport registry once the plate
-  // looks complete. Debounced so typing doesn't fire a request per keystroke.
-  useEffect(() => {
-    if (step !== 4) return;
-    const timer = setTimeout(async () => {
-      if (!isLookupablePlate(plateDigits)) {
-        setVehicleLookup("idle");
-        return;
-      }
-      const seq = ++lookupSeq.current;
-      setVehicleLookup("looking");
-      try {
-        const res = await fetch(`/api/vehicle/${plateDigits}`);
-        const vehicle = res.ok ? ((await res.json()).vehicle as VehicleInfo | null) : null;
-        if (seq !== lookupSeq.current) return; // a newer plate is already in flight
-        if (!vehicle) {
-          setVehicleLookup("missing");
-          return;
-        }
-        const { manufacturer, year } = mergeVehicleInfo(
-          sRef.current.vehicle,
-          vehicle,
-          autoFilled.current
-        );
-        autoFilled.current = { manufacturer, year };
-        setS((p) => ({ ...p, vehicle: { ...p.vehicle, manufacturer, year } }));
-        setVehicleLookup("found");
-      } catch {
-        setVehicleLookup("idle"); // network hiccup — stay quiet, let them type
-      }
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [plateDigits, step]);
   // Third-party insurer: select of known insurers; "חברה אחרת…" reveals a free-text
   // field. A restored session with a custom name (not in the list) reopens it too.
   const [tpInsurerOther, setTpInsurerOther] = useState(false);
@@ -542,17 +486,7 @@ export default function CollectionWizard({
         {step === 4 && (
           <div className="space-y-3">
             <h2 className="text-xl font-bold">הרכב שלך</h2>
-            <p className="text-sm text-zinc-500">
-              הזן/י מספר רישוי — נשלים את פרטי הרכב אוטומטית.
-            </p>
             <Text required label="מספר רישוי" inputMode="numeric" warn={plateWarn(s.vehicle.plate)} value={s.vehicle.plate} onChange={(v) => set({ vehicle: { ...s.vehicle, plate: v } })} />
-            {vehicleLookup === "looking" && <p className="text-xs text-zinc-500">מחפש את הרכב…</p>}
-            {vehicleLookup === "found" && (
-              <p className="text-xs text-green-700">✓ מולא ממאגר משרד התחבורה — אפשר לתקן</p>
-            )}
-            {vehicleLookup === "missing" && (
-              <p className="text-xs text-zinc-500">לא מצאנו את הרכב במאגר — אפשר למלא ידנית</p>
-            )}
             <Text required label="יצרן ודגם" value={s.vehicle.manufacturer} onChange={(v) => set({ vehicle: { ...s.vehicle, manufacturer: v } })} placeholder="לדוגמה: טויוטה קורולה" />
             <Text required label="שנת ייצור" inputMode="numeric" value={s.vehicle.year} onChange={(v) => set({ vehicle: { ...s.vehicle, year: v } })} />
           </div>
