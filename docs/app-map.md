@@ -35,6 +35,7 @@ Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod che
 | `brief/` | morning brief: `facts.ts` → `score.ts` (deterministic) → `rank.ts` (AI tier) → `brief.ts` (`getOrCreateBrief`) |
 | `ai/` | `analyze.ts` — the single structured Claude call (signals only, never the track) |
 | `collection/` | `claim-state.ts` — shared wizard↔server mapping (`State` + `toClaimData`); `persist.ts` — per-token `localStorage` save/restore of wizard progress |
+| `vehicles/` | `registry.ts` — plate lookup against the Ministry of Transport open-data registry (data.gov.il): `lookupVehicle` + the pure `toVehicleInfo` / `mergeVehicleInfo` / plate helpers |
 | `files/` | `sniff.ts` — magic-byte upload validation |
 | `supabase/` | client/server/service-role clients |
 | `wa.ts` | wa.me links + Hebrew chase copy (`waPhone`, `chaseMessage`, `chaseHref`) |
@@ -59,6 +60,7 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | `/api/claims/[id]/form/[insurer]` | GET | on-demand fill for one insurer |
 | `/api/forms/[insurer]` | POST | fill a PDF from a canonical claim body |
 | `/api/analyze` | POST | Claude analysis — **503 without `ANTHROPIC_API_KEY`**. Stateless; **no in-app caller** since the wizard's AI panel was removed — the agent page uses `getOrCreateAnalysis` server-side |
+| `/api/vehicle/[plate]` | GET | **client** plate → make/model/year from the Ministry of Transport registry (server-side proxy, per-instance memo, `200 {vehicle:null}` on a miss) |
 | `/api/brief/refresh` | POST | re-run the morning-brief ranking |
 | `/api/auth/login` · `/api/auth/logout` | POST | session |
 | `/api/health` · `/api/version` | GET | which keys are wired · app name + version |
