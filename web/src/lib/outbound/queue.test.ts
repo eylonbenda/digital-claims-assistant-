@@ -105,3 +105,89 @@ describe("buildQueue — cooldown", () => {
     expect(q.send.map((s) => s.claim_id)).toEqual(["c1"]);
   });
 });
+
+describe("buildQueue — one message per claim per day", () => {
+  const twoDue = (over1 = {}, over2 = {}) => [
+    task({ id: "t1", key: "chase_missing_docs", due_at: daysAgo(2), ...over1 }),
+    task({ id: "t2", key: "get_tp_insurer", title: "להשיג פרטי מבטח צד ג'", due_at: daysAgo(2), ...over2 }),
+  ];
+
+  it("two due send rules on one claim → only one item; larger overdue wins", () => {
+    const q = build([claim()], twoDue({}, { due_at: daysAgo(5) }));
+    expect(q.send).toHaveLength(1);
+    expect(q.send[0].task_key).toBe("get_tp_insurer");
+  });
+
+  it("equal overdue → RULE_PRIORITY order wins", () => {
+    const q = build([claim()], twoDue());
+    expect(q.send).toHaveLength(1);
+    expect(q.send[0].task_key).toBe("chase_missing_docs");
+  });
+
+  it("an event earlier TODAY on any key blocks all sends for the claim", () => {
+    // Sent at 06:00Z today (NOW is 08:00Z); the other rule has no events at all.
+    const q = build([claim()], twoDue(), [
+      ev({ task_key: "chase_missing_docs", created_at: "2026-08-10T06:00:00Z" }),
+    ]);
+    expect(q.send).toHaveLength(0);
+  });
+
+  it("the cap is per claim — a second claim still gets its item", () => {
+    const q = build(
+      [claim(), claim({ claim_id: "c2", access_token: "tok2" })],
+      [...twoDue(), task({ id: "t3", claim_id: "c2", due_at: daysAgo(1) })],
+      [ev({ created_at: "2026-08-10T06:00:00Z" })],
+    );
+    expect(q.send.map((s) => s.claim_id)).toEqual(["c2"]);
+  });
+});
+
+describe("buildQueue — give-up escalation", () => {
+  const threeSends = [ev({ created_at: daysAgo(12) }), ev({ created_at: daysAgo(8) }), ev({ created_at: daysAgo(4) })];
+
+  it("3 sends with no upload since → escalation row, no send item", () => {
+    const q = build([claim()], [task()], threeSends);
+    expect(q.send).toHaveLength(0);
+    expect(q.doToday).toEqual([
+      expect.objectContaining({ escalation: true, title: expect.stringContaining("ליצור קשר טלפוני") }),
+    ]);
+  });
+
+  it("a document upload after the sends resets the counter", () => {
+    const q = build([claim({ last_doc_uploaded_at: daysAgo(3.5) })], [task()], threeSends);
+    // 0 sends since the upload; last touch was 4d ago > 3d cooldown → proposes.
+    expect(q.send).toHaveLength(1);
+    expect(q.doToday).toHaveLength(0);
+  });
+
+  it("skips don't count toward the give-up threshold", () => {
+    const skips = threeSends.map((e) => ({ ...e, kind: "skipped" as const }));
+    const q = build([claim()], [task()], skips);
+    expect(q.send).toHaveLength(1); // last skip 4d ago, outside cooldown
+  });
+});
+
+describe("buildQueue — ordering", () => {
+  it("send lane: brief tier first, then score desc, then overdue desc", () => {
+    const claims = [
+      claim({ claim_id: "a", access_token: "ta", tier: "waiting", score: 90 }),
+      claim({ claim_id: "b", access_token: "tb", tier: "act_now", score: 10 }),
+      claim({ claim_id: "c", access_token: "tc", tier: "act_now", score: 50 }),
+      claim({ claim_id: "d", access_token: "td", tier: null, score: 99 }),
+    ];
+    const tasks = claims.map((c, i) => task({ id: `t${i}`, claim_id: c.claim_id, due_at: daysAgo(1) }));
+    const q = build(claims, tasks);
+    expect(q.send.map((s) => s.claim_id)).toEqual(["c", "b", "a", "d"]);
+  });
+
+  it("doToday: overdue desc", () => {
+    const q = build(
+      [claim()],
+      [
+        task({ id: "t1", key: "open_claim_with_insurer", title: "א", due_at: daysAgo(1) }),
+        task({ id: "t2", key: "follow_up_insurer", title: "ב", due_at: daysAgo(6) }),
+      ],
+    );
+    expect(q.doToday.map((d) => d.title)).toEqual(["ב", "א"]);
+  });
+});

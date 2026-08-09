@@ -113,6 +113,38 @@ export function buildQueue(input: {
     });
   }
 
-  // Task 5 adds here: per-claim daily cap, then ordering.
-  return { send, doToday };
+  // ── One message per claim per day (spec §5 guard 1) ─────────────────────
+  // A claim whose slot was used today (any key, sent or skipped) proposes
+  // nothing more; among fresh candidates the most overdue wins, ties broken
+  // by RULE_PRIORITY.
+  const today = now.toISOString().slice(0, 10);
+  const usedToday = new Set(
+    events.filter((e) => e.created_at.slice(0, 10) === today).map((e) => e.claim_id),
+  );
+  const bestPerClaim = new Map<string, SendItem>();
+  for (const item of send) {
+    if (usedToday.has(item.claim_id)) continue;
+    const cur = bestPerClaim.get(item.claim_id);
+    if (
+      !cur ||
+      item.overdue_days > cur.overdue_days ||
+      (item.overdue_days === cur.overdue_days &&
+        RULE_PRIORITY.indexOf(item.task_key) < RULE_PRIORITY.indexOf(cur.task_key))
+    ) {
+      bestPerClaim.set(item.claim_id, item);
+    }
+  }
+
+  // ── Ordering ────────────────────────────────────────────────────────────
+  const tierOrd = (t: Tier | null) => (t ? TIER_ORDER[t] : Number.MAX_SAFE_INTEGER);
+  const capped = [...bestPerClaim.values()].sort(
+    (a, b) => {
+      const ca = claimById.get(a.claim_id)!;
+      const cb = claimById.get(b.claim_id)!;
+      return tierOrd(ca.tier) - tierOrd(cb.tier) || cb.score - ca.score || b.overdue_days - a.overdue_days;
+    },
+  );
+  doToday.sort((a, b) => b.overdue_days - a.overdue_days);
+
+  return { send: capped, doToday };
 }
