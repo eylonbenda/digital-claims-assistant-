@@ -59,8 +59,10 @@ const shomera: Template = {
     // פרטי האירוע
     { key: "accident.date", right: 546, y: 521, size: 8 },
     { key: "accident.time", right: 433, y: 521, size: 8 },
-    // Only ~60pt of clear space between the police checkboxes and this label — shrink to fit.
-    { key: "accident.location", right: 241, y: 521, size: 6.5 }, // כתובת מקום האירוע
+    // כתובת מקום האירוע — this cell's caption sits at the BOTTOM of a taller block (y=521);
+    // there's a wide blank strip above it (row spans up to the "פרטי האירוע" header, ~y=545),
+    // clear of both the police checkboxes (x<199) and the יום/שעה/תאריך columns (x>353).
+    { key: "accident.location", right: 349, y: 536, size: 8 },
     {
       key: "accident.police.notified",
       type: "checkbox",
@@ -68,13 +70,16 @@ const shomera: Template = {
       options: { yes: [180, 521], no: [148, 521] },
     },
     { key: "accident.police.station", right: 65, y: 521, size: 8 },
+    // תיאור האירוע box: 4 ruled lines measured by pixel-scanning the rendered blank PDF at
+    // bottom-based y = 499.7 / 481.4 / 461.0 / 441.75 (box top border at 518.9, spans x≈306-576).
+    // Baseline set 1-2pt above each rule so text sits ON the line instead of floating above it.
     {
       key: "accident.description",
       right: 528,
-      y: 495,
+      y: 501,
       size: 8,
-      width: 440,
-      lineHeight: 13,
+      width: 215,
+      lineHeight: 19,
       maxLines: 4,
     },
     // תאור הנזקים ברכב צד ג' — single description cell near the accident diagrams (not tied
@@ -101,10 +106,12 @@ const shomera: Template = {
     { key: "assessor_name", right: 317, y: 373, size: 8 },
 
     // פרטי צד ג'
-    { key: "third_parties.0.driver_name", right: 458, y: 311, size: 8 },
+    // driver_name / owner_name captions sit at the BOTTOM of their row (like כתובת מקום
+    // האירוע above) — write the value in the blank strip above the caption, not beside it.
+    { key: "third_parties.0.driver_name", right: 458, y: 324, size: 8 },
     { key: "third_parties.0.phone", right: 228, y: 330, size: 8 },
     { key: "third_parties.0.vehicle_plate", right: 125, y: 316, size: 8 }, // מס' רישוי
-    { key: "third_parties.0.owner_name", right: 473, y: 287, size: 8 },
+    { key: "third_parties.0.owner_name", right: 473, y: 299, size: 8 },
     { key: "third_parties.0.id_number", right: 395, y: 286, size: 8 }, // owner's ת"ז
     {
       key: "third_parties.0.insurance_type",
@@ -137,6 +144,10 @@ const shomera: Template = {
     },
     { key: "declarations.date", right: 519, y: 73, size: 8 },
     { key: "declarations.signatory_name", right: 314, y: 73, size: 8 }, // שם ושם משפחה
+    // חתימה — separate signature-line cell left of the name (ClaimData has no signature-image
+    // field; same convention as ayalon.ts, harel.ts etc. — the typed name stands in for the
+    // handwritten signature on the signature line).
+    { key: "declarations.signatory_name", right: 163, y: 72, size: 8 },
   ],
 };
 
