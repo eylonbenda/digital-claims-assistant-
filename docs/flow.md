@@ -42,6 +42,8 @@ Each step = one screen, one action. **Auto-save is client-local**: the current s
 | 7 | Police report / incident number | text (optional) | if relevant |
 | 8 | Who's at fault ("מי אשם") | choice | me / third party / unknown — classification input |
 
+> **Implemented:** on the vehicle step the client only types the **plate**; make/model ("יצרן ודגם") and production year are auto-filled from the **Ministry of Transport open-data registry** (`web/src/lib/vehicles/registry.ts`, via `GET /api/vehicle/[plate]` — proxied server-side, never called from the browser). The lookup is debounced (600 ms) and out-of-order responses are discarded. It **never overwrites what the client typed** — it writes only into an empty field or over a value this same mechanism filled earlier (a corrected plate), per the pure `mergeVehicleInfo`. A miss or any failure is a non-event: the fields stay manual ("לא מצאנו את הרכב במאגר — אפשר למלא ידנית"), and a hit is labelled as auto-filled and still editable. Not an OCR path — no personal data leaves the app, only the plate.
+
 ### Step 3 — AI processing
 - Claude receives the **text/transcript + the list of uploaded documents** (not the ID images).
 - Produces: a **structured event summary** + a **missing-info checklist** + narrative **signals** (`incident_kind`, `inferred_fault`). Claude does **not** pick the track — a deterministic classifier (`web/src/lib/claims/classify.ts`) turns those signals + the structured fields into a **proposed `claim_type`** with a confidence and, for third-party claims, a report-vs-settlement recommendation the agent must confirm. See [claim-management.md](claim-management.md).
