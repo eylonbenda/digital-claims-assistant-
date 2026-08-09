@@ -13,7 +13,7 @@ const daysAgo = (n: number) => new Date(NOW.getTime() - n * DAY_MS).toISOString(
 function claim(over: Partial<QueueClaim> = {}): QueueClaim {
   return {
     claim_id: "c1", client_name: "דנה כהן", client_phone: "0521234567",
-    access_token: "tok1", blocking_labels: ["רישיון נהיגה"],
+    access_token: "tok1", blocking_labels: ["רישיון נהיגה"], missing_doc_labels: [],
     last_doc_uploaded_at: null, tier: null, reason: null, score: 0,
     ...over,
   };
@@ -77,6 +77,23 @@ describe("buildQueue — lanes and eligibility", () => {
     const q = build([claim({ client_phone: null })], [task()]);
     expect(q.send).toHaveLength(1);
     expect(q.send[0].href).toBeNull();
+  });
+
+  it("renders the generic fallback line with no bullets when blocking labels are empty", () => {
+    const q = build([claim({ blocking_labels: [] })], [task()]);
+    expect(q.send).toHaveLength(1);
+    expect(q.send[0].body).not.toContain("•");
+    expect(q.send[0].body).toContain("עדיין חסרים לנו מסמכים");
+  });
+
+  it("collect_private_report_docs draws its body from missing_doc_labels, not blocking_labels (spec §2)", () => {
+    const q = build(
+      [claim({ blocking_labels: ["מכתב דרישה"], missing_doc_labels: ["קבלה על תשלום"] })],
+      [task({ key: "collect_private_report_docs", title: 'לאסוף מסמכי "דוח פרטי"', due_at: daysAgo(1) })],
+    );
+    expect(q.send).toHaveLength(1);
+    expect(q.send[0].body).toContain("• קבלה על תשלום");
+    expect(q.send[0].body).not.toContain("מכתב דרישה");
   });
 });
 
@@ -151,6 +168,12 @@ describe("buildQueue — give-up escalation", () => {
     expect(q.doToday).toEqual([
       expect.objectContaining({ escalation: true, title: expect.stringContaining("ליצור קשר טלפוני") }),
     ]);
+  });
+
+  it("escalation title carries the task's own subject, so two escalations on one claim are distinguishable", () => {
+    const q = build([claim()], [task({ title: "להשלים מסמכים חסרים מהלקוח" })], threeSends);
+    expect(q.doToday[0].title).toContain("להשלים מסמכים חסרים מהלקוח");
+    expect(q.doToday[0].title).toContain("ליצור קשר טלפוני");
   });
 
   it("a document upload after the sends resets the counter", () => {

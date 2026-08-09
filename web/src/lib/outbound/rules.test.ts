@@ -4,6 +4,7 @@ import { MAX_SENDS_BEFORE_CALL, RULE_PRIORITY, SEND_RULES } from "./rules";
 const CTX = {
   firstName: "דנה",
   blockingLabels: ["רישיון נהיגה"],
+  missingDocLabels: ["קבלה על תשלום"],
   uploadUrl: "https://app.test/c/tok",
 };
 
@@ -35,5 +36,12 @@ describe("SEND_RULES", () => {
   it("priority list covers all rules; give-up threshold is 3", () => {
     expect([...RULE_PRIORITY].sort()).toEqual(Object.keys(SEND_RULES).sort());
     expect(MAX_SENDS_BEFORE_CALL).toBe(3);
+  });
+
+  it("collect_private_report_docs builds from missingDocLabels, not blockingLabels (spec §2 — receipt/no-claim/insurance-history are mandatory but non-blocking)", () => {
+    const ctx = { ...CTX, blockingLabels: ["מכתב דרישה"], missingDocLabels: ["קבלה על תשלום"] };
+    const msg = SEND_RULES.collect_private_report_docs.build(ctx);
+    expect(msg).toContain("• קבלה על תשלום");
+    expect(msg).not.toContain("מכתב דרישה");
   });
 });

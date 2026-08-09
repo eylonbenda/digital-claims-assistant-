@@ -87,7 +87,20 @@ export async function loadQueue(
         client_name: c.client_name,
         client_phone: c.client_phone,
         access_token: c.access_token,
-        blocking_labels: checklist.filter((i) => i.blocking && !i.done).map((i) => i.label),
+        // Client-suppliable docs only — a "blocking" item can also be the
+        // system-generated accident form (kind='form') or a milestone the agent
+        // owns (kind='milestone'), neither of which the client can send back over
+        // WhatsApp (review finding #1).
+        blocking_labels: checklist
+          .filter((i) => i.blocking && !i.done && i.kind === "doc")
+          .map((i) => i.label),
+        // Mandatory late-section doc items, not-done — a superset of blocking_labels
+        // that also surfaces mandatory docs the checklist deliberately doesn't gate
+        // readiness on (repair_receipt, no_claim_confirmation when already blocking,
+        // etc.) so collect_private_report_docs can actually ask for them (finding #2).
+        missing_doc_labels: checklist
+          .filter((i) => i.kind === "doc" && i.mandatory && !i.done && i.section === "late")
+          .map((i) => i.label),
         last_doc_uploaded_at: docs.length
           ? docs.map((d) => d.uploaded_at).reduce((a, b2) => (a > b2 ? a : b2))
           : null,

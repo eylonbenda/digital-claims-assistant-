@@ -8,6 +8,7 @@ import OutboundQueue from "./OutboundQueue";
 import { getOrCreateBrief } from "@/lib/brief/brief";
 import { createServiceClient } from "@/lib/supabase/service";
 import { loadQueue } from "@/lib/outbound/load";
+import type { OutboundQueue as OutboundQueueType } from "@/lib/outbound/queue";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -28,7 +29,7 @@ export default async function DashboardPage() {
   // Best-effort: the brief must never break the dashboard, so a missing
   // service key or any lookup failure degrades to no-brief, not a 500.
   let brief = null;
-  let queue = null;
+  let queue: OutboundQueueType | null = null;
   try {
     const svc = createServiceClient();
     const { data: agentRow } = await svc

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { chaseHref } from "@/lib/wa";
+import { chaseMessage, waHref } from "@/lib/wa";
+import type { ItemKind } from "@/lib/claims/checklist";
 
-export type BlockingItem = { key: string; label: string };
+export type BlockingItem = { key: string; label: string; kind: ItemKind };
 export type NextMilestone = { key: string; label: string };
 export type NextTask = { title: string; due_at: string | null; overdue: boolean };
 
@@ -64,11 +65,35 @@ export default function ReadinessStrip({
   }
 
   if (blocking.length > 0) {
-    const href = chaseHref(clientPhone, {
+    // The WhatsApp ask must stay limited to what the client can actually supply —
+    // "blocking" also covers the system-generated accident form (kind='form') and
+    // agent-owned milestones (kind='milestone'), neither of which the client can
+    // send back over WhatsApp (review finding #1). The red summary above still
+    // lists everything blocking submission; only the outgoing message is filtered.
+    const chaseItems = blocking.filter((b) => b.kind === "doc").map((b) => b.label);
+    const chaseBody = chaseMessage({
       firstName: clientName?.split(" ")[0] ?? null,
-      items: blocking.map((b) => b.label),
+      items: chaseItems,
       uploadUrl,
     });
+    const href = waHref(clientPhone, chaseBody);
+
+    // Instrument the cockpit chase button the same way the outbound queue does
+    // (review finding #3), so this send counts toward the cooldown and skip-rate
+    // metric instead of bypassing it. Fire-and-forget: the anchor's default
+    // navigation (opening wa.me) IS the send and must not be delayed by it.
+    function logChase() {
+      fetch("/api/outbound/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          claim_id: claimId,
+          task_key: "chase_missing_docs",
+          kind: "sent",
+          body: chaseBody,
+        }),
+      }).catch(() => {});
+    }
 
     return (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-5 py-3">
@@ -83,6 +108,7 @@ export default function ReadinessStrip({
         {href && (
           <a
             href={href}
+            onClick={logChase}
             target="_blank"
             rel="noopener noreferrer"
             className="shrink-0 rounded-lg bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800"

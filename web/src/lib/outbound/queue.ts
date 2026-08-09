@@ -7,6 +7,7 @@ const DAY_MS = 86_400_000;
 export type QueueClaim = {
   claim_id: string; client_name: string | null; client_phone: string | null;
   access_token: string; blocking_labels: string[];
+  missing_doc_labels: string[];             // mandatory late-section doc items, not-done (spec §2)
   last_doc_uploaded_at: string | null;      // resets the give-up counter
   tier: Tier | null; reason: string | null; // from today's brief when available
   score: number;                            // 0 when the brief is down
@@ -87,7 +88,9 @@ export function buildQueue(input: {
     if (sentSinceUpload >= MAX_SENDS_BEFORE_CALL) {
       doToday.push({
         claim_id: c.claim_id, client_name: c.client_name,
-        title: `הלקוח לא מגיב (${sentSinceUpload} תזכורות) — ליצור קשר טלפוני`,
+        // Carries the task's own subject — without it, two escalations on the
+        // same claim (e.g. chase_missing_docs + get_tp_insurer) are indistinguishable.
+        title: `הלקוח לא מגיב על „${t.title}" (${sentSinceUpload} תזכורות) — ליצור קשר טלפוני`,
         due_at: t.due_at, overdue_days: overdueDays(t.due_at!), escalation: true,
       });
       continue;
@@ -103,6 +106,7 @@ export function buildQueue(input: {
     const body = rule.build({
       firstName: c.client_name?.trim().split(/\s+/)[0] ?? null,
       blockingLabels: c.blocking_labels,
+      missingDocLabels: c.missing_doc_labels,
       uploadUrl: `${origin}/c/${c.access_token}`,
     });
     send.push({
@@ -117,6 +121,8 @@ export function buildQueue(input: {
   // A claim whose slot was used today (any key, sent or skipped) proposes
   // nothing more; among fresh candidates the most overdue wins, ties broken
   // by RULE_PRIORITY.
+  // UTC calendar day — same deliberate convention as briefDate() in brief.ts,
+  // so "today" means the same thing across the brief and the queue.
   const today = now.toISOString().slice(0, 10);
   const usedToday = new Set(
     events.filter((e) => e.created_at.slice(0, 10) === today).map((e) => e.claim_id),

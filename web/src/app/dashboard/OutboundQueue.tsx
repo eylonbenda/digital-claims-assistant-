@@ -29,6 +29,27 @@ function postEvent(item: SendItem, kind: "sent" | "skipped") {
 function SendRow({ item }: { item: SendItem }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // A failed write must not leave the row permanently disabled (review finding
+  // #5) — reset busy so the agent can retry, and surface a small hint. Success
+  // keeps the existing behavior: router.refresh() drops the row from the next
+  // read once the event lands.
+  function settle(promise: Promise<Response>) {
+    promise
+      .then((res) => {
+        if (res.ok) {
+          router.refresh();
+        } else {
+          setBusy(false);
+          setError("הרישום נכשל — נסה שוב");
+        }
+      })
+      .catch(() => {
+        setBusy(false);
+        setError("הרישום נכשל — נסה שוב");
+      });
+  }
 
   // TRAP: window.open must run synchronously in the click handler — any await
   // before it and the popup blocker eats the send. The event write is
@@ -37,11 +58,13 @@ function SendRow({ item }: { item: SendItem }) {
   function send() {
     if (item.href) window.open(item.href, "_blank", "noopener,noreferrer");
     setBusy(true);
-    void postEvent(item, "sent").finally(() => router.refresh());
+    setError(null);
+    settle(postEvent(item, "sent"));
   }
   function skip() {
     setBusy(true);
-    void postEvent(item, "skipped").finally(() => router.refresh());
+    setError(null);
+    settle(postEvent(item, "skipped"));
   }
 
   return (
@@ -58,7 +81,8 @@ function SendRow({ item }: { item: SendItem }) {
             <span className="text-xs text-red-600">באיחור {item.overdue_days} ימים</span>
           )}
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 items-center gap-2">
+          {error && <span className="text-xs text-red-600">{error}</span>}
           <button
             type="button"
             onClick={send}

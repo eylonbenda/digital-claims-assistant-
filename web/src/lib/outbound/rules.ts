@@ -5,6 +5,11 @@ import { chaseMessage, collectPrivateReportMessage, getTpInsurerMessage } from "
 export type MessageCtx = {
   firstName: string | null;
   blockingLabels: string[];
+  // Mandatory, not-done, doc-kind items from the checklist's "late" section —
+  // a superset of blockingLabels that also catches mandatory docs the checklist
+  // deliberately doesn't gate readiness on (e.g. repair_receipt, spec §2 finding
+  // #2). chase_missing_docs stays on the narrower blockingLabels.
+  missingDocLabels: string[];
   uploadUrl: string;
 };
 
@@ -34,7 +39,7 @@ export const SEND_RULES: Record<string, SendRule> = {
     getTpInsurerMessage({ firstName: ctx.firstName }),
   ),
   collect_private_report_docs: rule("collect_private_report_docs", 4, (ctx) =>
-    collectPrivateReportMessage({ firstName: ctx.firstName, items: ctx.blockingLabels, uploadUrl: ctx.uploadUrl }),
+    collectPrivateReportMessage({ firstName: ctx.firstName, items: ctx.missingDocLabels, uploadUrl: ctx.uploadUrl }),
   ),
 };
 
