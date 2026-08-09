@@ -75,11 +75,14 @@ describe("computeChecklist — third_party_report", () => {
     expect(on.find((i) => i.key === "loss_confirmation")?.mandatory).toBe(true);
   });
 
-  it("marks demand_form and appraiser_report as not client-suppliable — the agent/appraiser produces them, not the client", () => {
+  it("marks demand_form as not client-suppliable — the agent drafts and sends this demand letter, not the client", () => {
     const items = computeChecklist("third_party_report", new Set(), false, {}, NO_FLAGS);
     expect(items.find((i) => i.key === "demand_form")?.clientSuppliable).toBe(false);
-    expect(items.find((i) => i.key === "appraiser_report")?.clientSuppliable).toBe(false);
-    // Ordinary client-photographed docs are unaffected (field absent = client-suppliable).
+    // appraiser_report stays client-suppliable: on third_party_report the client
+    // commissions and pays the private appraiser and is exactly who holds and
+    // forwards the report (field absent = client-suppliable).
+    expect(items.find((i) => i.key === "appraiser_report")?.clientSuppliable).toBeUndefined();
+    // Ordinary client-photographed docs are unaffected too.
     expect(items.find((i) => i.key === "car_photo")?.clientSuppliable).toBeUndefined();
   });
 });
@@ -93,6 +96,10 @@ describe("chaseableLabels", () => {
     expect(
       chaseableLabels([{ kind: "doc", label: "מכתב דרישה", clientSuppliable: false }]),
     ).toEqual([]);
+  });
+
+  it("keeps appraiser_report — the client commissions and holds the private appraiser's report", () => {
+    expect(chaseableLabels([{ kind: "doc", label: "דוח שמאי" }])).toEqual(["דוח שמאי"]);
   });
 
   it("excludes form and milestone kinds regardless of clientSuppliable", () => {

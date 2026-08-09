@@ -72,11 +72,12 @@ export default function ReadinessStrip({
   if (blocking.length > 0) {
     // The WhatsApp ask must stay limited to what the client can actually supply —
     // "blocking" also covers the system-generated accident form (kind='form'),
-    // agent-owned milestones (kind='milestone'), and agent/appraiser-produced docs
-    // (clientSuppliable: false, e.g. demand_form, appraiser_report), none of which
-    // the client can send back over WhatsApp (review finding #1). The red summary
-    // above still lists everything blocking submission; only the outgoing message
-    // is filtered.
+    // agent-owned milestones (kind='milestone'), and docs the agent drafts and
+    // sends itself (clientSuppliable: false, e.g. demand_form), none of which the
+    // client can send back over WhatsApp (review finding #1). appraiser_report
+    // stays client-suppliable — on third_party_report the client commissions and
+    // holds the private appraiser's report. The red summary above still lists
+    // everything blocking submission; only the outgoing message is filtered.
     const chaseItems = chaseableLabels(blocking);
     const chaseBody = chaseMessage({
       firstName: clientName?.split(" ")[0] ?? null,
