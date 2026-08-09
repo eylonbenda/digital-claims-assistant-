@@ -78,8 +78,18 @@ const clal: Template = {
     },
 
     // ── p.3: §4 פרטי הנהג ברכב הפוגע (driver of the vehicle that hit -> third_parties.0) ──
-    { key: "third_parties.0.id_number", page: 2, right: 495, y: 180, size: 8 },
-    { key: "third_parties.0.driver_name", page: 2, right: 330, y: 180, size: 8 },
+    // driver_name is a single ThirdParty field (no first/last split for third parties in
+    // ClaimData) but this row has separate שם פרטי/שם משפחה columns — split via the engine's
+    // `part` transform (first whitespace token / remainder) so each half lands in its own
+    // column instead of one long string flowing across (and past) both. Dividers pixel-scanned
+    // (scanrow_clal.mjs @ y=180): שם פרטי col 183.8-311.3, שם משפחה col 311.3-425.4, id-grid
+    // 425.4-552.3.
+    // id_number: right anchored near the grid's own right edge (552.3), not mid-grid — a
+    // right-anchored single-string draw doesn't land per-digit-cell, but anchoring near the
+    // true right border keeps the digits hugging the grid instead of drifting left of it.
+    { key: "third_parties.0.id_number", page: 2, right: 548, y: 180, size: 8 },
+    { key: "third_parties.0.driver_name", part: "rest", page: 2, right: 422, y: 180, size: 8 }, // שם משפחה
+    { key: "third_parties.0.driver_name", part: "first", page: 2, right: 308, y: 180, size: 8 }, // שם פרטי
 
     { key: "third_parties.0.phone", page: 2, right: 208, y: 143, size: 8 },
 
@@ -88,16 +98,19 @@ const clal: Template = {
     // ── p.4: §5 פרטי התאונה ──────────────────────────────────────────────────
     { key: "accident.date", page: 3, right: 480, y: 718, size: 9 },
     { key: "accident.location", page: 3, right: 280, y: 718, size: 8 },
-    // 6 dotted ruled lines right of "תיאור המקרה:" (header y=698), spanning the full width
-    // right of the accident-diagram box (diagram occupies the left ~half of the section).
+    // 6 ruled lines right of "תיאור המקרה:" — pixel-scanned (scanlines_clal.mjs @ x=450):
+    // lines at bottom-based y = 682.77 / 669.77 / 656.77 / 643.77 / 630.77 / 617.77 (13pt
+    // spacing exactly); scanrow_clal.mjs @ those y's confirms the line span is x=332.3-548.3
+    // (the accident-diagram box occupies x<325, clear of this text). Baseline set ~1.5pt above
+    // each rule so text sits ON the line, not floating above it (same bug as shomera.ts had).
     {
       key: "accident.description",
       page: 3,
-      right: 555,
-      y: 678,
+      right: 546,
+      y: 684,
       size: 8,
-      width: 330,
-      lineHeight: 15,
+      width: 212,
+      lineHeight: 13,
       maxLines: 6,
     },
 
@@ -109,12 +122,15 @@ const clal: Template = {
     { key: "vehicle.model", page: 3, right: 242, y: 559, size: 7 },
     { key: "vehicle.plate", page: 3, right: 135, y: 559, size: 8 },
 
-    { key: "insured.full_name", page: 3, right: 570, y: 522, size: 8 },
+    // שם בעל הרכב / שם הנהג column: pixel-scanned (scanrow_clal.mjs @ y=522/471) — outer table
+    // border is at x=552.8, not ~570 as originally guessed, so the old right:570 sat past the
+    // border and the value hugged/overflowed the right edge instead of sitting inside the cell.
+    { key: "insured.full_name", page: 3, right: 546, y: 522, size: 8 },
     { key: "insured.id_number", page: 3, right: 415, y: 522, size: 8 },
     { key: "insured.address_line", page: 3, right: 258, y: 522, size: 8 },
     { key: "insured.mobile", page: 3, right: 121, y: 522, size: 8 },
 
-    { key: "driver.full_name", page: 3, right: 570, y: 471, size: 8 },
+    { key: "driver.full_name", page: 3, right: 546, y: 471, size: 8 },
     { key: "driver.id_number", page: 3, right: 415, y: 471, size: 8 },
     { key: "driver.address_line", page: 3, right: 258, y: 471, size: 8 },
     { key: "driver.mobile", page: 3, right: 121, y: 471, size: 8 },
@@ -131,8 +147,15 @@ const clal: Template = {
     { key: "bank_account.account_number", page: 3, right: 144, y: 291, size: 8 },
 
     // ── p.5: §8 הצהרת תובע (declaration) ─────────────────────────────────────
-    { key: "declarations.signatory_name", page: 4, right: 400, y: 505, size: 8 },
-    { key: "declarations.date", page: 4, right: 545, y: 505, size: 8 },
+    // "תאריך ____ שם פרטי ושם משפחה ____ חתימה ____" — each blank sits to its OWN label's left
+    // (lower x), not below it. Pixel-scanned (scanlines_clal.mjs @ x=90/240/450): the ruled line
+    // for all three blanks is at bottom-based y=521.9. right anchors are each label's own start
+    // x minus a small gap, so the value lands ON that label's blank instead of drifting past it.
+    // חתימה has no canonical signature field — reuse declarations.signatory_name there too, same
+    // convention as ayalon.ts / shomera.ts (typed name standing in for the handwritten signature).
+    { key: "declarations.date", page: 4, right: 522, y: 523, size: 8 },
+    { key: "declarations.signatory_name", page: 4, right: 301, y: 523, size: 8 },
+    { key: "declarations.signatory_name", page: 4, right: 149, y: 523, size: 8 },
   ],
 };
 
