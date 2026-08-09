@@ -29,7 +29,7 @@ A claim has 4 tracks (`claim_type`): `own_policy`, `third_party_report` ("דוח
 - **Draw Hebrew in logical order — do NOT reverse the string.** pdf-lib + fontkit shape RTL themselves; manual reversal looks right in code and renders as gibberish.
 - **Anthropic SDK work → consult the `claude-api` skill first** (model IDs, SDK surface). Never assert model facts from memory.
 - **This Next.js is v16** — per `web/AGENTS.md`, read `web/node_modules/next/dist/docs/` before writing Next code.
-- `docs/accidentStatementPdf/כלל_טופס_תאונה.pdf` is actually **מנורה**. We have no real כלל form (AIG uses the כלל-group template).
+- The file once named `docs/accidentStatementPdf/כלל_טופס_תאונה.pdf` was actually **מנורה** (now renamed `מנורה_טופס_תאונה.pdf`). The real כלל form is `כלל_טופס-הודעה.pdf` — a 9-page claim kit; only pages 3–5 are the fillable form.
 
 ## Docs index
 | Doc | Answers |
