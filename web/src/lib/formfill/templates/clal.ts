@@ -78,15 +78,18 @@ const clal: Template = {
     },
 
     // ── p.3: §4 פרטי הנהג ברכב הפוגע (driver of the vehicle that hit -> third_parties.0) ──
-    // driver_name is a single ThirdParty field but this row has separate שם פרטי/שם משפחה
-    // columns (no split first/last for third parties in ClaimData) — pixel-scanned the vertical
-    // dividers (scanrow_clal.mjs @ y=180): first-name col 183.8-311.3, last-name col 311.3-425.4,
-    // id-grid starts at 425.4. right anchored just left of the id grid so the full name flows
-    // right-to-left across BOTH name columns instead of being clipped to (and overflowing out of)
-    // the last-name column alone. Fixes real-PDF QA: long name spilled across שם משפחה while
-    // שם פרטי stayed empty.
-    { key: "third_parties.0.id_number", page: 2, right: 495, y: 180, size: 8 },
-    { key: "third_parties.0.driver_name", page: 2, right: 418, y: 180, size: 8 },
+    // driver_name is a single ThirdParty field (no first/last split for third parties in
+    // ClaimData) but this row has separate שם פרטי/שם משפחה columns — split via the engine's
+    // `part` transform (first whitespace token / remainder) so each half lands in its own
+    // column instead of one long string flowing across (and past) both. Dividers pixel-scanned
+    // (scanrow_clal.mjs @ y=180): שם פרטי col 183.8-311.3, שם משפחה col 311.3-425.4, id-grid
+    // 425.4-552.3.
+    // id_number: right anchored near the grid's own right edge (552.3), not mid-grid — a
+    // right-anchored single-string draw doesn't land per-digit-cell, but anchoring near the
+    // true right border keeps the digits hugging the grid instead of drifting left of it.
+    { key: "third_parties.0.id_number", page: 2, right: 548, y: 180, size: 8 },
+    { key: "third_parties.0.driver_name", part: "rest", page: 2, right: 422, y: 180, size: 8 }, // שם משפחה
+    { key: "third_parties.0.driver_name", part: "first", page: 2, right: 308, y: 180, size: 8 }, // שם פרטי
 
     { key: "third_parties.0.phone", page: 2, right: 208, y: 143, size: 8 },
 
