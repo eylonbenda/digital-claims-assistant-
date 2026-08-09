@@ -45,5 +45,5 @@ A claim has 4 tracks (`claim_type`): `own_policy`, `third_party_report` ("דוח
 | `docs/ai-doc-validation.md` | **spec, not built** — AI vision validation of uploaded documents |
 | `docs/validation-guide.md` | Mom Test interview kit |
 | `docs/assumptions-canvas.md` | assumption tracker |
-| `docs/accidentStatementPdf/` | the 9 source insurer PDFs (inventory + traps in `form-field-map.md`) |
+| `docs/accidentStatementPdf/` | the source insurer PDFs — 12 files / 11 insurers (inventory + traps in `form-field-map.md`) |
 | `poc/README.md` | the original coordinate-mapping method write-up |
