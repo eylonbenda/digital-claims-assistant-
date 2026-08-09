@@ -31,7 +31,7 @@ Of the 12 rules in `web/src/lib/tasks/templates.ts`, only 3 are client-directed 
 |---|---|
 | `chase_missing_docs` | existing `chaseMessage` (blocking-doc labels + upload link) |
 | `get_tp_insurer` | new builder — ask the client for the at-fault driver's insurer |
-| `collect_private_report_docs` | new builder — ask for receipt / אישור אי-הגשה / עבר ביטוחי |
+| `collect_private_report_docs` | new builder — ask for the still-missing **mandatory** private-report docs (קבלה על תשלום, אישור אי-הגשה). Optional items (עבר ביטוחי, `mandatory: false` in the checklist) are deliberately not auto-chased — the checklist's domain model governs message content. |
 
 **Lane 2 — "לטפל היום" (do; derived, nothing sent):** every other open template task with `due_at <= today` — e.g. `open_claim_with_insurer`, `follow_up_insurer`, `submit_to_tp_insurer` — shown with the overdue clock, linking into the claim cockpit. Plus the escalation rows from §5.
 
