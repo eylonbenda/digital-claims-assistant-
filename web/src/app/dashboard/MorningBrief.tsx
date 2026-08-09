@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { chaseHref } from "@/lib/wa";
 import type { Brief, BriefItem } from "@/lib/brief/brief";
 
 const TIER_META: { tier: BriefItem["tier"]; label: string; badge: string; box: string }[] = [
@@ -13,15 +12,7 @@ const TIER_META: { tier: BriefItem["tier"]; label: string; badge: string; box: s
   { tier: "ok",       label: "✅ תקין",          badge: "text-green-800", box: "border-green-200 bg-green-50" },
 ];
 
-function ItemRow({ item, origin }: { item: BriefItem; origin: string }) {
-  const wa =
-    item.blocking_labels.length > 0
-      ? chaseHref(item.client_phone, {
-          firstName: item.client_name?.split(" ")[0] ?? null,
-          items: item.blocking_labels,
-          uploadUrl: `${origin}/c/${item.access_token}`,
-        })
-      : null;
+function ItemRow({ item }: { item: BriefItem }) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
       <div className="min-w-0">
@@ -45,21 +36,11 @@ function ItemRow({ item, origin }: { item: BriefItem; origin: string }) {
           </p>
         )}
       </div>
-      {wa && (
-        <a
-          href={wa}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 rounded-lg bg-green-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-800"
-        >
-          בקש מסמכים בוואטסאפ ↗
-        </a>
-      )}
     </li>
   );
 }
 
-export default function MorningBrief({ brief, origin }: { brief: Brief; origin: string }) {
+export default function MorningBrief({ brief }: { brief: Brief }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +95,7 @@ export default function MorningBrief({ brief, origin }: { brief: Brief; origin: 
           const list = (
             <ul className="divide-y divide-zinc-100">
               {items.map((i) => (
-                <ItemRow key={i.claim_id} item={i} origin={origin} />
+                <ItemRow key={i.claim_id} item={i} />
               ))}
             </ul>
           );

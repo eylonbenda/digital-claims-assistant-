@@ -4,8 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import NewClaimForm from "./NewClaimForm";
 import ClaimsTable from "./ClaimsTable";
 import MorningBrief from "./MorningBrief";
+import OutboundQueue from "./OutboundQueue";
 import { getOrCreateBrief } from "@/lib/brief/brief";
 import { createServiceClient } from "@/lib/supabase/service";
+import { loadQueue } from "@/lib/outbound/load";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -15,10 +17,18 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login");
 
+  // Absolute origin for links baked into rendered HTML (e.g. the WhatsApp
+  // message body) — computed server-side so SSR and client hydration match.
+  const hdrs = await headers();
+  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const origin = host ? `${proto}://${host}` : "";
+
   // Agent row (agents.id ≠ auth uid). No row yet → no claims → no brief.
   // Best-effort: the brief must never break the dashboard, so a missing
   // service key or any lookup failure degrades to no-brief, not a 500.
   let brief = null;
+  let queue = null;
   try {
     const svc = createServiceClient();
     const { data: agentRow } = await svc
@@ -26,9 +36,15 @@ export default async function DashboardPage() {
       .select("id")
       .eq("auth_user_id", user.id)
       .maybeSingle();
-    brief = agentRow ? await getOrCreateBrief(agentRow.id) : null;
+    if (agentRow) {
+      brief = await getOrCreateBrief(agentRow.id);
+      // The queue takes the brief only as an ordering signal — a null brief
+      // (AI down / cache broken) must not take the send queue down with it.
+      queue = await loadQueue(agentRow.id, origin, brief);
+    }
   } catch {
     brief = null;
+    queue = null;
   }
 
   const { data: claims } = await supabase
@@ -57,13 +73,6 @@ export default async function DashboardPage() {
     next_task: nextTaskByClaim.get(c.id) ?? null,
   }));
 
-  // Absolute origin for links baked into rendered HTML (e.g. the WhatsApp
-  // message body) — computed server-side so SSR and client hydration match.
-  const hdrs = await headers();
-  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
-  const proto = hdrs.get("x-forwarded-proto") ?? "https";
-  const origin = host ? `${proto}://${host}` : "";
-
   return (
     <div className="min-h-screen bg-zinc-50">
       <header className="border-b border-zinc-200 bg-white px-6 py-4">
@@ -82,7 +91,8 @@ export default async function DashboardPage() {
           <NewClaimForm />
         </div>
 
-        {brief && <MorningBrief brief={brief} origin={origin} />}
+        {brief && <MorningBrief brief={brief} />}
+        {queue && <OutboundQueue queue={queue} />}
 
         <ClaimsTable claims={claimsWithTasks} />
       </main>
