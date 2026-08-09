@@ -8,6 +8,7 @@
 ```
 report accident → collect documents → classify claim type → fill "הודעה על תאונה" form
                 → per-track checklist → task engine manages per-track workflow (spawn/complete + status advance)
+                → outbound queue proposes today's client chases for the agent to approve one tap at a time
 ```
 Collection (section 1) is the first half. Classification, form fill, and the per-track checklist are detailed in [claim-management.md](claim-management.md).
 
@@ -60,7 +61,7 @@ Each step = one screen, one action. **Auto-save is client-local**: the current s
 - **On submit** (`POST /api/claims/submit`), if a template exists for the client's insurer, the "הודעה על תאונה" form is filled **once** and stored in the case file (`generated_forms` + `form_generated` event). Best-effort — a fill error never blocks submission.
 
 ### Step 5 — At the agent
-- The claim appears in the dashboard with status `submitted`. Opening it (`/dashboard/[id]`) is a **cockpit**: a hero (identity + status badge + days-open + AI one-liner), a **readiness strip** (the page's thesis — submittable or not; when blocking docs are missing it offers a **one-click WhatsApp chase** pre-filled with the missing items + the client's upload link, otherwise a button to advance the next milestone), the **proposed classification** (with confidence + rationale), the **uploaded documents** (signed-URL previews), the **pre-filled accident-notice form**, and an **agent notes** scratchpad (`claim_notes`, via `POST /api/claims/[id]/notes`).
+- The claim appears in the dashboard with status `submitted`. Opening it (`/dashboard/[id]`) is a **cockpit**: a hero (identity + status badge + days-open + AI one-liner), a **readiness strip** (the page's thesis — submittable or not; when blocking docs are missing it offers a **one-click WhatsApp chase** pre-filled with the client's upload link and the missing items **the client can actually supply** — the strip still lists everything blocking, but the message drops the system-generated form, agent-owned milestones and agent-drafted docs (מכתב דרישה), otherwise a button to advance the next milestone), the **proposed classification** (with confidence + rationale), the **uploaded documents** (signed-URL previews), the **pre-filled accident-notice form**, and an **agent notes** scratchpad (`claim_notes`, via `POST /api/claims/[id]/notes`).
 - The agent **confirms/adjusts the claim type** (`PATCH /api/claims/[id]/classify` → advances to `classified`, or leaves it `unknown`) and works the **dynamic per-track checklist**: document items auto-check as files arrive (the agent uploads later docs via `POST /api/claims/[id]/documents` with a type tag), and milestone ticks persist via `PATCH /api/claims/[id]/checklist`. The agent can also regenerate / fill a different insurer's form on demand (which re-persists, replacing the prior copy per insurer), and can **edit/complete the canonical form fields** before regenerating (`PATCH /api/claims/[id]/form-data`) — the edits are stored in `summary_json.form_data`, the client's original `collected` submission is left untouched for audit, and the form fill prefers `form_data` when present (`effectiveClaimData`).
 
 ---
@@ -125,3 +126,5 @@ created → in_progress → submitted → classified → form_generated → chec
 - **Templates/Exports** — accident notice (done) + demand letter + submission packet (see `generated_forms.kind` in [architecture.md](architecture.md)).
 - **Create new claim:** agent enters client name + phone → personal link to send.
 - **Alerts:** urgent flag (injuries), blocking dependency missing, claim awaiting classification, regulatory clock approaching decision date.
+
+> **Implemented on the dashboard index:** the **morning brief** ("תדריך בוקר") triages every open claim, and below it the **outbound queue** ("יוצא היום") dispatches: lane 1 "לשלוח היום" is one row per due client chase with the rendered Hebrew message and a **[שלח בוואטסאפ]** / **[דלג]** pair; lane 2 "לטפל היום" lists every other due task plus "the client isn't answering — call them" escalations, linking into the cockpit. Nothing leaves without an agent tap, and both a send and a skip are recorded (`outbound_events`) — a skip suppresses the rule for its cooldown exactly like a send. The brief no longer carries its own chase button; sending happens in the queue (and the cockpit readiness strip, which now logs the same event). Panel hides when both lanes are empty or the read fails. See [architecture.md](architecture.md#3-data-model-initial-schema).

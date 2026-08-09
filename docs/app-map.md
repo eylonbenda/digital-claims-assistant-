@@ -21,7 +21,7 @@ Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod che
 | `/` | public | marketing landing page ("OpenTik"), Hebrew/RTL |
 | `/login` | agent | Supabase Auth sign-in |
 | `/c/[token]` | client | token-gated collection wizard (no login) |
-| `/dashboard` | agent | claim list + **morning brief** ("תדריך בוקר") |
+| `/dashboard` | agent | claim list + **morning brief** ("תדריך בוקר") + the **outbound queue** ("יוצא היום") |
 | `/dashboard/[id]` | agent | claim **cockpit** — hero, readiness strip, checklist, tasks, docs, notes, form generator |
 
 ---
@@ -30,15 +30,16 @@ Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod che
 | Module | Owns |
 |---|---|
 | `formfill/` | canonical claim schema (`types.ts`) → filled insurer PDFs: generic `engine.ts`, all 9 coordinate `templates/`, `effective.ts` (agent edits win over client input), `dates.ts` (ISO → dd/mm/yyyy at the fill boundary), bundled `assets/` |
-| `claims/` | `classify.ts` (deterministic track decision), `checklist.ts` (`computeChecklist`), `analysis-cache.ts` |
+| `claims/` | `classify.ts` (deterministic track decision), `checklist.ts` (`computeChecklist` + `chaseableLabels`), `analysis-cache.ts` |
 | `tasks/` | task engine: pure `engine.ts` (`advanceTasks`), declarative `templates.ts` rule table, `runner.ts` (`runEngine`, best-effort) |
 | `brief/` | morning brief: `facts.ts` → `score.ts` (deterministic) → `rank.ts` (AI tier) → `brief.ts` (`getOrCreateBrief`) |
+| `outbound/` | outbound queue: `rules.ts` (per-task-key send descriptors + cooldowns + the `auto` flip-to-send seam), pure `queue.ts` (`buildQueue` — lanes, cooldown, one-per-claim-per-day cap, give-up escalation, ordering), `load.ts` (`loadQueue`, the only I/O, best-effort) |
 | `ai/` | `analyze.ts` — the single structured Claude call (signals only, never the track) |
 | `collection/` | `claim-state.ts` — shared wizard↔server mapping (`State` + `toClaimData`); `persist.ts` — per-token `localStorage` save/restore of wizard progress |
 | `vehicles/` | `registry.ts` — plate lookup against the Ministry of Transport open-data registry (data.gov.il): `lookupVehicle` + the pure `toVehicleInfo` / `mergeVehicleInfo` / plate helpers |
 | `files/` | `sniff.ts` — magic-byte upload validation |
 | `supabase/` | client/server/service-role clients |
-| `wa.ts` | wa.me links + Hebrew chase copy (`waPhone`, `chaseMessage`, `chaseHref`) |
+| `wa.ts` | wa.me links + Hebrew chase copy (`waPhone`, `waHref`, `chaseMessage`, `chaseHref`, `getTpInsurerMessage`, `collectPrivateReportMessage`) |
 | `anthropic.ts` | SDK client construction |
 
 Behaviour of the classifier, checklist, task engine and brief is specified in [architecture.md](architecture.md) §3–§4 and [claim-management.md](claim-management.md) — this table is only "where".
@@ -62,6 +63,7 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | `/api/analyze` | POST | Claude analysis — **503 without `ANTHROPIC_API_KEY`**. Stateless; **no in-app caller** since the wizard's AI panel was removed — the agent page uses `getOrCreateAnalysis` server-side |
 | `/api/vehicle/[plate]` | GET | **client** plate → make/model/year from the Ministry of Transport registry (server-side proxy, per-instance memo, `200 {vehicle:null}` on a miss) |
 | `/api/brief/refresh` | POST | re-run the morning-brief ranking |
+| `/api/outbound/events` | POST | record one outbound-queue decision (`sent` / `skipped`) — rejects an unknown `task_key`, RLS ownership probe on the claim, service-role insert into `outbound_events` |
 | `/api/auth/login` · `/api/auth/logout` | POST | session |
 | `/api/health` · `/api/version` | GET | which keys are wired · app name + version |
 

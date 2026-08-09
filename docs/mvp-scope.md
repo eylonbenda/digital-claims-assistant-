@@ -8,7 +8,7 @@
 | Topic | Decision | Source |
 |---|---|---|
 | Client channel | **Manual web-link** (agent sends via WhatsApp) | T2 |
-| MVP scope | **Collection + accident-notice form + per-track checklist.** Active task automation was deferred to phase 2, but the **task engine has since been pulled forward** (event-driven spawn/complete + status advance; reminders/notifications still deferred) | user decision + domain research |
+| MVP scope | **Collection + accident-notice form + per-track checklist.** Active task automation was deferred to phase 2, but the **task engine has since been pulled forward** (event-driven spawn/complete + status advance), and client chase reminders now surface as an **agent-approved outbound queue** (unattended auto-send still deferred) | user decision + domain research |
 | Claim types | **4-way:** `own_policy` / `third_party_report` (דוח פרטי) / `third_party_settlement` (הסדר) / `unknown` | domain research |
 | Classification | **AI proposes + agent confirms**; defaults to `unknown` when unsure; revisable | user decision |
 | The form | per-insurer, ~80% shared, flat PDF → canonical schema + per-insurer overlay | [form-field-map.md](form-field-map.md) |
@@ -36,7 +36,7 @@ report → guided collection → AI summary + missing-info
 - **Basic dashboard**: claim list + status + claim card (documents, summary, generated form, checklist) + create client link.
 
 ## ⏭️ Out of MVP (phase 2+)
-- **Active** task workflow — **partly built** (`web/src/lib/tasks/`): the engine spawns/completes per-track tasks and advances status on events. Still deferred: automated reminders/notifications, outbound chasing of the garage / appraiser / insurer.
+- **Active** task workflow — **partly built**: the engine (`web/src/lib/tasks/`) spawns/completes per-track tasks and advances status on events, and the **outbound queue** (`web/src/lib/outbound/`, phase-2 step C1) now turns the due client-facing chases into an approval queue on the dashboard — one tap per `wa.me` send, every send *and* skip recorded. Still deferred: **unattended** auto-send (cron + BSP; the `auto` flag on each rule is the seam, gated on the skip rates the queue is now measuring), and outbound chasing of the garage / appraiser / insurer, who have no contact fields in the schema yet.
 - WhatsApp Business API (automated channel).
 - Document OCR, billing, multi-agency, subrogation track, payment tracking.
 
