@@ -225,7 +225,12 @@ export default async function ClaimDetailPage({
   // ── Readiness + triage signals (all derived, no extra I/O) ────────────────
   const blockingMissing = checklistItems
     .filter((i) => i.blocking && !i.done)
-    .map((i) => ({ key: i.key, label: i.label, kind: i.kind }));
+    .map((i) => ({
+      key: i.key,
+      label: i.label,
+      kind: i.kind,
+      clientSuppliable: i.clientSuppliable,
+    }));
   const nextMilestone =
     checklistItems.find((i) => i.kind === "milestone" && !i.done) ?? null;
 

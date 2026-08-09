@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeChecklist, type ClaimFlags } from "./checklist";
+import { computeChecklist, chaseableLabels, type ClaimFlags } from "./checklist";
 
 const NO_FLAGS: ClaimFlags = {
   theft: false, lien: false, business_use: false,
@@ -73,5 +73,34 @@ describe("computeChecklist — third_party_report", () => {
     );
     expect(on.map((i) => i.key)).not.toContain("no_claim_confirmation");
     expect(on.find((i) => i.key === "loss_confirmation")?.mandatory).toBe(true);
+  });
+
+  it("marks demand_form and appraiser_report as not client-suppliable — the agent/appraiser produces them, not the client", () => {
+    const items = computeChecklist("third_party_report", new Set(), false, {}, NO_FLAGS);
+    expect(items.find((i) => i.key === "demand_form")?.clientSuppliable).toBe(false);
+    expect(items.find((i) => i.key === "appraiser_report")?.clientSuppliable).toBe(false);
+    // Ordinary client-photographed docs are unaffected (field absent = client-suppliable).
+    expect(items.find((i) => i.key === "car_photo")?.clientSuppliable).toBeUndefined();
+  });
+});
+
+describe("chaseableLabels", () => {
+  it("keeps a blocking doc the client can supply", () => {
+    expect(chaseableLabels([{ kind: "doc", label: "רישיון רכב" }])).toEqual(["רישיון רכב"]);
+  });
+
+  it("excludes a doc the agent produces (clientSuppliable: false), e.g. demand_form", () => {
+    expect(
+      chaseableLabels([{ kind: "doc", label: "מכתב דרישה", clientSuppliable: false }]),
+    ).toEqual([]);
+  });
+
+  it("excludes form and milestone kinds regardless of clientSuppliable", () => {
+    expect(
+      chaseableLabels([
+        { kind: "form", label: "טופס הודעה על תאונה" },
+        { kind: "milestone", label: "רכב נכנס למוסך" },
+      ]),
+    ).toEqual([]);
   });
 });

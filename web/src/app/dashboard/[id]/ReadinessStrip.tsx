@@ -3,9 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { chaseMessage, waHref } from "@/lib/wa";
-import type { ItemKind } from "@/lib/claims/checklist";
+import { chaseableLabels, type ItemKind } from "@/lib/claims/checklist";
 
-export type BlockingItem = { key: string; label: string; kind: ItemKind };
+export type BlockingItem = {
+  key: string;
+  label: string;
+  kind: ItemKind;
+  clientSuppliable?: boolean;
+};
 export type NextMilestone = { key: string; label: string };
 export type NextTask = { title: string; due_at: string | null; overdue: boolean };
 
@@ -66,11 +71,13 @@ export default function ReadinessStrip({
 
   if (blocking.length > 0) {
     // The WhatsApp ask must stay limited to what the client can actually supply —
-    // "blocking" also covers the system-generated accident form (kind='form') and
-    // agent-owned milestones (kind='milestone'), neither of which the client can
-    // send back over WhatsApp (review finding #1). The red summary above still
-    // lists everything blocking submission; only the outgoing message is filtered.
-    const chaseItems = blocking.filter((b) => b.kind === "doc").map((b) => b.label);
+    // "blocking" also covers the system-generated accident form (kind='form'),
+    // agent-owned milestones (kind='milestone'), and agent/appraiser-produced docs
+    // (clientSuppliable: false, e.g. demand_form, appraiser_report), none of which
+    // the client can send back over WhatsApp (review finding #1). The red summary
+    // above still lists everything blocking submission; only the outgoing message
+    // is filtered.
+    const chaseItems = chaseableLabels(blocking);
     const chaseBody = chaseMessage({
       firstName: clientName?.split(" ")[0] ?? null,
       items: chaseItems,

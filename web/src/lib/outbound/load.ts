@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { computeChecklist } from "@/lib/claims/checklist";
+import { computeChecklist, chaseableLabels } from "@/lib/claims/checklist";
 import type { Brief } from "@/lib/brief/brief";
 import {
   buildQueue,
@@ -91,9 +91,7 @@ export async function loadQueue(
         // system-generated accident form (kind='form') or a milestone the agent
         // owns (kind='milestone'), neither of which the client can send back over
         // WhatsApp (review finding #1).
-        blocking_labels: checklist
-          .filter((i) => i.blocking && !i.done && i.kind === "doc")
-          .map((i) => i.label),
+        blocking_labels: chaseableLabels(checklist.filter((i) => i.blocking && !i.done)),
         // Mandatory late-section doc items, not-done — a superset of blocking_labels
         // that also surfaces mandatory docs the checklist deliberately doesn't gate
         // readiness on (repair_receipt, no_claim_confirmation when already blocking,
