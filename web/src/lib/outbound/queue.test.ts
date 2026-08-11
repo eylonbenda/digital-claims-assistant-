@@ -214,3 +214,26 @@ describe("buildQueue — ordering", () => {
     expect(q.doToday.map((d) => d.title)).toEqual(["ב", "א"]);
   });
 });
+
+describe("buildQueue — SendItem presentation fields", () => {
+  it("carries the chaseable labels as doc_labels", () => {
+    const q = build([claim({ blocking_labels: ["רישיון נהיגה", "תמונות נזק"] })], [task()]);
+    expect(q.send[0].doc_labels).toEqual(["רישיון נהיגה", "תמונות נזק"]);
+  });
+
+  it("last_sent_at is the newest 'sent' event, ignoring skips", () => {
+    const q = build([claim()], [task()], [
+      ev({ kind: "sent", created_at: daysAgo(10) }),
+      ev({ kind: "sent", created_at: daysAgo(5) }),
+      ev({ kind: "skipped", created_at: daysAgo(4) }),
+    ]);
+    // last touch 4d ago (skip) > 3d cooldown → still proposed; last SENT is 5d ago
+    expect(q.send).toHaveLength(1);
+    expect(q.send[0].last_sent_at).toBe(daysAgo(5));
+  });
+
+  it("last_sent_at is null when nothing was ever sent", () => {
+    const q = build([claim()], [task()]);
+    expect(q.send[0].last_sent_at).toBeNull();
+  });
+});
