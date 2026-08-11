@@ -1,7 +1,9 @@
 import type { Brief, BriefItem } from "@/lib/brief/brief";
 import type { DoItem, OutboundQueue, SendItem } from "@/lib/outbound/queue";
 import { TIER_ORDER, type Tier } from "@/lib/brief/rank";
-import { TRACK_LABEL } from "./copy";
+import { TRACK_LABEL, doActionLine, sendActionLine, unclassifiedLine, waitingLine } from "./copy";
+
+const DAY_MS = 86_400_000;
 
 export type ComposeClaim = {
   id: string; client_name: string | null; claim_type: string; status: string;
@@ -55,17 +57,38 @@ export function composeDashboard(input: {
     const b = briefBy.get(c.id);
     const unclassified = c.claim_type === "unknown" && !!c.submitted_at;
 
-    // ── Task 4 replaces this block with the full card anatomy ──
+    // Card anatomy (spec §3): one card per claim; client message wins primary,
+    // else the most-overdue do-task, else the classification prompt, else the
+    // waiting/ok line. Whatever lost the primary slot becomes one "וגם:" line.
+    const daysOpen = Math.max(0, Math.floor((now.getTime() - new Date(c.created_at).getTime()) / DAY_MS));
+    const nextFuture = futureBy.get(c.id)?.[0] ?? null;
+
+    let action_line: string;
+    let also: DoItem | null = null;
+    if (send) {
+      action_line = sendActionLine(
+        { taskKey: send.task_key, docLabels: send.doc_labels, lastSentAt: send.last_sent_at },
+        now,
+      );
+      also = dos[0] ?? null;
+    } else if (dos.length > 0) {
+      action_line = dos[0].escalation ? dos[0].title : doActionLine(dos[0].title, dos[0].overdue_days);
+      also = dos[1] ?? null;
+    } else if (unclassified) {
+      action_line = unclassifiedLine(daysOpen);
+    } else {
+      action_line = waitingLine(nextFuture);
+    }
+
     const card: ClaimCard = {
       claim_id: c.id, client_name: c.client_name,
       track_label: TRACK_LABEL[c.claim_type] ?? c.claim_type,
-      action_line: send?.task_key ?? dos[0]?.title ?? "",
+      action_line,
       ai_line: b?.reason ? `🤖 ${b.reason}` : null,
-      also_line: null,
+      also_line: also ? `וגם: ${also.title} (באיחור ${also.overdue_days} ימים)` : null,
       send,
       overdue_days: Math.max(send?.overdue_days ?? 0, dos[0]?.overdue_days ?? 0),
     };
-    // ───────────────────────────────────────────────────────────
 
     if (send || dos.length > 0 || unclassified || b?.tier === "act_now") {
       attention.push(card);

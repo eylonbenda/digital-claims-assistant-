@@ -115,3 +115,45 @@ describe("composeDashboard — ordering", () => {
     expect(d.waiting.map((x) => x.claim_id)).toEqual(["b", "a"]);
   });
 });
+
+describe("composeDashboard — card anatomy", () => {
+  it("send is primary; the most-overdue do-task becomes the וגם line", () => {
+    const d = compose([cl()], q(
+      [sendItem({ doc_labels: ["רישיון נהיגה"], last_sent_at: null })],
+      [doItem({ title: "לוודא דוח שמאי", overdue_days: 25 }), doItem({ title: "פתיחת תביעה", overdue_days: 3 })],
+    ), null);
+    const card = d.attention[0];
+    expect(card.send).not.toBeNull();
+    expect(card.action_line).toBe("מחכים לרישיון נהיגה מהלקוח · טרם נשלחה תזכורת");
+    expect(card.also_line).toBe("וגם: לוודא דוח שמאי (באיחור 25 ימים)");
+  });
+
+  it("no send → most-overdue do-task is primary, runner-up is וגם", () => {
+    const d = compose([cl()], q([], [
+      doItem({ title: "לוודא דוח שמאי", overdue_days: 25 }),
+      doItem({ title: "פתיחת תביעה", overdue_days: 3 }),
+    ]), null);
+    const card = d.attention[0];
+    expect(card.send).toBeNull();
+    expect(card.action_line).toBe("תורך: לוודא דוח שמאי · באיחור 25 ימים");
+    expect(card.also_line).toBe("וגם: פתיחת תביעה (באיחור 3 ימים)");
+  });
+
+  it("escalation do-item keeps its own title as the action line, verbatim", () => {
+    const title = 'הלקוח לא מגיב על „להשלים מסמכים" (3 תזכורות) — ליצור קשר טלפוני';
+    const d = compose([cl()], q([], [doItem({ title, escalation: true, overdue_days: 24 })]), null);
+    expect(d.attention[0].action_line).toBe(title);
+  });
+
+  it("unclassified with no queue items → classification prompt", () => {
+    const d = compose([cl({ claim_type: "unknown", created_at: daysFromNow(-42) })], q(), null);
+    expect(d.attention[0].action_line).toBe("התיק מחכה לסיווג מסלול כבר 42 יום");
+  });
+
+  it("waiting card shows the tracked task; single do-task has no וגם line", () => {
+    const d = compose([cl()], q(), null, [{ claim_id: "c1", title: "מעקב תשובת מבטח", due_at: daysFromNow(7) }]);
+    expect(d.waiting[0].action_line).toContain("במעקב: מעקב תשובת מבטח");
+    const d2 = compose([cl()], q([], [doItem()]), null);
+    expect(d2.attention[0].also_line).toBeNull();
+  });
+});
