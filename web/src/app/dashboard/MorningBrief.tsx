@@ -27,14 +27,8 @@ function ItemRow({ item }: { item: BriefItem }) {
           ))}
         </div>
         <p className="text-sm text-zinc-600">{item.reason}</p>
-        {item.next_task && (
-          <p className={`text-xs ${item.next_task.overdue ? "text-red-600" : "text-zinc-400"}`}>
-            {item.next_task.overdue ? "באיחור: " : "הבא: "}
-            {item.next_task.title}
-            {item.next_task.due_at &&
-              ` · עד ${new Date(item.next_task.due_at).toLocaleDateString("he-IL", { day: "numeric", month: "numeric" })}`}
-          </p>
-        )}
+        {/* No next-task line here — tasks are the outbound queue's vocabulary
+            (rendered in "יוצא היום" above); the brief keeps to triage: who + why. */}
       </div>
     </li>
   );
@@ -101,7 +95,9 @@ export default function MorningBrief({ brief }: { brief: Brief }) {
           );
           return (
             <div key={tier} className={`rounded-xl border ${box}`}>
-              {tier === "ok" ? (
+              {/* Passive tiers start collapsed — the morning read is act_now +
+                  this_week; waiting/ok are there when the agent goes looking. */}
+              {tier === "ok" || tier === "waiting" ? (
                 <details>
                   <summary className={`cursor-pointer px-3 py-2 text-sm font-medium ${badge}`}>
                     {label} ({items.length})

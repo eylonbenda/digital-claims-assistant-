@@ -92,8 +92,10 @@ export default async function DashboardPage() {
           <NewClaimForm />
         </div>
 
-        {brief && <MorningBrief brief={brief} />}
+        {/* Actionable-first: the queue is the morning's work; the brief is the
+            read-after context (which claims matter, incl. ones with nothing due). */}
         {queue && <OutboundQueue queue={queue} />}
+        {brief && <MorningBrief brief={brief} />}
 
         <ClaimsTable claims={claimsWithTasks} />
       </main>

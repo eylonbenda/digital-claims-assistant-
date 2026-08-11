@@ -5,11 +5,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DoItem, OutboundQueue as Queue, SendItem } from "@/lib/outbound/queue";
 
-const TIER_BADGE: Record<string, string> = {
-  act_now: "bg-red-100 text-red-800",
-  this_week: "bg-amber-100 text-amber-800",
-  waiting: "bg-zinc-100 text-zinc-700",
-  ok: "bg-green-100 text-green-800",
+const TIER_DOT: Record<string, string> = {
+  act_now: "bg-red-500",
+  this_week: "bg-amber-500",
+  waiting: "bg-zinc-400",
+  ok: "bg-green-500",
 };
 
 function postEvent(item: SendItem, kind: "sent" | "skipped") {
@@ -74,8 +74,14 @@ function SendRow({ item }: { item: SendItem }) {
           <Link href={`/dashboard/${item.claim_id}`} className="font-medium text-zinc-900 hover:underline">
             {item.client_name ?? "ללא שם"}
           </Link>
+          {/* Tier as a colored dot only — the full reason sentence lives in the
+              brief below; repeating it here doubled the same text on screen.
+              Hover keeps it one gesture away. */}
           {item.tier && (
-            <span className={`rounded px-1.5 py-0.5 text-xs ${TIER_BADGE[item.tier] ?? ""}`}>{item.reason}</span>
+            <span
+              title={item.reason ?? undefined}
+              className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${TIER_DOT[item.tier] ?? "bg-zinc-300"}`}
+            />
           )}
           {item.overdue_days > 0 && (
             <span className="text-xs text-red-600">באיחור {item.overdue_days} ימים</span>
