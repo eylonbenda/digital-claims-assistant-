@@ -125,7 +125,7 @@ export default function TodayList({
         <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center">
           <p className="font-medium text-zinc-800">צור את התביעה הראשונה שלך</p>
           <p className="mt-1 text-sm text-zinc-500">
-            לחץ "תביעה חדשה", שלח ללקוח את הקישור — והמערכת תאסוף את המסמכים והפרטים בשבילך.
+            לחץ &quot;תביעה חדשה&quot;, שלח ללקוח את הקישור — והמערכת תאסוף את המסמכים והפרטים בשבילך.
           </p>
         </div>
       ) : (

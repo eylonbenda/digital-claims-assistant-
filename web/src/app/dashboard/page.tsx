@@ -3,8 +3,9 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import NewClaimForm from "./NewClaimForm";
 import ClaimsTable from "./ClaimsTable";
-import MorningBrief from "./MorningBrief";
-import OutboundQueue from "./OutboundQueue";
+import TodayList from "./TodayList";
+import { composeDashboard } from "@/lib/dashboard/compose";
+import { greeting, hebDate } from "@/lib/dashboard/copy";
 import { getOrCreateBrief } from "@/lib/brief/brief";
 import { createServiceClient } from "@/lib/supabase/service";
 import { loadQueue } from "@/lib/outbound/load";
@@ -74,6 +75,18 @@ export default async function DashboardPage() {
     next_task: nextTaskByClaim.get(c.id) ?? null,
   }));
 
+  const now = new Date();
+  const openClaims = (claims ?? []).filter((c) => c.status !== "closed" && c.status !== "abandoned");
+  const list = composeDashboard({
+    claims: openClaims.map((c) => ({
+      id: c.id, client_name: c.client_name, claim_type: c.claim_type,
+      status: c.status, submitted_at: c.submitted_at, created_at: c.created_at,
+    })),
+    queue, brief,
+    openTasks: (taskRows ?? []).map((t) => ({ claim_id: t.claim_id, title: t.title, due_at: t.due_at })),
+    now,
+  });
+
   return (
     <div className="min-h-screen bg-zinc-50">
       <header className="border-b border-zinc-200 bg-white px-6 py-4">
@@ -92,10 +105,13 @@ export default async function DashboardPage() {
           <NewClaimForm />
         </div>
 
-        {/* Actionable-first: the queue is the morning's work; the brief is the
-            read-after context (which claims matter, incl. ones with nothing due). */}
-        {queue && <OutboundQueue queue={queue} />}
-        {brief && <MorningBrief brief={brief} />}
+        <TodayList
+          list={list}
+          greeting={greeting(now)}
+          dateLabel={hebDate(now)}
+          name={user.email?.split("@")[0] ?? null}
+          claimsCount={openClaims.length}
+        />
 
         <ClaimsTable claims={claimsWithTasks} />
       </main>
