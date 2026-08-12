@@ -29,7 +29,7 @@ Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod che
 ## 3. Module map (`web/src/lib/`)
 | Module | Owns |
 |---|---|
-| `formfill/` | canonical claim schema (`types.ts`) → filled insurer PDFs: generic `engine.ts`, all 9 coordinate `templates/`, `effective.ts` (agent edits win over client input), `dates.ts` (ISO → dd/mm/yyyy at the fill boundary), bundled `assets/` |
+| `formfill/` | canonical claim schema (`types.ts`) → filled insurer PDFs: generic `engine.ts`, all 11 coordinate `templates/`, `effective.ts` (agent edits win over client input), `dates.ts` (ISO → dd/mm/yyyy at the fill boundary), bundled `assets/` |
 | `claims/` | `classify.ts` (deterministic track decision), `checklist.ts` (`computeChecklist` + `chaseableLabels`), `analysis-cache.ts` |
 | `tasks/` | task engine: pure `engine.ts` (`advanceTasks`), declarative `templates.ts` rule table, `runner.ts` (`runEngine`, best-effort) |
 | `brief/` | morning brief: `facts.ts` → `score.ts` (deterministic) → `rank.ts` (AI tier) → `brief.ts` (`getOrCreateBrief`) |
@@ -74,7 +74,7 @@ The mutation routes (`submit`, `classify`, `checklist`, `documents`) each call `
 
 ## 5. Build & assets
 - **Next.js 16** + TypeScript + Tailwind v4, RTL. `next build` passes.
-- Hebrew font `web/src/lib/formfill/assets/app-hebrew.ttf` = **Noto Sans Hebrew** static Regular (OFL 1.1, license bundled as `assets/OFL.txt`). All 9 forms QA'd under it.
+- Hebrew font `web/src/lib/formfill/assets/app-hebrew.ttf` = **Noto Sans Hebrew** static Regular (OFL 1.1, license bundled as `assets/OFL.txt`). Every template renders under it; the original 9 were explicitly re-QA'd at the font swap (כלל + שומרה were mapped later, under the same font).
 - Prod asset bundling for the PDF templates/font is configured via `outputFileTracingIncludes` in `web/next.config.ts` — add new bundled assets there or they vanish on Vercel.
 - QA a fill locally with `web/scripts/fill.ts` (uses `formfill/sample-claim.ts`).
 - Env override: `CLAIMS_AI_MODEL` swaps the analysis model tier.
