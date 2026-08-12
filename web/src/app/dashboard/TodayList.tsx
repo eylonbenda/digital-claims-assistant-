@@ -145,44 +145,50 @@ export default function TodayList({
             </a>
           </div>
 
-          {attention.length > 0 ? (
-            <div id="sec-attention" className="mb-4">
-              <p className="mb-2 text-sm font-bold text-red-700">🔔 צריך אותך היום ({attention.length})</p>
-              <ul className="space-y-2">
-                {attention.map((c) => (
-                  <Card key={c.claim_id} card={c} tone={c.send ? "red" : "amber"} />
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="mb-4 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-              {ALL_DONE_NOTE}
-            </p>
-          )}
+          <div id="sec-attention" className="mb-4">
+            {attention.length > 0 ? (
+              <>
+                <p className="mb-2 text-sm font-bold text-red-700">🔔 צריך אותך היום ({attention.length})</p>
+                <ul className="space-y-2">
+                  {attention.map((c) => (
+                    <Card key={c.claim_id} card={c} tone={c.send ? "red" : "amber"} />
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                {ALL_DONE_NOTE}
+              </p>
+            )}
+          </div>
 
-          {waiting.length > 0 && (
-            <div id="sec-waiting" className="mb-4">
-              <p className="mb-2 text-sm font-bold text-zinc-500">⏳ בהמתנה לאחרים ({waiting.length})</p>
-              <ul className="space-y-2">
-                {waiting.map((c) => (
-                  <Card key={c.claim_id} card={{ ...c, ai_line: c.ai_line ?? `🤖 ${WAITING_NOTE}` }} tone="plain" />
-                ))}
-              </ul>
-            </div>
-          )}
+          <div id="sec-waiting" className="mb-4">
+            {waiting.length > 0 && (
+              <>
+                <p className="mb-2 text-sm font-bold text-zinc-500">⏳ בהמתנה לאחרים ({waiting.length})</p>
+                <ul className="space-y-2">
+                  {waiting.map((c) => (
+                    <Card key={c.claim_id} card={{ ...c, ai_line: c.ai_line ?? `🤖 ${WAITING_NOTE}` }} tone="plain" />
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
 
-          {ok.length > 0 && (
-            <details id="sec-ok" className="mb-2">
-              <summary className="cursor-pointer rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-                ✅ {ok.length} תיקים תקינים — הצג
-              </summary>
-              <ul className="mt-2 space-y-2">
-                {ok.map((c) => (
-                  <Card key={c.claim_id} card={c} tone="plain" />
-                ))}
-              </ul>
-            </details>
-          )}
+          <div id="sec-ok" className="mb-2">
+            {ok.length > 0 && (
+              <details>
+                <summary className="cursor-pointer rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                  ✅ {ok.length} תיקים תקינים — הצג
+                </summary>
+                <ul className="mt-2 space-y-2">
+                  {ok.map((c) => (
+                    <Card key={c.claim_id} card={c} tone="plain" />
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
         </>
       )}
     </section>

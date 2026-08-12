@@ -92,6 +92,23 @@ describe("composeDashboard — sections", () => {
   });
 });
 
+describe("composeDashboard — honest fallback lines (findings #1, #2)", () => {
+  it("overdue-but-suppressed task (no queue items, no future task) → waitingLine of the nearest open task, not the empty fallback", () => {
+    const d = compose([cl()], q(), null, [{ claim_id: "c1", title: "לוודא דוח שמאי", due_at: daysFromNow(-5) }]);
+    const card = [...d.attention, ...d.waiting, ...d.ok].find((c) => c.claim_id === "c1")!;
+    expect(card.action_line).toContain("במעקב:");
+    expect(card.action_line).toContain("לוודא דוח שמאי");
+    expect(card.action_line).not.toBe("אין פעולות פתוחות");
+  });
+
+  it("pre-submission claim with no queue items → waiting section + PENDING_CLIENT_LINE, even with a null brief", () => {
+    const d = compose([cl({ submitted_at: null })], q(), null);
+    expect(d.waiting.map((c) => c.claim_id)).toEqual(["c1"]);
+    expect(d.attention).toHaveLength(0);
+    expect(d.waiting[0].action_line).toBe("ממתינים ללקוח למילוי הפרטים");
+  });
+});
+
 describe("composeDashboard — ordering", () => {
   it("attention: tier order, then score desc", () => {
     const claims = [cl({ id: "a" }), cl({ id: "b" }), cl({ id: "c" })];
@@ -113,6 +130,12 @@ describe("composeDashboard — ordering", () => {
       { claim_id: "b", title: "קרוב", due_at: daysFromNow(2) },
     ]);
     expect(d.waiting.map((x) => x.claim_id)).toEqual(["b", "a"]);
+  });
+
+  it("waiting: two claims with no future-dated tasks sort deterministically (no NaN from Infinity - Infinity)", () => {
+    const claims = [cl({ id: "a", submitted_at: null }), cl({ id: "b", submitted_at: null })];
+    const d = compose(claims, q(), null);
+    expect(d.waiting.map((x) => x.claim_id)).toEqual(["a", "b"]);
   });
 });
 

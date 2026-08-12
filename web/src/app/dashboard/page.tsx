@@ -60,20 +60,9 @@ export default async function DashboardPage() {
   // last, so row 1 per claim = the next dated action.
   const { data: taskRows } = await supabase
     .from("tasks")
-    .select("id, claim_id, key, title, status, due_at")
+    .select("claim_id, title, status, due_at")
     .neq("status", "done")
     .order("due_at", { ascending: true, nullsFirst: false });
-
-  const nextTaskByClaim = new Map<string, { title: string; due_at: string | null }>();
-  for (const t of taskRows ?? []) {
-    if (!nextTaskByClaim.has(t.claim_id)) {
-      nextTaskByClaim.set(t.claim_id, { title: t.title, due_at: t.due_at });
-    }
-  }
-  const claimsWithTasks = (claims ?? []).map((c) => ({
-    ...c,
-    next_task: nextTaskByClaim.get(c.id) ?? null,
-  }));
 
   const now = new Date();
   const openClaims = (claims ?? []).filter((c) => c.status !== "closed" && c.status !== "abandoned");
@@ -110,10 +99,10 @@ export default async function DashboardPage() {
           greeting={greeting(now)}
           dateLabel={hebDate(now)}
           name={user.email?.split("@")[0] ?? null}
-          claimsCount={openClaims.length}
+          claimsCount={(claims ?? []).length}
         />
 
-        <ClaimsTable claims={claimsWithTasks} />
+        <ClaimsTable claims={claims ?? []} />
       </main>
     </div>
   );

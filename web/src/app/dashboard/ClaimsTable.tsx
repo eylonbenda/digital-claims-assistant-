@@ -78,6 +78,9 @@ export default function ClaimsTable({ claims }: { claims: Claim[] }) {
         </span>
       </div>
       <div className="overflow-x-auto rounded-xl border border-zinc-200">
+        {rows.length === 0 ? (
+          <p className="p-4 text-center text-sm text-zinc-400">לא נמצאו תוצאות</p>
+        ) : (
         <table className="w-full text-sm">
           <thead className="border-b border-zinc-200 bg-zinc-50 text-xs text-zinc-500">
             <tr>
@@ -117,6 +120,7 @@ export default function ClaimsTable({ claims }: { claims: Claim[] }) {
             })}
           </tbody>
         </table>
+        )}
       </div>
     </div>
   );

@@ -221,6 +221,22 @@ describe("buildQueue — SendItem presentation fields", () => {
     expect(q.send[0].doc_labels).toEqual(["רישיון נהיגה", "תמונות נזק"]);
   });
 
+  it("collect_private_report_docs: doc_labels is missing_doc_labels, not blocking_labels (finding #3)", () => {
+    const q = build(
+      [claim({ blocking_labels: ["מכתב דרישה"], missing_doc_labels: ["קבלה על תשלום"] })],
+      [task({ key: "collect_private_report_docs", title: 'לאסוף מסמכי "דוח פרטי"', due_at: daysAgo(1) })],
+    );
+    expect(q.send[0].doc_labels).toEqual(["קבלה על תשלום"]);
+  });
+
+  it("get_tp_insurer: doc_labels is empty — nothing is being chased by document name", () => {
+    const q = build(
+      [claim({ blocking_labels: ["רישיון נהיגה"] })],
+      [task({ key: "get_tp_insurer", title: "להשיג פרטי מבטח צד ג'", due_at: daysAgo(1) })],
+    );
+    expect(q.send[0].doc_labels).toEqual([]);
+  });
+
   it("last_sent_at is the newest 'sent' event, ignoring skips", () => {
     const q = build([claim()], [task()], [
       ev({ kind: "sent", created_at: daysAgo(10) }),

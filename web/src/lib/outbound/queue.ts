@@ -106,18 +106,19 @@ export function buildQueue(input: {
       continue;
     }
 
-    const body = rule.build({
+    const ctx = {
       firstName: c.client_name?.trim().split(/\s+/)[0] ?? null,
       blockingLabels: c.blocking_labels,
       missingDocLabels: c.missing_doc_labels,
       uploadUrl: `${origin}/c/${c.access_token}`,
-    });
+    };
+    const body = rule.build(ctx);
     send.push({
       claim_id: c.claim_id, task_id: t.id, task_key: t.key!,
       client_name: c.client_name, tier: c.tier, reason: c.reason,
       overdue_days: overdueDays(t.due_at!), body,
       href: waHref(c.client_phone, body),
-      doc_labels: c.blocking_labels,
+      doc_labels: rule.labels(ctx),
       last_sent_at: pair.find((e) => e.kind === "sent")?.created_at ?? null,
     });
   }

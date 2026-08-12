@@ -58,12 +58,24 @@ export function sendActionLine(
   return `${head} · ${reminderTail(opts.lastSentAt, now)}`;
 }
 
+function overdueClause(overdueDays: number): string {
+  if (overdueDays === 0) return "";
+  return overdueDays === 1 ? " · באיחור יום אחד" : ` · באיחור ${overdueDays} ימים`;
+}
+
 export function doActionLine(title: string, overdueDays: number): string {
-  return overdueDays > 0 ? `תורך: ${title} · באיחור ${overdueDays} ימים` : `תורך: ${title}`;
+  return `תורך: ${title}${overdueClause(overdueDays)}`;
+}
+
+export function alsoLine(title: string, overdueDays: number): string {
+  const clause = overdueDays === 0 ? "" : overdueDays === 1 ? " (באיחור יום אחד)" : ` (באיחור ${overdueDays} ימים)`;
+  return `וגם: ${title}${clause}`;
 }
 
 export function unclassifiedLine(daysOpen: number): string {
-  return `התיק מחכה לסיווג מסלול כבר ${daysOpen} יום`;
+  return daysOpen === 1
+    ? "התיק מחכה לסיווג מסלול כבר יום אחד"
+    : `התיק מחכה לסיווג מסלול כבר ${daysOpen} יום`;
 }
 
 export function waitingLine(next: { title: string; due_at: string | null } | null): string {
@@ -76,3 +88,4 @@ export function waitingLine(next: { title: string; due_at: string | null } | nul
 
 export const WAITING_NOTE = "תקין — המערכת תזכיר כשיגיע הזמן לפעול";
 export const ALL_DONE_NOTE = "הכל טופל להיום ✅";
+export const PENDING_CLIENT_LINE = "ממתינים ללקוח למילוי הפרטים";

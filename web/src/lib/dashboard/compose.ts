@@ -1,7 +1,7 @@
 import type { Brief, BriefItem } from "@/lib/brief/brief";
 import type { DoItem, OutboundQueue, SendItem } from "@/lib/outbound/queue";
 import { TIER_ORDER, type Tier } from "@/lib/brief/rank";
-import { TRACK_LABEL, doActionLine, sendActionLine, unclassifiedLine, waitingLine } from "./copy";
+import { PENDING_CLIENT_LINE, TRACK_LABEL, alsoLine, doActionLine, sendActionLine, unclassifiedLine, waitingLine } from "./copy";
 
 const DAY_MS = 86_400_000;
 
@@ -47,6 +47,22 @@ export function composeDashboard(input: {
   for (const list of futureBy.values())
     list.sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime());
 
+  // All open tasks per claim, nearest-due first (nulls last) — used only for
+  // the waiting fallback line (finding #1), so an overdue-but-suppressed task
+  // still surfaces honestly instead of falling through to "אין פעולות פתוחות".
+  const openBy = new Map<string, OpenTaskLite[]>();
+  for (const t of openTasks) {
+    const list = openBy.get(t.claim_id) ?? [];
+    list.push(t);
+    openBy.set(t.claim_id, list);
+  }
+  for (const list of openBy.values())
+    list.sort((a, b) => {
+      const ta = a.due_at ? new Date(a.due_at).getTime() : Number.MAX_SAFE_INTEGER;
+      const tb = b.due_at ? new Date(b.due_at).getTime() : Number.MAX_SAFE_INTEGER;
+      return ta - tb;
+    });
+
   const attention: ClaimCard[] = [];
   const waiting: ClaimCard[] = [];
   const ok: ClaimCard[] = [];
@@ -61,7 +77,7 @@ export function composeDashboard(input: {
     // else the most-overdue do-task, else the classification prompt, else the
     // waiting/ok line. Whatever lost the primary slot becomes one "וגם:" line.
     const daysOpen = Math.max(0, Math.floor((now.getTime() - new Date(c.created_at).getTime()) / DAY_MS));
-    const nextFuture = futureBy.get(c.id)?.[0] ?? null;
+    const nearestOpen = openBy.get(c.id)?.[0] ?? null;
 
     let action_line: string;
     let also: DoItem | null = null;
@@ -76,8 +92,10 @@ export function composeDashboard(input: {
       also = dos[1] ?? null;
     } else if (unclassified) {
       action_line = unclassifiedLine(daysOpen);
+    } else if (!c.submitted_at) {
+      action_line = PENDING_CLIENT_LINE;
     } else {
-      action_line = waitingLine(nextFuture);
+      action_line = waitingLine(nearestOpen);
     }
 
     const card: ClaimCard = {
@@ -85,14 +103,14 @@ export function composeDashboard(input: {
       track_label: TRACK_LABEL[c.claim_type] ?? c.claim_type,
       action_line,
       ai_line: b?.reason ? `🤖 ${b.reason}` : null,
-      also_line: also ? `וגם: ${also.title} (באיחור ${also.overdue_days} ימים)` : null,
+      also_line: also ? alsoLine(also.title, also.overdue_days) : null,
       send,
       overdue_days: Math.max(send?.overdue_days ?? 0, dos[0]?.overdue_days ?? 0),
     };
 
     if (send || dos.length > 0 || unclassified || b?.tier === "act_now") {
       attention.push(card);
-    } else if (futureBy.has(c.id) || b?.tier === "waiting" || b?.tier === "this_week") {
+    } else if (futureBy.has(c.id) || b?.tier === "waiting" || b?.tier === "this_week" || !c.submitted_at) {
       waiting.push(card);
     } else {
       ok.push(card);
@@ -106,7 +124,10 @@ export function composeDashboard(input: {
   });
   waiting.sort((a, b) => {
     const na = futureBy.get(a.claim_id)?.[0]?.due_at; const nb = futureBy.get(b.claim_id)?.[0]?.due_at;
-    return (na ? new Date(na).getTime() : Infinity) - (nb ? new Date(nb).getTime() : Infinity);
+    return (
+      (na ? new Date(na).getTime() : Number.MAX_SAFE_INTEGER) -
+      (nb ? new Date(nb).getTime() : Number.MAX_SAFE_INTEGER)
+    );
   });
   ok.sort((a, b) => (a.client_name ?? "").localeCompare(b.client_name ?? "", "he"));
 
