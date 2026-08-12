@@ -44,13 +44,14 @@ export const INSURERS: { key: string; label: string; templated: boolean }[] = [
   { key: "migdal", label: "מגדל", templated: true },
   { key: "menora", label: "מנורה", templated: true },
   { key: "hachshara", label: "הכשרה", templated: true },
-  { key: "harel", label: "הראל", templated: false },
-  { key: "clal", label: "כלל", templated: false },
-  { key: "phoenix", label: "הפניקס", templated: false },
-  { key: "ayalon", label: "איילון", templated: false },
-  { key: "shlomo", label: "שלמה", templated: false },
-  { key: "libra", label: "ליברה", templated: false },
-  { key: "aig", label: "AIG", templated: false },
+  { key: "harel", label: "הראל", templated: true },
+  { key: "clal", label: "כלל", templated: true },
+  { key: "phoenix", label: "הפניקס", templated: true },
+  { key: "ayalon", label: "איילון", templated: true },
+  { key: "shlomo", label: "שלמה", templated: true },
+  { key: "libra", label: "ליברה", templated: true },
+  { key: "aig", label: "AIG", templated: true },
+  { key: "shomera", label: "שומרה", templated: true },
 ];
 
 // Maps the wizard State to the canonical ClaimData the form-fill engine consumes.
