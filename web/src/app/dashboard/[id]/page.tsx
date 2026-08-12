@@ -40,6 +40,7 @@ const INSURER_LABEL: Record<string, string> = {
   shlomo: "שלמה",
   libra: "ליברה",
   aig: "AIG",
+  shomera: "שומרה",
 };
 
 const TYPE_LABEL: Record<string, string> = {
