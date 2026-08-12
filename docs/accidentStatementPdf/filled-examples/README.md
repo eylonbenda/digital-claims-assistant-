@@ -1,6 +1,8 @@
 # דוגמאות טפסים ממולאים — filled examples
 
-טופסי "הודעה על תאונה" של כל 9 המבטחים, ממולאים אוטומטית מתביעת הדמו (`web/src/lib/formfill/sample-claim.ts`) דרך מנוע המילוי של האפליקציה. נועדו לביקורת ויזואלית מהירה ולהדגמה — בלי להריץ כלום.
+טופסי "הודעה על תאונה" ממולאים אוטומטית מתביעת הדמו (`web/src/lib/formfill/sample-claim.ts`) דרך מנוע המילוי של האפליקציה. נועדו לביקורת ויזואלית מהירה ולהדגמה — בלי להריץ כלום.
+
+‏⚠️ כאן 9 מתוך **11** התבניות. **כלל** ו**שומרה** (נוספו ב-PR #40) עדיין ללא דוגמה ממולאת — הריצו את הפקודה למטה כדי לייצר.
 
 לרענון אחרי שינוי תבנית:
 
@@ -9,7 +11,7 @@ cd web
 npx tsx scripts/fill.ts <insurer> ../docs/accidentStatementPdf/filled-examples/<insurer>.pdf
 ```
 
-`<insurer>` ∈ hachshara · migdal · menora · harel · aig · shlomo · libra · phoenix · ayalon
+`<insurer>` ∈ hachshara · migdal · menora · harel · aig · shlomo · libra · phoenix · ayalon · shomera · clal
 
 | קובץ | מבטח | שדות ממולאים |
 |---|---|---|
