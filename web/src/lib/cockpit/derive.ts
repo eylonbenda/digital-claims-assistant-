@@ -12,6 +12,7 @@ export type BlockingLite = { key: string; label: string; kind: ItemKind };
 
 export type CockpitInput = {
   classificationNeedsAttention: boolean;
+  classificationUnconfirmed: boolean;
   blocking: BlockingLite[];
   chaseLabels: string[];
   tasks: TaskLite[];
@@ -61,7 +62,7 @@ export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: Nex
 
   let nextAction: NextAction;
   const task = nextOpenTask(input.tasks, now);
-  if (input.classificationNeedsAttention) {
+  if (input.classificationUnconfirmed) {
     nextAction = { kind: "classify", line: CLASSIFY_LINE, targetTab: "overview" };
   } else if (input.blocking.length > 0) {
     nextAction = { kind: "chase", line: chaseLine(input.chaseLabels), targetTab: "work" };

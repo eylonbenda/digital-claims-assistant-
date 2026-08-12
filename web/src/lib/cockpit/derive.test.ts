@@ -4,6 +4,7 @@ import { deriveCockpit, type CockpitInput } from "./derive";
 const NOW = new Date("2026-08-12T10:00:00+03:00");
 const base: CockpitInput = {
   classificationNeedsAttention: false,
+  classificationUnconfirmed: false,
   blocking: [],
   chaseLabels: [],
   tasks: [],
@@ -18,12 +19,24 @@ describe("deriveCockpit precedence (spec §3, top-down first match)", () => {
   it("1. unconfirmed classification wins over everything", () => {
     const { nextAction } = deriveCockpit({
       ...base,
-      classificationNeedsAttention: true,
+      classificationUnconfirmed: true,
       blocking: [{ key: "car_photo", label: "תמונות נזק", kind: "doc" }],
       tasks: [{ title: "x", status: "open", due_at: null }],
     }, NOW);
     expect(nextAction.kind).toBe("classify");
     expect(nextAction.targetTab).toBe("overview");
+  });
+
+  it("1b. confirmed-but-contestable classification does not block chase", () => {
+    const { nextAction, badges } = deriveCockpit({
+      ...base,
+      classificationUnconfirmed: false,
+      classificationNeedsAttention: true,
+      blocking: [{ key: "car_photo", label: "תמונות נזק", kind: "doc" }],
+      chaseLabels: ["תמונות נזק"],
+    }, NOW);
+    expect(nextAction.kind).toBe("chase");
+    expect(badges.overview).toBe(true);
   });
 
   it("2. blocking docs → chase, with chaseable labels only in the line", () => {

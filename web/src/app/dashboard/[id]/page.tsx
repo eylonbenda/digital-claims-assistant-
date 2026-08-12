@@ -271,6 +271,7 @@ export default async function ClaimDetailPage({
   const { nextAction, badges } = deriveCockpit(
     {
       classificationNeedsAttention,
+      classificationUnconfirmed: !confirmed,
       blocking: blockingMissing.map(({ key, label, kind }) => ({ key, label, kind })),
       chaseLabels: chaseableLabels(blockingMissing),
       tasks: tasks.map(({ title, status, due_at }) => ({ title, status, due_at })),
