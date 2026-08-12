@@ -27,6 +27,13 @@ export type TextField = {
   width?: number;
   lineHeight?: number;
   maxLines?: number;
+  // For forms that split a single canonical name string (e.g. ThirdParty.driver_name /
+  // owner_name — there's no first/last split for third parties in ClaimData) across two
+  // separate שם פרטי / שם משפחה columns: "first" draws the first whitespace-delimited token,
+  // "rest" draws everything after it. A single-token name renders entirely under "first";
+  // "rest" then has nothing to draw and is skipped. Two Field entries with the same `key` and
+  // different `part` map the one string onto both columns.
+  part?: "first" | "rest";
 };
 export type CheckboxField = {
   key: string;
@@ -93,7 +100,12 @@ export async function fillForm(
     // Array indices are normalized out for the vocabulary lookup, so
     // third_parties.0.vehicle_type resolves LABELS["third_parties.vehicle_type"].
     const labelKey = f.key.replace(/\.\d+(?=\.)/g, "");
-    const s = (LABELS[f.key] ?? LABELS[labelKey])?.[String(raw)] ?? String(raw);
+    let s = (LABELS[f.key] ?? LABELS[labelKey])?.[String(raw)] ?? String(raw);
+    if (f.part) {
+      const tokens = s.trim().split(/\s+/);
+      s = f.part === "first" ? (tokens[0] ?? "") : tokens.slice(1).join(" ");
+      if (!s) continue;
+    }
     let size = f.size ?? 10;
     const maxLines = f.maxLines ?? 1;
 
