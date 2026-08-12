@@ -31,7 +31,7 @@ Of the 12 rules in `web/src/lib/tasks/templates.ts`, only 3 are client-directed 
 |---|---|
 | `chase_missing_docs` | existing `chaseMessage` (blocking-doc labels + upload link) |
 | `get_tp_insurer` | new builder — ask the client for the at-fault driver's insurer |
-| `collect_private_report_docs` | new builder — ask for receipt / אישור אי-הגשה / עבר ביטוחי |
+| `collect_private_report_docs` | new builder — ask for the still-missing **mandatory** private-report docs (קבלה על תשלום, אישור אי-הגשה). Optional items (עבר ביטוחי, `mandatory: false` in the checklist) are deliberately not auto-chased — the checklist's domain model governs message content. |
 
 **Lane 2 — "לטפל היום" (do; derived, nothing sent):** every other open template task with `due_at <= today` — e.g. `open_claim_with_insurer`, `follow_up_insurer`, `submit_to_tp_insurer` — shown with the overdue clock, linking into the claim cockpit. Plus the escalation rows from §5.
 
@@ -94,7 +94,7 @@ Two guards above the per-rule level:
 
 **Relationship to the morning brief — the line that prevents a duplicate surface:** the brief is **per-claim triage** (which claims matter, including ones with nothing due); the queue is **per-task dispatch** (what leaves the building today). For that line to hold, the action moves: **`MorningBrief.tsx` loses its inline chase button; the queue is the only place anything is sent.** In exchange, the brief's `tier` + Hebrew `reason` flow into the queue — `act_now` rows sort first, each row shows the reason beside the message. (The `do` lane is *not* the deleted `FollowupsPanel` returning: that was a read-only mirror of the tasks list; this is one lane of an instrumented dispatch surface with escalations.)
 
-**Panel:** `OutboundQueue.tsx` on `/dashboard`, below the brief, two lanes:
+**Panel:** `OutboundQueue.tsx` on `/dashboard`, **above** the brief (actionable-first; amended 2026-08-11 after the first render showed payload duplication), two lanes. Division of labor with the brief, sharpened at the same time: the queue owns *tasks* (the brief's next-task line was removed — triage keeps to who + why), the brief owns *reasons* (the queue shows tier as a colored dot with the reason as hover title, not repeated text); the brief's passive tiers (waiting/ok) start collapsed:
 
 - Lane-1 row: client name · track · overdue badge · brief tier/reason · rendered message preview · **[שלח בוואטסאפ]** **[דלג]**.
 - Lane-2 row: claim · task title · overdue badge → links to `/dashboard/[id]`. **No "בוצע" button** — template tasks are engine-owned (`completeWhen` on milestones/docs); a manual complete here would desync status from reality or be overwritten by the next `runEngine` pass. Milestone controls in the cockpit remain the single completion path.

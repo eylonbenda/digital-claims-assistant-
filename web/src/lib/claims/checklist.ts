@@ -15,6 +15,11 @@ export type ChecklistItemDef = {
   // counts as blocking — a plain own-policy collision must not be held up by a
   // police report or a lien release that the case never called for.
   requiresFlag?: keyof ClaimFlags;
+  // Whether the CLIENT can supply this doc themselves (photograph/upload over
+  // WhatsApp). Absent = true. Set to false for docs the agent/appraiser produces
+  // (e.g. demand_form, a demand letter drafted by the agent) — chase messages must
+  // never ask the client for something only the agent's side can produce.
+  clientSuppliable?: boolean;
 };
 
 export type ClaimFlags = {
@@ -57,7 +62,7 @@ const THIRD_PARTY_REPORT: ChecklistItemDef[] = [
   { key: "accident_form",            label: "טופס הודעה על תאונה",                       kind: "form",      mandatory: true,  blocking: true,  section: "base" },
   { key: "vehicle_reg",              label: "רישיון רכב",                               kind: "doc",  docType: "vehicle_reg",              mandatory: true,  blocking: true,  section: "base" },
   { key: "car_photo",                label: "תמונות נזק",                               kind: "doc",  docType: "car_photo",                mandatory: true,  blocking: true,  section: "base" },
-  { key: "demand_form",              label: "מכתב דרישה",                               kind: "doc",  docType: "demand_form",              mandatory: true,  blocking: true,  section: "base" },
+  { key: "demand_form",              label: "מכתב דרישה",                               kind: "doc",  docType: "demand_form",              mandatory: true,  blocking: true,  section: "base", clientSuppliable: false },
   { key: "appraiser_report",         label: "דוח שמאי (כולל תמונות צבעוניות)",          kind: "doc",  docType: "appraiser_report",         mandatory: true,  blocking: true,  section: "late" },
   { key: "assessor_fee_invoice",     label: 'חשבון שכ"ט שמאי',                         kind: "doc",  docType: "assessor_fee_invoice",     mandatory: true,  blocking: false, section: "late" },
   { key: "assessor_fee_receipt",     label: 'קבלה על שכ"ט שמאי',                       kind: "doc",  docType: "assessor_fee_receipt",     mandatory: true,  blocking: false, section: "late" },
@@ -142,6 +147,23 @@ export function computeChecklist(
           ? !!(item.docType && uploadedDocTypes.has(item.docType))
           : !!checklistState[item.key],
   }));
+}
+
+// Client-facing chase messages (WhatsApp) must only ask for docs the client can
+// actually supply — a system-generated form (kind='form'), an agent-owned
+// milestone (kind='milestone'), or a doc the agent drafts and sends itself
+// (clientSuppliable: false, e.g. demand_form — a demand letter) can never be
+// satisfied by the client uploading something over WhatsApp. Note
+// appraiser_report stays client-suppliable (default): on third_party_report
+// the client commissions and pays the private appraiser and is exactly who
+// holds and forwards the report. Shared by web/src/lib/outbound/load.ts and
+// ReadinessStrip.tsx so both chase surfaces stay in sync.
+export function chaseableLabels(
+  items: { kind: ItemKind; label: string; clientSuppliable?: boolean }[],
+): string[] {
+  return items
+    .filter((i) => i.kind === "doc" && i.clientSuppliable !== false)
+    .map((i) => i.label);
 }
 
 export function groupBySection(

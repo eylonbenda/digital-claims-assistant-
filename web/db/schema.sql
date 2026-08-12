@@ -145,6 +145,24 @@ create table agent_briefs (
   primary key (agent_id, brief_date)
 );
 
+-- Append-only log of outbound-queue decisions (migration 008). One row per send/skip.
+-- The queue itself is DERIVED on read from tasks + checklist state; only what
+-- happened is persisted, so nothing here can go stale.
+create table outbound_events (
+  id uuid primary key default gen_random_uuid(),
+  claim_id uuid not null references claims(id) on delete cascade,
+  task_id uuid references tasks(id) on delete set null,
+  task_key text not null,
+  recipient_kind text not null default 'client',
+  channel text not null default 'whatsapp',
+  kind text not null check (kind in ('sent', 'skipped')),
+  body_snapshot text,                          -- what actually went out (kind='sent' only)
+  actor text not null default 'agent' check (actor in ('agent', 'system')),
+  created_at timestamptz not null default now()
+);
+create index outbound_events_cooldown_idx
+  on outbound_events (claim_id, task_key, created_at desc);
+
 -- ---------- RLS ----------
 alter table agents enable row level security;
 alter table claims enable row level security;
@@ -155,6 +173,7 @@ alter table tasks enable row level security;
 alter table claim_events enable row level security;
 alter table claim_notes enable row level security;
 alter table agent_briefs enable row level security;
+alter table outbound_events enable row level security;
 
 create policy "agent reads own row" on agents
   for select using (auth_user_id = auth.uid());
@@ -191,6 +210,11 @@ create policy "child: claim_notes" on claim_notes for all
 -- anon/auth client; writes go through the service client only (no insert/update policy).
 create policy "agent reads own briefs" on agent_briefs for select
   using (agent_id in (select id from agents where auth_user_id = auth.uid()));
+
+-- outbound_events is append-only. Agents read own rows via the auth client; writes
+-- go through the service client only (no insert/update policy on purpose).
+create policy "child: outbound_events" on outbound_events for select
+  using (claim_belongs_to_me(claim_id));
 
 -- ---------- grants ----------
 -- PostgREST needs explicit grants even with the service role key.

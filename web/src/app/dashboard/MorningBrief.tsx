@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { chaseHref } from "@/lib/wa";
 import type { Brief, BriefItem } from "@/lib/brief/brief";
 
 const TIER_META: { tier: BriefItem["tier"]; label: string; badge: string; box: string }[] = [
@@ -13,15 +12,7 @@ const TIER_META: { tier: BriefItem["tier"]; label: string; badge: string; box: s
   { tier: "ok",       label: "✅ תקין",          badge: "text-green-800", box: "border-green-200 bg-green-50" },
 ];
 
-function ItemRow({ item, origin }: { item: BriefItem; origin: string }) {
-  const wa =
-    item.blocking_labels.length > 0
-      ? chaseHref(item.client_phone, {
-          firstName: item.client_name?.split(" ")[0] ?? null,
-          items: item.blocking_labels,
-          uploadUrl: `${origin}/c/${item.access_token}`,
-        })
-      : null;
+function ItemRow({ item }: { item: BriefItem }) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
       <div className="min-w-0">
@@ -36,30 +27,14 @@ function ItemRow({ item, origin }: { item: BriefItem; origin: string }) {
           ))}
         </div>
         <p className="text-sm text-zinc-600">{item.reason}</p>
-        {item.next_task && (
-          <p className={`text-xs ${item.next_task.overdue ? "text-red-600" : "text-zinc-400"}`}>
-            {item.next_task.overdue ? "באיחור: " : "הבא: "}
-            {item.next_task.title}
-            {item.next_task.due_at &&
-              ` · עד ${new Date(item.next_task.due_at).toLocaleDateString("he-IL", { day: "numeric", month: "numeric" })}`}
-          </p>
-        )}
+        {/* No next-task line here — tasks are the outbound queue's vocabulary
+            (rendered in "יוצא היום" above); the brief keeps to triage: who + why. */}
       </div>
-      {wa && (
-        <a
-          href={wa}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 rounded-lg bg-green-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-800"
-        >
-          בקש מסמכים בוואטסאפ ↗
-        </a>
-      )}
     </li>
   );
 }
 
-export default function MorningBrief({ brief, origin }: { brief: Brief; origin: string }) {
+export default function MorningBrief({ brief }: { brief: Brief }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,13 +89,15 @@ export default function MorningBrief({ brief, origin }: { brief: Brief; origin: 
           const list = (
             <ul className="divide-y divide-zinc-100">
               {items.map((i) => (
-                <ItemRow key={i.claim_id} item={i} origin={origin} />
+                <ItemRow key={i.claim_id} item={i} />
               ))}
             </ul>
           );
           return (
             <div key={tier} className={`rounded-xl border ${box}`}>
-              {tier === "ok" ? (
+              {/* Passive tiers start collapsed — the morning read is act_now +
+                  this_week; waiting/ok are there when the agent goes looking. */}
+              {tier === "ok" || tier === "waiting" ? (
                 <details>
                   <summary className={`cursor-pointer px-3 py-2 text-sm font-medium ${badge}`}>
                     {label} ({items.length})
