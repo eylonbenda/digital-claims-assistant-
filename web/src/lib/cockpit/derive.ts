@@ -64,7 +64,7 @@ export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: Nex
   const task = nextOpenTask(input.tasks, now);
   if (input.classificationUnconfirmed) {
     nextAction = { kind: "classify", line: CLASSIFY_LINE, targetTab: "overview" };
-  } else if (input.blocking.length > 0) {
+  } else if (input.chaseLabels.length > 0) {
     nextAction = { kind: "chase", line: chaseLine(input.chaseLabels), targetTab: "work" };
   } else if (task) {
     nextAction = { kind: "task", line: taskLine(task.title, task.overdueDays), targetTab: "work" };

@@ -138,7 +138,6 @@ export default async function ClaimDetailPage({
   const notes: NoteView[] = noteRows ?? [];
   const tasks: TaskView[] = taskRows ?? [];
   const openTasks = tasks.filter((t) => t.status !== "done");
-  const nextTask = openTasks.find((t) => t.due_at) ?? openTasks[0] ?? null;
 
   // Lazy-cached AI analysis: computes once on first view, then reads from
   // summary_json.analysis. Supplies the narrative signals (incident kind / inferred
@@ -268,12 +267,13 @@ export default async function ClaimDetailPage({
     label: INSURER_LABEL[key] ?? key,
   }));
 
+  const chaseLabels = chaseableLabels(blockingMissing);
   const { nextAction, badges } = deriveCockpit(
     {
       classificationNeedsAttention,
       classificationUnconfirmed: !confirmed,
       blocking: blockingMissing.map(({ key, label, kind }) => ({ key, label, kind })),
-      chaseLabels: chaseableLabels(blockingMissing),
+      chaseLabels,
       tasks: tasks.map(({ title, status, due_at }) => ({ title, status, due_at })),
       missingFieldCount: analysis?.missing.length ?? 0,
       hasGeneratedForm: forms.length > 0,
@@ -308,7 +308,7 @@ export default async function ClaimDetailPage({
             daysSinceActivity,
             summary: analysis?.summary ?? null,
             nextAction,
-            chaseLabels: chaseableLabels(blockingMissing),
+            chaseLabels,
             uploadUrl: `${origin}/c/${claim.access_token}`,
           }}
           badges={badges}

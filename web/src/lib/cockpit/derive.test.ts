@@ -54,6 +54,19 @@ describe("deriveCockpit precedence (spec §3, top-down first match)", () => {
     expect(nextAction.targetTab).toBe("work");
   });
 
+  it("2b. blocked only by non-chaseable accident form → falls through to form_fill", () => {
+    const { nextAction } = deriveCockpit({
+      ...base,
+      blocking: [{ key: "accident_form", label: "טופס הודעה על תאונה", kind: "form" }],
+      chaseLabels: [],
+      tasks: [],
+      missingFieldCount: 0,
+      hasGeneratedForm: false,
+    }, NOW);
+    expect(nextAction.kind).toBe("form_fill");
+    expect(nextAction.targetTab).toBe("form");
+  });
+
   it("3. tasks: most-overdue open task, done tasks ignored", () => {
     const { nextAction } = deriveCockpit({
       ...base,

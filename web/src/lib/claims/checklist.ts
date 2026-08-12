@@ -157,7 +157,7 @@ export function computeChecklist(
 // appraiser_report stays client-suppliable (default): on third_party_report
 // the client commissions and pays the private appraiser and is exactly who
 // holds and forwards the report. Shared by web/src/lib/outbound/load.ts and
-// ReadinessStrip.tsx so both chase surfaces stay in sync.
+// CockpitHeader.tsx so both chase surfaces stay in sync.
 export function chaseableLabels(
   items: { kind: ItemKind; label: string; clientSuppliable?: boolean }[],
 ): string[] {
