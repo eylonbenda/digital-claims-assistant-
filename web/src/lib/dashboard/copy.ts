@@ -32,7 +32,7 @@ export const TRACK_LABEL: Record<string, string> = {
 };
 
 // Hebrew list join: "א", "א וב", "א, ב וג"
-function joinHe(items: string[]): string {
+export function joinHe(items: string[]): string {
   if (items.length <= 1) return items[0] ?? "";
   return `${items.slice(0, -1).join(", ")} ו${items[items.length - 1]}`;
 }
