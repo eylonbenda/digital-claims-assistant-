@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { TRACK_LABEL } from "@/lib/dashboard/copy";
 
 interface Claim {
   id: string;
@@ -14,13 +15,6 @@ interface Claim {
   submitted_at: string | null;
   access_token: string;
 }
-
-const TYPE_LABEL: Record<string, string> = {
-  own_policy: "פוליסת הלקוח",
-  third_party_report: "צד ג' — דוח",
-  third_party_settlement: "צד ג' — הסדר",
-  unknown: "—",
-};
 
 function CopyLinkButton({ token }: { token: string }) {
   const [copied, setCopied] = useState(false);
@@ -107,7 +101,7 @@ export default function ClaimsTable({ claims }: { claims: Claim[] }) {
                     )}
                   </td>
                   <td className="px-4 py-3 text-zinc-600">
-                    {TYPE_LABEL[c.claim_type] ?? c.claim_type}
+                    {TRACK_LABEL[c.claim_type] ?? c.claim_type}
                   </td>
                   <td className="px-4 py-3 text-zinc-500">
                     {new Date(c.submitted_at ?? c.created_at).toLocaleDateString("he-IL")}
