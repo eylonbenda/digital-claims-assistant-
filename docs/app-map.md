@@ -21,7 +21,7 @@ Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod che
 | `/` | public | marketing landing page ("OpenTik"), Hebrew/RTL |
 | `/login` | agent | Supabase Auth sign-in |
 | `/c/[token]` | client | token-gated collection wizard (no login) |
-| `/dashboard` | agent | claim list + **morning brief** ("תדריך בוקר") + the **outbound queue** ("יוצא היום") |
+| `/dashboard` | agent | **one list** — `TodayList` (one card per open claim, sectioned צריך אותך / בהמתנה / תקינים; brief + queue are folded in as data, not as their own panels) + a searchable archive claims table |
 | `/dashboard/[id]` | agent | claim **cockpit** — hero, readiness strip, checklist, tasks, docs, notes, form generator |
 
 ---
@@ -33,7 +33,8 @@ Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod che
 | `claims/` | `classify.ts` (deterministic track decision), `checklist.ts` (`computeChecklist` + `chaseableLabels`), `analysis-cache.ts` |
 | `tasks/` | task engine: pure `engine.ts` (`advanceTasks`), declarative `templates.ts` rule table, `runner.ts` (`runEngine`, best-effort) |
 | `brief/` | morning brief: `facts.ts` → `score.ts` (deterministic) → `rank.ts` (AI tier) → `brief.ts` (`getOrCreateBrief`) |
-| `outbound/` | outbound queue: `rules.ts` (per-task-key send descriptors + cooldowns + the `auto` flip-to-send seam), pure `queue.ts` (`buildQueue` — lanes, cooldown, one-per-claim-per-day cap, give-up escalation, ordering), `load.ts` (`loadQueue`, the only I/O, best-effort) |
+| `outbound/` | outbound queue: `rules.ts` (per-task-key send descriptors + cooldowns + the `auto` flip-to-send seam + a presentation-only `labels()` beside `build()`), pure `queue.ts` (`buildQueue` — lanes, cooldown, one-per-claim-per-day cap, give-up escalation, ordering), `load.ts` (`loadQueue`, the only I/O, best-effort) |
+| `dashboard/` | the `/dashboard` index view model: pure `compose.ts` (`composeDashboard` — claims ⊕ queue ⊕ brief ⊕ open tasks → one `ClaimCard` per claim, split into `attention` / `waiting` / `ok`) and pure `copy.ts` (the Hebrew language layer: greeting, date, track labels, action/וגם/waiting lines). Both unit-tested |
 | `ai/` | `analyze.ts` — the single structured Claude call (signals only, never the track) |
 | `collection/` | `claim-state.ts` — shared wizard↔server mapping (`State` + `toClaimData`); `persist.ts` — per-token `localStorage` save/restore of wizard progress |
 | `vehicles/` | `registry.ts` — plate lookup against the Ministry of Transport open-data registry (data.gov.il): `lookupVehicle` + the pure `toVehicleInfo` / `mergeVehicleInfo` / plate helpers |

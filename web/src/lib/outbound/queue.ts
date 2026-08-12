@@ -23,6 +23,9 @@ export type SendItem = {
   claim_id: string; task_id: string; task_key: string;
   client_name: string | null; tier: Tier | null; reason: string | null;
   overdue_days: number; body: string; href: string | null;
+  // Presentation-only fields (dashboard cards) — no queue logic reads these.
+  doc_labels: string[];        // chaseable labels the body was built from
+  last_sent_at: string | null; // newest kind='sent' event for this (claim, key)
 };
 export type DoItem = {
   claim_id: string; client_name: string | null; title: string;
@@ -103,17 +106,20 @@ export function buildQueue(input: {
       continue;
     }
 
-    const body = rule.build({
+    const ctx = {
       firstName: c.client_name?.trim().split(/\s+/)[0] ?? null,
       blockingLabels: c.blocking_labels,
       missingDocLabels: c.missing_doc_labels,
       uploadUrl: `${origin}/c/${c.access_token}`,
-    });
+    };
+    const body = rule.build(ctx);
     send.push({
       claim_id: c.claim_id, task_id: t.id, task_key: t.key!,
       client_name: c.client_name, tier: c.tier, reason: c.reason,
       overdue_days: overdueDays(t.due_at!), body,
       href: waHref(c.client_phone, body),
+      doc_labels: rule.labels(ctx),
+      last_sent_at: pair.find((e) => e.kind === "sent")?.created_at ?? null,
     });
   }
 

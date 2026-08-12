@@ -24,22 +24,39 @@ export type SendRule = {
   // row with actor='system' — no other code changes.
   auto: boolean;
   build: (ctx: MessageCtx) => string;
+  // Presentation-only (finding #3): the doc labels a dashboard card should
+  // show for this rule's SendItem. Deliberately separate from `build`'s body
+  // ingredients so a rule can render one label set while displaying another
+  // (collect_private_report_docs sends+displays missingDocLabels, not the
+  // narrower blockingLabels chase_missing_docs uses).
+  labels: (ctx: MessageCtx) => string[];
 };
 
-const rule = (taskKey: string, cooldownDays: number, build: SendRule["build"]): SendRule => ({
+const rule = (
+  taskKey: string,
+  cooldownDays: number,
+  build: SendRule["build"],
+  labels: SendRule["labels"],
+): SendRule => ({
   taskKey, lane: "send", recipientKind: "client", channel: "whatsapp",
-  cooldownDays, auto: false, build,
+  cooldownDays, auto: false, build, labels,
 });
 
 export const SEND_RULES: Record<string, SendRule> = {
-  chase_missing_docs: rule("chase_missing_docs", 3, (ctx) =>
-    chaseMessage({ firstName: ctx.firstName, items: ctx.blockingLabels, uploadUrl: ctx.uploadUrl }),
+  chase_missing_docs: rule(
+    "chase_missing_docs", 3,
+    (ctx) => chaseMessage({ firstName: ctx.firstName, items: ctx.blockingLabels, uploadUrl: ctx.uploadUrl }),
+    (ctx) => ctx.blockingLabels,
   ),
-  get_tp_insurer: rule("get_tp_insurer", 3, (ctx) =>
-    getTpInsurerMessage({ firstName: ctx.firstName }),
+  get_tp_insurer: rule(
+    "get_tp_insurer", 3,
+    (ctx) => getTpInsurerMessage({ firstName: ctx.firstName }),
+    () => [],
   ),
-  collect_private_report_docs: rule("collect_private_report_docs", 4, (ctx) =>
-    collectPrivateReportMessage({ firstName: ctx.firstName, items: ctx.missingDocLabels, uploadUrl: ctx.uploadUrl }),
+  collect_private_report_docs: rule(
+    "collect_private_report_docs", 4,
+    (ctx) => collectPrivateReportMessage({ firstName: ctx.firstName, items: ctx.missingDocLabels, uploadUrl: ctx.uploadUrl }),
+    (ctx) => ctx.missingDocLabels,
   ),
 };
 
