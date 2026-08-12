@@ -22,7 +22,7 @@ Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod che
 | `/login` | agent | Supabase Auth sign-in |
 | `/c/[token]` | client | token-gated collection wizard (no login) |
 | `/dashboard` | agent | **one list** — `TodayList` (one card per open claim, sectioned צריך אותך / בהמתנה / תקינים; brief + queue are folded in as data, not as their own panels) + a searchable archive claims table |
-| `/dashboard/[id]` | agent | claim **cockpit** — hero, readiness strip, checklist, tasks, docs, notes, form generator |
+| `/dashboard/[id]` | agent | claim **cockpit** — a persistent header (identity + one primary next action) over **4 tabs**: סקירה / עבודה על התיק / טופס ההודעה / קבצים (active tab mirrored in `?tab=`) |
 
 ---
 
@@ -35,6 +35,7 @@ Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod che
 | `brief/` | morning brief: `facts.ts` → `score.ts` (deterministic) → `rank.ts` (AI tier) → `brief.ts` (`getOrCreateBrief`) |
 | `outbound/` | outbound queue: `rules.ts` (per-task-key send descriptors + cooldowns + the `auto` flip-to-send seam + a presentation-only `labels()` beside `build()`), pure `queue.ts` (`buildQueue` — lanes, cooldown, one-per-claim-per-day cap, give-up escalation, ordering), `load.ts` (`loadQueue`, the only I/O, best-effort) |
 | `dashboard/` | the `/dashboard` index view model: pure `compose.ts` (`composeDashboard` — claims ⊕ queue ⊕ brief ⊕ open tasks → one `ClaimCard` per claim, split into `attention` / `waiting` / `ok`) and pure `copy.ts` (the Hebrew language layer: greeting, date, track labels, action/וגם/waiting lines). Both unit-tested |
+| `cockpit/` | the `/dashboard/[id]` view model: pure `derive.ts` (`deriveCockpit` — page data → one primary next action by precedence + per-tab badges, caller passes `now`) and pure `copy.ts` (its Hebrew lines, reusing `dashboard/copy.ts` idioms). Both unit-tested |
 | `ai/` | `analyze.ts` — the single structured Claude call (signals only, never the track) |
 | `collection/` | `claim-state.ts` — shared wizard↔server mapping (`State` + `toClaimData`); `persist.ts` — per-token `localStorage` save/restore of wizard progress |
 | `vehicles/` | `registry.ts` — plate lookup against the Ministry of Transport open-data registry (data.gov.il): `lookupVehicle` + the pure `toVehicleInfo` / `mergeVehicleInfo` / plate helpers |
