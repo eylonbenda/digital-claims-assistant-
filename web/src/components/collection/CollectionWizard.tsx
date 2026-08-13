@@ -323,7 +323,8 @@ export default function CollectionWizard({
   const isSummary = active.key === "summary";
   const nextDisabled = isSummary ? submitBusy || !s.declaration.data_consent : !active.isComplete(s);
   const nextLabel = isSummary ? (submitBusy ? "שולח…" : "שליחה לסוכן") : active.key === "intro" ? "בוא נתחיל" : "המשך";
-  const requiredHint = !active.isTapStep && active.key !== "documents" && !isSummary && !active.isComplete(s);
+  const requiredHint =
+    !active.isTapStep && active.key !== "intro" && active.key !== "documents" && !isSummary && !active.isComplete(s);
   // The injuries tap step is the one exception: on "יש נפגעים" it must keep
   // showing the shell's המשך instead of auto-advancing past the warning.
   const isTapStep = active.isTapStep && !(active.key === "injuries" && s.injuries === true);
