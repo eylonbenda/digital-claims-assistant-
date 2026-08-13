@@ -1,0 +1,38 @@
+import type { State } from "@/lib/collection/claim-state";
+import { Choice } from "./fields";
+
+export default function InjuriesStep({
+  s,
+  set,
+  advance,
+}: {
+  s: State;
+  set: (patch: Partial<State>) => void;
+  advance: () => void;
+}) {
+  return (
+    <div>
+      <h2 className="text-2xl font-bold">יש נפגעים בתאונה?</h2>
+      <div className="mt-4">
+        <Choice<"yes" | "no">
+          value={s.injuries === null ? null : s.injuries ? "yes" : "no"}
+          options={[
+            { v: "yes", label: "כן, יש נפגעים" },
+            { v: "no", label: "לא, אין נפגעים" },
+          ]}
+          onChange={(v) => {
+            set({ injuries: v === "yes" });
+            if (v === "no") advance();
+          }}
+        />
+      </div>
+      {s.injuries && (
+        <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-base text-red-800">
+          <strong>אם יש סכנת חיים — חייגו 101 מיד.</strong> מומלץ גם להזעיק משטרה
+          (100). הסוכן יקבל התראה דחופה. אפשר לסגור עכשיו ולחזור לקישור מאוחר
+          יותר — התשובות שלך נשמרות.
+        </div>
+      )}
+    </div>
+  );
+}
