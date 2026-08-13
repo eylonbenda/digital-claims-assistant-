@@ -121,6 +121,23 @@ export default function CollectionWizard({
   useEffect(() => {
     sRef.current = s;
   }, [s]);
+  // Same idea as sRef, for the auto-advance timer below: the current step key
+  // readable from a callback firing after this render has been replaced.
+  const stepKeyRef = useRef(stepKey);
+  useEffect(() => {
+    stepKeyRef.current = stepKey;
+  }, [stepKey]);
+  // Set by goTo() (summary edit-jump); consumed by the next navigateNext() call
+  // so a tap-step selection or "המשך" made after the jump returns to the
+  // summary instead of continuing forward through the wizard.
+  const returnToSummary = useRef(false);
+  // Pending tap-step auto-advance timer, so a later tap (or unmount) can cancel it.
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    };
+  }, []);
   // Guards against out-of-order responses: only the newest lookup may write.
   const lookupSeq = useRef(0);
 
@@ -299,22 +316,59 @@ export default function CollectionWizard({
     visible.filter((st) => st.chapter === c).every((st) => visible.indexOf(st) < idx)
   );
 
-  function goNext() {
-    const next = visible[idx + 1];
+  // Shared navigation logic used both by the synchronous "next" click and by
+  // the (possibly delayed) auto-advance timer below. Takes state/stepKey as
+  // arguments rather than closing over `s`/`stepKey` so the timer callback can
+  // pass the CURRENT values (via refs) instead of the stale click-time ones.
+  function navigateNext(currentState: State, currentStepKey: StepKey) {
+    const vis = visibleSteps(currentState);
+    const i = Math.max(0, vis.findIndex((st) => st.key === currentStepKey));
+    const curr = vis[i];
+    // An edit-jump from the summary always returns to the summary — it never
+    // re-crosses a chapter boundary, so no milestone here either.
+    if (returnToSummary.current) {
+      returnToSummary.current = false;
+      setStepKey("summary");
+      return;
+    }
+    const next = vis[i + 1];
     if (!next) return;
     // Crossing a chapter boundary out of quick/details → milestone interstitial first.
-    if (next.chapter !== active.chapter && (active.chapter === "quick" || active.chapter === "details")) {
-      setMilestone(active.chapter);
+    if (next.chapter !== curr.chapter && (curr.chapter === "quick" || curr.chapter === "details")) {
+      setMilestone(curr.chapter);
     }
     setStepKey(next.key);
   }
+  function goNext() {
+    navigateNext(s, stepKey);
+  }
   function goBack() {
+    // Wandering backwards means the client has left the edit-jump flow —
+    // resume normal forward navigation instead of snapping back to summary.
+    returnToSummary.current = false;
     if (idx > 0) setStepKey(visible[idx - 1].key);
   }
   function goTo(key: StepKey) {
+    returnToSummary.current = true;
     setStepKey(key);
   }
-  const advance = () => setTimeout(goNext, 250); // tap-step auto-advance (selected-state flash)
+  function cancelAdvance() {
+    if (advanceTimer.current) {
+      clearTimeout(advanceTimer.current);
+      advanceTimer.current = null;
+    }
+  }
+  // Tap-step auto-advance (selected-state flash). Cancels any pending timer
+  // first so a rapid double-tap can't fire a stale, pre-tap navigation, and
+  // resolves the destination fresh (from refs) at fire time rather than from
+  // the click-time closure.
+  function advance() {
+    cancelAdvance();
+    advanceTimer.current = setTimeout(() => {
+      advanceTimer.current = null;
+      navigateNext(sRef.current, stepKeyRef.current);
+    }, 250);
+  }
 
   if (milestone !== null) {
     return <MilestoneScreen finishedChapter={milestone} onContinue={() => setMilestone(null)} />;
@@ -344,7 +398,9 @@ export default function CollectionWizard({
       requiredHint={requiredHint}
     >
       {active.key === "intro" && <IntroStep s={s} set={set} />}
-      {active.key === "injuries" && <InjuriesStep s={s} set={set} advance={advance} />}
+      {active.key === "injuries" && (
+        <InjuriesStep s={s} set={set} advance={advance} cancelAdvance={cancelAdvance} />
+      )}
       {active.key === "driver_who" && <DriverWhoStep s={s} set={set} advance={advance} />}
       {active.key === "fault" && <FaultStep s={s} set={set} advance={advance} />}
       {active.key === "tp_present" && <TpPresentStep s={s} set={set} advance={advance} />}
@@ -367,7 +423,7 @@ export default function CollectionWizard({
       )}
       {active.key === "description" && <DescriptionStep s={s} set={set} />}
       {active.key === "documents" && (
-        <DocumentsStep s={s} set={set} onPick={onPickDocs} onRemove={removeDoc} />
+        <DocumentsStep s={s} onPick={onPickDocs} onRemove={removeDoc} />
       )}
       {active.key === "summary" && (
         <SummaryStep s={s} set={set} goTo={goTo} docDone={docDone} submitError={submitError} />

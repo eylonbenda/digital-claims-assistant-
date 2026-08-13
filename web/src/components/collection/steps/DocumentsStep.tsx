@@ -7,7 +7,6 @@ export default function DocumentsStep({
   onRemove,
 }: {
   s: State;
-  set: (patch: Partial<State>) => void;
   onPick: (type: DocType, files: FileList) => void;
   onRemove: (localId: string) => void;
 }) {

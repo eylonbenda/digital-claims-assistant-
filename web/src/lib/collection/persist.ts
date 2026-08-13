@@ -115,6 +115,10 @@ export function clearWizardState(token: string): void {
   if (!s) return;
   try {
     s.removeItem(storageKey(token));
+  } catch {
+    // ignore
+  }
+  try {
     s.removeItem(legacyStorageKey(token));
   } catch {
     // ignore

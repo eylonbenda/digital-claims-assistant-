@@ -5,10 +5,12 @@ export default function InjuriesStep({
   s,
   set,
   advance,
+  cancelAdvance,
 }: {
   s: State;
   set: (patch: Partial<State>) => void;
   advance: () => void;
+  cancelAdvance: () => void;
 }) {
   return (
     <div>
@@ -22,7 +24,10 @@ export default function InjuriesStep({
           ]}
           onChange={(v) => {
             set({ injuries: v === "yes" });
-            if (v === "no") advance();
+            // "יש נפגעים" must never be overtaken by a still-pending "לא" advance
+            // from a rapid no→yes double-tap — cancel it before it can fire.
+            if (v === "yes") cancelAdvance();
+            else advance();
           }}
         />
       </div>

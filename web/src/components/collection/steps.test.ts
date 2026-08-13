@@ -70,6 +70,34 @@ describe("step registry", () => {
     expect(firstIncompleteKey(full)).toBe("summary");
   });
 
+  it("driver_details.isComplete requires first/last/id, not just some", () => {
+    const step = STEPS.find((s) => s.key === "driver_details")!;
+    const missingFirstName: State = {
+      ...BASE,
+      driver: { ...BASE.driver, isInsured: false, first_name: "", last_name: "כהן", id_number: "123456789" },
+    };
+    expect(step.isComplete(missingFirstName)).toBe(false);
+    const filled: State = {
+      ...BASE,
+      driver: { ...BASE.driver, isInsured: false, first_name: "דני", last_name: "כהן", id_number: "123456789" },
+    };
+    expect(step.isComplete(filled)).toBe(true);
+  });
+
+  it("tp_details.isComplete requires name/plate/insurer, not just some", () => {
+    const step = STEPS.find((s) => s.key === "tp_details")!;
+    const missingName: State = {
+      ...BASE,
+      thirdParty: { ...BASE.thirdParty, present: true, name: "", plate: "1234567", insurer: "הראל" },
+    };
+    expect(step.isComplete(missingName)).toBe(false);
+    const filled: State = {
+      ...BASE,
+      thirdParty: { ...BASE.thirdParty, present: true, name: "יוסי לוי", plate: "1234567", insurer: "הראל" },
+    };
+    expect(step.isComplete(filled)).toBe(true);
+  });
+
   it("isStepKey guards strings", () => {
     expect(isStepKey("vehicle")).toBe(true);
     expect(isStepKey("no_such")).toBe(false);
