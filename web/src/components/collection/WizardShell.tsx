@@ -15,6 +15,7 @@ export type ShellProps = {
   onNext: () => void;
   nextVariant: "primary" | "submit";
   requiredHint: boolean;
+  cheer: string | null;
   children: ReactNode;
 };
 
@@ -61,6 +62,9 @@ export default function WizardShell(p: ShellProps) {
           </div>
         )}
         <p className="mt-2 text-center text-sm text-zinc-400">{TIME_LEFT[p.chapter]}</p>
+        {p.cheer && (
+          <p className="mt-2 text-center text-base font-medium text-green-700">{p.cheer}</p>
+        )}
       </div>
 
       <div className="flex-1">{p.children}</div>
@@ -97,33 +101,6 @@ export default function WizardShell(p: ShellProps) {
       <p className="mt-4 text-center text-xs text-zinc-400">
         התשובות נשמרות — אפשר לעצור ולחזור לקישור בכל שלב
       </p>
-    </div>
-  );
-}
-
-export function MilestoneScreen({
-  finishedChapter,
-  onContinue,
-}: {
-  finishedChapter: "quick" | "details";
-  onContinue: () => void;
-}) {
-  const line =
-    finishedChapter === "quick"
-      ? { title: "החלק הראשון מאחוריך!", sub: "עוד כ־2 דקות וסיימנו" }
-      : { title: "כמעט שם!", sub: "נשארו רק מסמכים וסיכום — עוד כדקה" };
-  return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center p-6 text-center">
-      <div className="text-6xl">🎉</div>
-      <h2 className="mt-4 text-2xl font-bold">{line.title}</h2>
-      <p className="mt-2 text-lg text-zinc-500">{line.sub}</p>
-      <button
-        type="button"
-        onClick={onContinue}
-        className="mt-8 min-h-12 w-full rounded-lg bg-blue-600 px-4 py-3.5 text-lg font-medium text-white"
-      >
-        ממשיכים
-      </button>
     </div>
   );
 }

@@ -14,7 +14,7 @@ import {
   type VehicleInfo,
 } from "@/lib/vehicles/registry";
 import { visibleSteps, firstIncompleteKey, type StepKey } from "./steps";
-import WizardShell, { MilestoneScreen } from "./WizardShell";
+import WizardShell from "./WizardShell";
 import IntroStep from "./steps/IntroStep";
 import InjuriesStep from "./steps/InjuriesStep";
 import DriverWhoStep from "./steps/DriverWhoStep";
@@ -30,6 +30,11 @@ import DocumentsStep from "./steps/DocumentsStep";
 import SummaryStep from "./steps/SummaryStep";
 
 export type { State };
+
+const CHEER_TEXT: Record<"details" | "finish", string> = {
+  details: "החלק הראשון מאחוריך 🎉 · עוד כ־2 דקות",
+  finish: "כמעט שם! 🎉 נשארו רק מסמכים וסיכום",
+};
 
 const EMPTY: State = {
   consent: false,
@@ -80,7 +85,7 @@ export default function CollectionWizard({
 }) {
   const [s, setS] = useState<State>(() => mergeWithEmpty(prefill));
   const [stepKey, setStepKey] = useState<StepKey>("intro");
-  const [milestone, setMilestone] = useState<"quick" | "details" | null>(null);
+  const [cheer, setCheer] = useState<"details" | "finish" | null>(null);
   const [done, setDone] = useState(false);
   // Restore a saved session after mount (not in the initializer — the server render
   // has no localStorage, and diverging from it would break hydration). The sync
@@ -325,17 +330,21 @@ export default function CollectionWizard({
     const i = Math.max(0, vis.findIndex((st) => st.key === currentStepKey));
     const curr = vis[i];
     // An edit-jump from the summary always returns to the summary — it never
-    // re-crosses a chapter boundary, so no milestone here either.
+    // re-crosses a chapter boundary, so no cheer here either.
     if (returnToSummary.current) {
       returnToSummary.current = false;
+      setCheer(null);
       setStepKey("summary");
       return;
     }
     const next = vis[i + 1];
     if (!next) return;
-    // Crossing a chapter boundary out of quick/details → milestone interstitial first.
+    // Crossing a chapter boundary out of quick/details → inline cheer line
+    // for the chapter just arrived at.
     if (next.chapter !== curr.chapter && (curr.chapter === "quick" || curr.chapter === "details")) {
-      setMilestone(curr.chapter);
+      setCheer(curr.chapter === "quick" ? "details" : "finish");
+    } else {
+      setCheer(null);
     }
     setStepKey(next.key);
   }
@@ -346,10 +355,12 @@ export default function CollectionWizard({
     // Wandering backwards means the client has left the edit-jump flow —
     // resume normal forward navigation instead of snapping back to summary.
     returnToSummary.current = false;
+    setCheer(null);
     if (idx > 0) setStepKey(visible[idx - 1].key);
   }
   function goTo(key: StepKey) {
     returnToSummary.current = true;
+    setCheer(null);
     setStepKey(key);
   }
   function cancelAdvance() {
@@ -368,10 +379,6 @@ export default function CollectionWizard({
       advanceTimer.current = null;
       navigateNext(sRef.current, stepKeyRef.current);
     }, 250);
-  }
-
-  if (milestone !== null) {
-    return <MilestoneScreen finishedChapter={milestone} onContinue={() => setMilestone(null)} />;
   }
 
   const isSummary = active.key === "summary";
@@ -396,6 +403,7 @@ export default function CollectionWizard({
       onNext={isSummary ? handleSubmit : goNext}
       nextVariant={isSummary ? "submit" : "primary"}
       requiredHint={requiredHint}
+      cheer={cheer && CHEER_TEXT[cheer]}
     >
       {active.key === "intro" && <IntroStep s={s} set={set} />}
       {active.key === "injuries" && (
