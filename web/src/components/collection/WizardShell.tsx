@@ -35,6 +35,7 @@ export default function WizardShell(p: ShellProps) {
             return (
               <span
                 key={c}
+                aria-current={active ? "step" : undefined}
                 className={`rounded-full px-3 py-1 text-sm ${
                   done
                     ? "bg-green-100 text-green-700"
@@ -50,7 +51,7 @@ export default function WizardShell(p: ShellProps) {
           })}
         </div>
         {p.dots && (
-          <div className="mt-3 flex justify-center gap-1.5">
+          <div aria-hidden="true" className="mt-3 flex justify-center gap-1.5">
             {Array.from({ length: p.dots.count }, (_, i) => (
               <span
                 key={i}

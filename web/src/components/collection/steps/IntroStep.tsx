@@ -8,10 +8,7 @@ export default function IntroStep({ s, set }: { s: State; set: (patch: Partial<S
         מצטערים על התאונה — אנחנו כאן לעזור. כמה שאלות קצרות (כ־3 דקות), והסוכן
         ייקח את זה מכאן.
       </p>
-      <p className="mt-2 text-base text-zinc-500">
-        הפרטים מועברים לסוכן הביטוח שלך בלבד, והתשובות נשמרות — אפשר לעצור ולחזור
-        לקישור בכל שלב.
-      </p>
+      <p className="mt-2 text-base text-zinc-500">הפרטים מועברים לסוכן הביטוח שלך בלבד.</p>
       <label className="mt-5 flex items-start gap-2">
         <input
           type="checkbox"

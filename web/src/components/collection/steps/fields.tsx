@@ -94,7 +94,7 @@ export function DocField({
     <div className="rounded-xl border border-zinc-200 p-3">
       <div className="flex items-center justify-between gap-2">
         <span className="text-base font-medium">{label}</span>
-        <label className="shrink-0 cursor-pointer rounded-lg border border-blue-600 px-3 py-1.5 text-sm text-blue-700">
+        <label className="min-h-12 inline-flex shrink-0 cursor-pointer items-center rounded-lg border border-blue-600 px-3 py-2.5 text-sm text-blue-700">
           {mine.length ? "הוסף/י" : "צילום / קובץ"}
           <input
             type="file"
@@ -148,7 +148,7 @@ export function Row({ k, v, onEdit }: { k: string; v: string; onEdit: () => void
         <button
           type="button"
           onClick={onEdit}
-          className="flex max-w-full items-center gap-1.5 text-right font-medium"
+          className="flex min-h-12 max-w-full items-center gap-1.5 py-2 text-right font-medium"
         >
           <span className="truncate">{v}</span>
           <span aria-label="עריכה" className="shrink-0 text-xs text-blue-600">

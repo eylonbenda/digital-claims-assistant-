@@ -24,7 +24,7 @@ export default function WhenWhereStep({
         type="button"
         onClick={useMyLocation}
         disabled={geoBusy}
-        className="rounded-lg border border-blue-600 px-3 py-2 text-sm text-blue-700 disabled:opacity-50"
+        className="min-h-12 rounded-lg border border-blue-600 px-3 py-3 text-sm text-blue-700 disabled:opacity-50"
       >
         {geoBusy ? "מאתר…" : "📍 המיקום הנוכחי שלי"}
       </button>

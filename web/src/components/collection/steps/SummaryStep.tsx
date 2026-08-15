@@ -27,7 +27,7 @@ export default function SummaryStep({
     <div>
       <h2 className="text-2xl font-bold">סיכום</h2>
       <p className="mt-1 text-base text-zinc-500">לחיצה על שורה חוזרת לשלב המתאים לתיקון.</p>
-      <dl className="mt-3 divide-y divide-zinc-200 rounded-xl border border-zinc-200 text-sm">
+      <dl className="mt-3 divide-y divide-zinc-200 rounded-xl border border-zinc-200 text-base">
         <Row k="שם" v={`${s.insured.first_name} ${s.insured.last_name}`.trim() || "—"} onEdit={() => goTo("insured")} />
         <Row k="רכב" v={[s.vehicle.plate, s.vehicle.manufacturer].filter(Boolean).join(" · ") || "—"} onEdit={() => goTo("vehicle")} />
         <Row k="נהג" v={s.driver.isInsured === false ? `${s.driver.first_name} ${s.driver.last_name}`.trim() || "—" : s.driver.isInsured ? "המבוטח" : "—"} onEdit={() => goTo("driver_who")} />

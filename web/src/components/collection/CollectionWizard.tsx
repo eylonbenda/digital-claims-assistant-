@@ -146,6 +146,21 @@ export default function CollectionWizard({
   // Guards against out-of-order responses: only the newest lookup may write.
   const lookupSeq = useRef(0);
 
+  // A stepKey that no longer matches any visible step (state changed
+  // elsewhere, e.g. via a restored session or a relevance flip) used to
+  // silently fall back to index 0 — flashing the intro. Correct stepKey
+  // itself here; the render below independently computes the same fallback
+  // index so there's no flash while this effect is still pending.
+  /* eslint-disable react-hooks/set-state-in-effect -- correcting an
+     out-of-sync stepKey is exactly this effect's job; see comment above */
+  useEffect(() => {
+    const vis = visibleSteps(s);
+    if (!vis.some((st) => st.key === stepKey)) {
+      setStepKey(firstIncompleteKey(s));
+    }
+  }, [s, stepKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   // Look the vehicle up in the Ministry of Transport registry once the plate
   // looks complete. Debounced so typing doesn't fire a request per keystroke.
   useEffect(() => {
@@ -310,7 +325,13 @@ export default function CollectionWizard({
   // (spec §3/§6) rather than tracked separately, so relevance changes (e.g. the
   // insured starts driving) can never leave the wizard pointed at a stale step.
   const visible = visibleSteps(s);
-  const idx = Math.max(0, visible.findIndex((st) => st.key === stepKey));
+  const rawIdx = visible.findIndex((st) => st.key === stepKey);
+  // rawIdx === -1 means the effect above hasn't corrected stepKey yet (it
+  // can't run until after this render commits) — render the first
+  // incomplete step's index in the meantime instead of falling through to
+  // index 0 (intro).
+  const idx =
+    rawIdx === -1 ? Math.max(0, visible.findIndex((st) => st.key === firstIncompleteKey(s))) : rawIdx;
   const active = visible[idx];
   const chapterSteps = visible.filter((st) => st.chapter === active.chapter);
   const dots =
