@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="OpenTik">
+  <!-- Full-bleed square: WhatsApp crops avatars to a circle, so the mark is
+       inset well inside the inscribed circle and the field runs edge to edge. -->
+  <rect width="512" height="512" fill="#2563eb"/>
+  <g transform="translate(256 262) scale(0.63) translate(-256 -256)">
+    <path fill="#bfdbfe" stroke="#bfdbfe" stroke-width="28" stroke-linejoin="round"
+          d="M82 166 L186 166 L216 202 L430 202 L430 380 L82 380 Z"/>
+    <rect x="150" y="214" width="212" height="170" rx="12" fill="#ffffff"/>
+    <rect x="182" y="246" width="148" height="15" rx="7.5" fill="#93c5fd"/>
+    <rect x="182" y="278" width="148" height="15" rx="7.5" fill="#93c5fd"/>
+    <path fill="#ffffff" stroke="#ffffff" stroke-width="28" stroke-linejoin="round"
+          d="M80 306 L442 306 L414 400 L58 400 Z"/>
+  </g>
+</svg>
