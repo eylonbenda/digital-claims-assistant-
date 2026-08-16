@@ -38,6 +38,12 @@ test("logo.svg is a self-contained lockup", () => {
   assert.match(svg, /#18181b/i);
 });
 
+test("og-image.svg is 1200x630 on stone-50", () => {
+  const svg = readFileSync(brand("og-image.svg"), "utf8");
+  assert.match(svg, /viewBox="0 0 1200 630"/);
+  assert.match(svg, /#fafaf9/i, "background must be stone-50");
+});
+
 const MONO = [
   ["logo-mono-black.svg", "#18181b"],
   ["logo-mono-white.svg", "#ffffff"],
