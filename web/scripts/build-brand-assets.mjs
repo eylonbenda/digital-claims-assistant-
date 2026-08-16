@@ -38,6 +38,14 @@ async function main() {
   // social card
   await render("og-image.svg", "og-image.png", { width: 1200, height: 630 });
 
+  // WhatsApp Business profile picture — square, circle-crop safe, and strictly
+  // opaque: WhatsApp flattens an alpha channel unpredictably (often to black).
+  await sharp(readFileSync(b("avatar-whatsapp.svg")), { density: 384 })
+    .resize({ width: 512, height: 512 })
+    .flatten({ background: "#2563eb" })
+    .png({ palette: false })
+    .toFile(b("avatar-whatsapp.png"));
+
   await buildIco();
   console.log("brand assets built");
 }
