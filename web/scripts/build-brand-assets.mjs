@@ -47,11 +47,16 @@ async function main() {
 
   // WhatsApp Business profile picture — square, circle-crop safe, and strictly
   // opaque: WhatsApp flattens an alpha channel unpredictably (often to black).
-  await sharp(readFileSync(b("avatar-whatsapp.svg")), { density: 384 })
-    .resize({ width: 512, height: 512 })
-    .flatten({ background: "#2563eb" })
-    .png({ palette: false })
-    .toFile(b("avatar-whatsapp.png"));
+  for (const [src, out, bg] of [
+    ["avatar-whatsapp.svg", "avatar-whatsapp.png", "#2563eb"],
+    ["avatar-whatsapp-wordmark.svg", "avatar-whatsapp-wordmark.png", "#ffffff"],
+  ]) {
+    await sharp(readFileSync(b(src)), { density: 384 })
+      .resize({ width: 512, height: 512 })
+      .flatten({ background: bg })
+      .png({ palette: false })
+      .toFile(b(out));
+  }
 
   await buildIco();
   console.log("brand assets built");

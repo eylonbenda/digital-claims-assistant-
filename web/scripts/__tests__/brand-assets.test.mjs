@@ -121,34 +121,38 @@ test("logo-email.png is 600 wide and opaque white-backed", async () => {
   assert.equal(data[0], 255, "top-left pixel should be white");
 });
 
-test("avatar-whatsapp.png is 512x512 and fully opaque", async () => {
-  const meta = await sharp(brand("avatar-whatsapp.png")).metadata();
-  assert.equal(meta.width, 512);
-  assert.equal(meta.height, 512);
-  assert.equal(meta.hasAlpha, false, "WhatsApp flattens alpha unpredictably");
-});
+const AVATARS = [
+  ["avatar-whatsapp.png", [0x25, 0x63, 0xeb]],
+  ["avatar-whatsapp-wordmark.png", [0xff, 0xff, 0xff]],
+];
 
-test("avatar-whatsapp.png survives a circle crop", async () => {
-  // WhatsApp crops to a circle: every pixel outside the inscribed circle must
-  // be plain background, so nothing of the mark is clipped away.
-  const { data, info } = await sharp(brand("avatar-whatsapp.png"))
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  const r = info.width / 2;
-  const bg = [0x25, 0x63, 0xeb];
-  for (let y = 0; y < info.height; y++) {
-    for (let x = 0; x < info.width; x++) {
-      if (Math.hypot(x - r, y - r) <= r) continue;
-      const i = (y * info.width + x) * info.channels;
-      const off = Math.max(
-        Math.abs(data[i] - bg[0]),
-        Math.abs(data[i + 1] - bg[1]),
-        Math.abs(data[i + 2] - bg[2])
-      );
-      assert.ok(off <= 8, `mark reaches outside the circle at ${x},${y}`);
+for (const [file, bg] of AVATARS) {
+  test(`${file} is 512x512 and fully opaque`, async () => {
+    const meta = await sharp(brand(file)).metadata();
+    assert.equal(meta.width, 512);
+    assert.equal(meta.height, 512);
+    assert.equal(meta.hasAlpha, false, "WhatsApp flattens alpha unpredictably");
+  });
+
+  test(`${file} survives a circle crop`, async () => {
+    // WhatsApp crops to a circle: every pixel outside the inscribed circle must
+    // be plain background, so nothing of the mark is clipped away.
+    const { data, info } = await sharp(brand(file)).raw().toBuffer({ resolveWithObject: true });
+    const r = info.width / 2;
+    for (let y = 0; y < info.height; y++) {
+      for (let x = 0; x < info.width; x++) {
+        if (Math.hypot(x - r, y - r) <= r) continue;
+        const i = (y * info.width + x) * info.channels;
+        const off = Math.max(
+          Math.abs(data[i] - bg[0]),
+          Math.abs(data[i + 1] - bg[1]),
+          Math.abs(data[i + 2] - bg[2])
+        );
+        assert.ok(off <= 8, `mark reaches outside the circle at ${x},${y}`);
+      }
     }
-  }
-});
+  });
+}
 
 test("favicon.ico exists with three embedded sizes", () => {
   const ico = readFileSync(join(ROOT, "src", "app", "favicon.ico"));

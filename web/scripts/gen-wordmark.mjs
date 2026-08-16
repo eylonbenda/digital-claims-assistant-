@@ -198,6 +198,19 @@ const ICON = `<path fill="#1d4ed8" stroke="#1d4ed8" stroke-width="28" stroke-lin
     <rect x="182" y="278" width="148" height="15" rx="7.5" fill="#cbd5e1"/>
     <path fill="#2563eb" stroke="#2563eb" stroke-width="28" stroke-linejoin="round" d="M80 306 L442 306 L414 400 L58 400 Z"/>`;
 
+// One line of text, scaled to a target width and centred on (cx, cy).
+function centredLine(font, text, color, targetW, cx, cy) {
+  const t = typeset(font, text, 200, 0, 0);
+  const b = inkBounds(t.glyphs);
+  const w = b.maxX - b.minX;
+  const h = b.maxY - b.minY;
+  const s = targetW / w;
+  const dx = cx - (b.minX + w / 2) * s;
+  const dy = cy - (b.minY + h / 2) * s;
+  const paths = t.glyphs.map((g) => `<path fill="${color}" d="${g.d}"/>`).join("");
+  return `<g transform="translate(${round2(dx)} ${round2(dy)}) scale(${s.toFixed(5)})">${paths}</g>`;
+}
+
 function main() {
   const font = loadFont(FONT);
 
@@ -251,6 +264,19 @@ ${paint(text.glyphs, ink, blue)}
   writeFileSync(join(BRAND, "logo-mono-black.svg"), lockup("#18181b", "#18181b", mono("#18181b")));
   writeFileSync(join(BRAND, "logo-mono-white.svg"), lockup("#ffffff", "#ffffff", mono("#ffffff")));
   writeFileSync(join(BRAND, "logo-print-bw.svg"), lockup("#000000", "#000000", mono("#000000")));
+
+  // Text-only avatar. The wordmark is roughly 4:1, so set on one line inside a
+  // circle it shrinks to nothing — stacking Open over Tik nearly doubles the
+  // glyph height in the same crop and is what keeps it legible at 40px.
+  writeFileSync(
+    join(BRAND, "avatar-whatsapp-wordmark.svg"),
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="OpenTik">
+  <rect width="512" height="512" fill="#ffffff"/>
+  ${centredLine(font, "Open", INK, 320, 256, 198)}
+  ${centredLine(font, "Tik", BLUE, 224, 256, 330)}
+</svg>
+`
+  );
 
   console.log(`wordmark + lockups written (font: ${FONT})`);
 }
