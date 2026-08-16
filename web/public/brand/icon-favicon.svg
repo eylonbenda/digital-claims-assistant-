@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="OpenTik">
+  <g transform="translate(256 238) scale(1.18) translate(-256 -256)">
+    <path fill="#1e3a8a" stroke="#1e3a8a" stroke-width="28" stroke-linejoin="round"
+          d="M82 166 L186 166 L216 202 L430 202 L430 380 L82 380 Z"/>
+    <rect x="150" y="206" width="212" height="178" rx="12" fill="#ffffff"/>
+    <path fill="#2563eb" stroke="#2563eb" stroke-width="28" stroke-linejoin="round"
+          d="M80 306 L442 306 L414 400 L58 400 Z"/>
+  </g>
+</svg>

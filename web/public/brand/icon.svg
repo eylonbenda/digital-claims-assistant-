@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="OpenTik">
+  <g transform="translate(0 -18)">
+    <!-- back wall with tab -->
+    <path fill="#1d4ed8" stroke="#1d4ed8" stroke-width="28" stroke-linejoin="round"
+          d="M82 166 L186 166 L216 202 L430 202 L430 380 L82 380 Z"/>
+    <!-- document rising out of the folder -->
+    <g>
+      <rect x="150" y="214" width="212" height="170" rx="12" fill="#ffffff"/>
+      <rect x="182" y="246" width="148" height="15" rx="7.5" fill="#cbd5e1"/>
+      <rect x="182" y="278" width="148" height="15" rx="7.5" fill="#cbd5e1"/>
+    </g>
+    <!-- front panel, tilted open toward the viewer -->
+    <path fill="#2563eb" stroke="#2563eb" stroke-width="28" stroke-linejoin="round"
+          d="M80 306 L442 306 L414 400 L58 400 Z"/>
+  </g>
+</svg>
