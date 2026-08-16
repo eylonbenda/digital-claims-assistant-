@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import sharp from "sharp";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const brand = (f) => join(ROOT, "public", "brand", f);
@@ -63,3 +64,42 @@ for (const [file, color] of MONO) {
     assert.match(svg, /viewBox="0 0 1200 320"/);
   });
 }
+
+const RASTERS = [
+  ["icon-16.png", 16, 16],
+  ["icon-32.png", 32, 32],
+  ["apple-touch-icon.png", 180, 180],
+  ["icon-192.png", 192, 192],
+  ["icon-512.png", 512, 512],
+  ["og-image.png", 1200, 630],
+];
+
+for (const [file, w, h] of RASTERS) {
+  test(`${file} is ${w}x${h}`, async () => {
+    const meta = await sharp(brand(file)).metadata();
+    assert.equal(meta.width, w);
+    assert.equal(meta.height, h);
+  });
+}
+
+test("logo-400.png and logo-1200.png keep transparency", async () => {
+  for (const [file, w] of [["logo-400.png", 400], ["logo-1200.png", 1200]]) {
+    const meta = await sharp(brand(file)).metadata();
+    assert.equal(meta.width, w);
+    assert.ok(meta.hasAlpha, `${file} must have an alpha channel`);
+  }
+});
+
+test("logo-email.png is 600 wide and opaque white-backed", async () => {
+  const meta = await sharp(brand("logo-email.png")).metadata();
+  assert.equal(meta.width, 600);
+  const { data } = await sharp(brand("logo-email.png")).raw().toBuffer({ resolveWithObject: true });
+  assert.equal(data[0], 255, "top-left pixel should be white");
+});
+
+test("favicon.ico exists with three embedded sizes", () => {
+  const ico = readFileSync(join(ROOT, "src", "app", "favicon.ico"));
+  assert.equal(ico.readUInt16LE(0), 0, "ICO reserved field");
+  assert.equal(ico.readUInt16LE(2), 1, "ICO type must be 1");
+  assert.equal(ico.readUInt16LE(4), 3, "expected 3 images (16/32/48)");
+});
