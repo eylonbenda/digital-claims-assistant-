@@ -163,6 +163,29 @@ function typeset(font, text, size, startX, baselineY) {
   return { glyphs, width: pen - startX - TRACKING };
 }
 
+const round2 = (n) => +n.toFixed(2);
+
+// Tight bounding box over the emitted paths. Every command we generate (M/L/Q)
+// carries absolute coordinate pairs, so reading the numbers back is exact.
+// Control points of a quadratic lie outside the curve, so this box is a hair
+// generous — imperceptible at these sizes and never clips ink.
+function inkBounds(glyphs) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const g of glyphs) {
+    const nums = g.d.match(/-?\d+(?:\.\d+)?/g);
+    if (!nums) continue;
+    for (let i = 0; i + 1 < nums.length; i += 2) {
+      const x = parseFloat(nums[i]);
+      const y = parseFloat(nums[i + 1]);
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  return { minX, minY, maxX, maxY };
+}
+
 // "Open" is ink, "Tik" is blue.
 const paint = (glyphs, ink = INK, blue = BLUE) =>
   glyphs
@@ -178,16 +201,25 @@ const ICON = `<path fill="#1d4ed8" stroke="#1d4ed8" stroke-width="28" stroke-lin
 function main() {
   const font = loadFont(FONT);
 
-  // standalone wordmark: cap height 140, baseline 170, 20px side padding
-  const wm = typeset(font, "OpenTik", 190, 20, 170);
-  const wmW = Math.ceil(wm.width) + 40;
-  writeFileSync(
-    join(BRAND, "wordmark.svg"),
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${wmW} 220" width="${wmW}" height="220" role="img" aria-label="OpenTik">
-${paint(wm.glyphs)}
+  // Standalone wordmark, trimmed to its own ink so consumers control the
+  // surrounding space rather than fighting baked-in padding.
+  const wm = typeset(font, "OpenTik", 190, 0, 170);
+  const box = inkBounds(wm.glyphs);
+  const wmW = round2(box.maxX - box.minX);
+  const wmH = round2(box.maxY - box.minY);
+  const shift = `translate(${round2(-box.minX)} ${round2(-box.minY)})`;
+
+  const wordmark = (ink, blue) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${wmW} ${wmH}" width="${wmW}" height="${wmH}" role="img" aria-label="OpenTik">
+  <g transform="${shift}">
+${paint(wm.glyphs, ink, blue)}
+  </g>
 </svg>
-`
-  );
+`;
+
+  writeFileSync(join(BRAND, "wordmark.svg"), wordmark(INK, BLUE));
+  writeFileSync(join(BRAND, "wordmark-mono-black.svg"), wordmark("#18181b", "#18181b"));
+  writeFileSync(join(BRAND, "wordmark-mono-white.svg"), wordmark("#ffffff", "#ffffff"));
 
   // lockup: 220px icon + 40px gap + wordmark, centered in a 1200x320 canvas
   const SIZE = 150;

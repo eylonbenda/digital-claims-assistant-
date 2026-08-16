@@ -31,6 +31,30 @@ test("wordmark.svg is outlined and two-tone", () => {
   assert.match(svg, /#2563eb/i, "Tik must be blue-600");
 });
 
+test("wordmark mono variants are single-color", () => {
+  for (const [file, color] of [
+    ["wordmark-mono-black.svg", "#18181b"],
+    ["wordmark-mono-white.svg", "#ffffff"],
+  ]) {
+    const svg = readFileSync(brand(file), "utf8");
+    const colors = new Set(
+      [...svg.matchAll(/(?:fill|stroke)="(#[0-9a-f]{3,8})"/gi)].map((m) => m[1].toLowerCase())
+    );
+    assert.equal(colors.size, 1, `${file}: got ${[...colors].join(", ")}`);
+    assert.equal([...colors][0], color);
+  }
+});
+
+test("wordmark.png is trimmed to its ink on all four edges", async () => {
+  // A name-only logo must carry no baked-in padding, so the mark's own bounds
+  // are the file's bounds and callers control the surrounding space.
+  const src = brand("wordmark-1600.png");
+  const before = await sharp(src).metadata();
+  const after = await sharp(src).trim({ threshold: 1 }).toBuffer({ resolveWithObject: true });
+  assert.equal(after.info.width, before.width, "horizontal slack in the canvas");
+  assert.equal(after.info.height, before.height, "vertical slack in the canvas");
+});
+
 test("logo.svg is a self-contained lockup", () => {
   const svg = readFileSync(brand("logo.svg"), "utf8");
   assert.match(svg, /viewBox="0 0 1200 320"/);

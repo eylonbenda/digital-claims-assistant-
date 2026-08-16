@@ -25,6 +25,13 @@ async function main() {
   await render("logo.svg", "logo-400.png", { width: 400 });
   await render("logo.svg", "logo-1200.png", { width: 1200 });
 
+  // name-only wordmark, transparent
+  await render("wordmark.svg", "wordmark-400.png", { width: 400 });
+  await render("wordmark.svg", "wordmark-800.png", { width: 800 });
+  await render("wordmark.svg", "wordmark-1600.png", { width: 1600 });
+  await render("wordmark-mono-black.svg", "wordmark-mono-black.png", { width: 1600 });
+  await render("wordmark-mono-white.svg", "wordmark-mono-white.png", { width: 1600 });
+
   // print, transparent black
   await render("logo-print-bw.svg", "logo-print-bw.png", { width: 1200 });
 
