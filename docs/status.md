@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-08-12**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-08-16**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -207,6 +207,13 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **Honest fallbacks, not optimistic ones.** The waiting line uses the nearest open task including overdue-but-suppressed ones, so a claim never reads "אין פעולות פתוחות" while work is pending; a claim the client hasn't submitted yet reads "ממתינים ללקוח למילוי הפרטים".
 - **`ClaimsTable.tsx` slimmed to an archive table** — client / type / date / copy-link, with a name-or-phone search box and a "כולל סגורים" toggle. The status-badge and next-task columns moved into the cards above and were dropped here.
 - **Send/skip moved into the card** (`TodayList.tsx`) with the same contract as the old queue row: `POST /api/outbound/events`, `window.open` fired **synchronously** in the handler (any `await` first and the popup blocker eats the send), and a failed write resets the card instead of leaving it disabled.
+
+### Done since last sync (2026-08-16, PR #49 — OpenTik brand assets)
+- **No migration.** Assets + metadata only: no schema, no API route, no lib change.
+- **A real logo kit under `web/public/brand/`**, specced in [superpowers/specs/2026-08-16-opentik-logo-design.md](superpowers/specs/2026-08-16-opentik-logo-design.md). The **SVG masters are the source of truth** — `icon.svg` (open-folder mark), `icon-favicon.svg` (simplified, rule lines dropped below 48px), `wordmark.svg`, `logo.svg` (self-contained lockup), `logo-mono-black/white.svg`, `logo-print-bw.svg`, `og-image.svg`. All text is **outlined paths**, so nothing renders through an installed font.
+- **PNGs are generated, never hand-edited.** `npm run brand` (`web/scripts/build-brand-assets.mjs`) rasterizes icon-16/32/192/512, apple-touch (180), logo-400/1200 (transparent), logo-email (600w, flattened on white), logo-print-bw and og-image (1200×630), and writes the multi-size `web/src/app/favicon.ico` by hand (16/32/48 PNG-in-ICO container). `npm run brand:wordmark` (`scripts/gen-wordmark.mjs`) regenerates the outlined wordmark/lockup SVGs. Rasterizing uses **`sharp` 0.34.5**, deliberately *not* added to `package.json` — it resolves as an optional transitive dep of Next 16.
+- **Wired into the app:** `metadata.icons` (icon 32/192/512 + apple 180) in `web/src/app/layout.tsx`; `metadata.openGraph` with `/brand/og-image.png` on the landing page, whose header text wordmark is replaced by the `/brand/logo.svg` lockup (`next/image`, `priority`).
+- **Own test runner:** `npm run test:brand` → `node --test scripts/__tests__/brand-assets.test.mjs` (master-SVG invariants — viewBox, brand hexes, no `<text>`, mono files single-colour — plus rendered PNG dimensions, alpha, and the ICO header). It is **not** part of `npm run test` (Vitest).
 
 ---
 
