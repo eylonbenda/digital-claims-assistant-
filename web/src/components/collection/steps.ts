@@ -23,7 +23,7 @@ const always = () => true;
 export const STEPS: StepDef[] = [
   { key: "intro",          chapter: "intro",   isTapStep: false, isRelevant: always, isComplete: (s) => s.consent },
   { key: "injuries",       chapter: "quick",   isTapStep: true,  isRelevant: always, isComplete: (s) => s.injuries !== null },
-  { key: "driver_who",     chapter: "quick",   isTapStep: true,  isRelevant: always, isComplete: (s) => s.driver.isInsured !== null },
+  { key: "driver_who",     chapter: "quick",   isTapStep: true,  isRelevant: always, isComplete: (s) => !!s.driver.parked || s.driver.isInsured !== null },
   { key: "fault",          chapter: "quick",   isTapStep: true,  isRelevant: always, isComplete: (s) => s.fault !== null },
   { key: "tp_present",     chapter: "quick",   isTapStep: true,  isRelevant: always, isComplete: (s) => s.thirdParty.present !== null },
   { key: "vehicle",        chapter: "details", isTapStep: false, isRelevant: always,
@@ -37,7 +37,10 @@ export const STEPS: StepDef[] = [
     isComplete: (s) => filled(s.driver.first_name) && filled(s.driver.last_name) && filled(s.driver.id_number) },
   { key: "tp_details",     chapter: "details", isTapStep: false,
     isRelevant: (s) => s.thirdParty.present === true,
-    isComplete: (s) => filled(s.thirdParty.name) && filled(s.thirdParty.plate) && filled(s.thirdParty.insurer) },
+    // details_unknown (hit-and-run) unblocks the step — partial details are still kept.
+    isComplete: (s) =>
+      !!s.thirdParty.details_unknown ||
+      (filled(s.thirdParty.name) && filled(s.thirdParty.plate) && filled(s.thirdParty.insurer)) },
   { key: "when_where",     chapter: "details", isTapStep: false, isRelevant: always,
     isComplete: (s) => filled(s.accident.date) && filled(s.accident.time) && filled(s.accident.location) },
   { key: "description",    chapter: "details", isTapStep: false, isRelevant: always,

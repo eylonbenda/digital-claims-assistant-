@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { waHref } from "@/lib/wa";
 
 interface CreatedClaim {
   id: string;
@@ -54,9 +55,11 @@ export default function NewClaimForm() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  function whatsappLink(link: string, name: string) {
+  function whatsappLink(link: string, name: string, phone: string) {
     const msg = `שלום${name ? ` ${name}` : ""}, צרפתי קישור למילוי פרטי התאונה: ${fullLink(link)}`;
-    return `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    // Deep-link straight into the client's chat when we have their number;
+    // phone is optional, so fall back to WhatsApp's contact picker without it.
+    return waHref(phone, msg) ?? `https://wa.me/?text=${encodeURIComponent(msg)}`;
   }
 
   function reset() {
@@ -85,7 +88,7 @@ export default function NewClaimForm() {
         </div>
         <div className="mt-2 flex gap-2">
           <a
-            href={whatsappLink(created.link, clientName)}
+            href={whatsappLink(created.link, clientName, clientPhone)}
             target="_blank"
             rel="noreferrer"
             className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
