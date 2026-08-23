@@ -39,7 +39,7 @@ The client wizard's own files live in `web/src/components/collection/`: `steps.t
 | `dashboard/` | the `/dashboard` index view model: pure `compose.ts` (`composeDashboard` — claims ⊕ queue ⊕ brief ⊕ open tasks → one `ClaimCard` per claim, split into `attention` / `waiting` / `ok`) and pure `copy.ts` (the Hebrew language layer: greeting, date, track labels, action/וגם/waiting lines). Both unit-tested |
 | `cockpit/` | the `/dashboard/[id]` view model: pure `derive.ts` (`deriveCockpit` — page data → one primary next action by precedence + per-tab badges, caller passes `now`) and pure `copy.ts` (its Hebrew lines, reusing `dashboard/copy.ts` idioms). Both unit-tested |
 | `ai/` | `analyze.ts` — the single structured Claude call (signals only, never the track) |
-| `collection/` | `claim-state.ts` — shared wizard↔server mapping (`State` + `toClaimData`); `persist.ts` — per-token `localStorage` save/restore of wizard progress, keyed by step **key** (`claim-wizard:v2:<token>`, with best-effort migration of a v1 numeric-step blob) |
+| `collection/` | `claim-state.ts` — shared wizard↔server mapping (`State` + `toClaimData`); `persist.ts` — per-token `localStorage` save/restore of wizard progress, keyed by step **key** (`claim-wizard:v2:<token>`, with best-effort migration of a v1 numeric-step blob), plus `draftToSaved` — the shape-checked fallback that rebuilds the same `{stepKey, state}` from the server-synced `summary_json.draft` |
 | `vehicles/` | `registry.ts` — plate lookup against the Ministry of Transport open-data registry (data.gov.il): `lookupVehicle` + the pure `toVehicleInfo` / `mergeVehicleInfo` / plate helpers |
 | `files/` | `sniff.ts` — magic-byte upload validation |
 | `supabase/` | client/server/service-role clients |
@@ -55,6 +55,7 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 |---|---|---|
 | `/api/claims` | GET/POST | agent claim list / create |
 | `/api/claims/submit` | POST | client submits the wizard → auto-fills the accident notice |
+| `/api/claims/draft` | POST | **client** in-progress wizard state by token → merged into `summary_json.draft` (64 KB cap, `409` once the claim is submitted, `{ok:true, demo:true}` when Supabase isn't configured) |
 | `/api/claims/documents` | POST | **client** upload (magic-byte sniffed) |
 | `/api/claims/[id]/documents` | POST | **agent** upload with a type tag |
 | `/api/claims/[id]/classify` | PATCH | agent confirms the track |
