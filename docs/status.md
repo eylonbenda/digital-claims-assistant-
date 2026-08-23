@@ -236,6 +236,10 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **Persistence is v2.** `persist.ts` now saves the step **key** (`claim-wizard:v2:<token>`) rather than an index, so reordering steps can't misplace a resumed client; a leftover v1 blob is migrated best-effort (answers restored, resume at `firstIncompleteKey`, v1 key removed). A saved key that is no longer relevant also falls back to `firstIncompleteKey`.
 - Unit-tested: new `web/src/components/collection/steps.test.ts` (order, conditional visibility, resume position, per-step completeness, key guard) + new cases in `persist.test.ts` (v2 round-trip, v1 migration, unknown key, clearing both versions).
 
+### Done since last sync (2026-08-23, PR #51 — new-claim WhatsApp deep link)
+- **No migration.** One-file client-side fix: `web/src/app/dashboard/NewClaimForm.tsx`.
+- **"שלח בוואטסאפ" on a freshly created claim now opens the client's chat directly.** The button built a bare `https://wa.me/?text=…` (WhatsApp's contact picker) even when the agent had just typed the client's phone into the same form; it now routes through `waHref` from `web/src/lib/wa.ts` — the same builder the cockpit header and the outbound queue use — so the number is normalised to wa.me international format (`0521234567` → `972521234567`).
+- **Phone stays optional.** `waHref` returns `null` for a missing/unparseable number, and the button falls back to the old picker link, so creating a claim with no phone behaves exactly as before.
 ### Done since last sync (2026-08-23, PR #50 — pilot feedback: hit-and-run + parked car)
 - **No migration.** Client-side only: no schema, no new API route, no change to submit, the classifier, the checklist or the task engine. Design note: `docs/superpowers/specs/2026-08-23-pilot-feedback-fixes-design.md`.
 - **Two optional `State` flags unblock the wizard** (`web/src/lib/collection/claim-state.ts`) — optional on purpose, so old `localStorage` drafts and prefill payloads load unchanged and `persist.ts` keeps `v2` (no VERSION bump). Both persist verbatim in `summary_json.collected`.
