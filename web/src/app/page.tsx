@@ -15,6 +15,12 @@ export const metadata: Metadata = {
   title: "OpenTik — עוזר התביעות הדיגיטלי לסוכני ביטוח",
   description:
     "מ׳עברתי תאונה׳ בוואטסאפ לתיק תביעה מסודר עם טופס הודעה על תאונה ממולא — בלי מרדף אחרי הלקוח.",
+  openGraph: {
+    title: "OpenTik — עוזר התביעות הדיגיטלי לסוכני ביטוח",
+    description:
+      "מ׳עברתי תאונה׳ בוואטסאפ לתיק תביעה מסודר עם טופס הודעה על תאונה ממולא — בלי מרדף אחרי הלקוח.",
+    images: [{ url: "/brand/og-image.png", width: 1200, height: 630 }],
+  },
 };
 
 const WHATSAPP_DEMO_URL = `https://wa.me/972524488867?text=${encodeURIComponent(
@@ -144,9 +150,14 @@ export default function Home() {
       `}</style>
 
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-5">
-        <p className="text-xl font-bold tracking-tight">
-          Open<span className="text-blue-600">Tik</span>
-        </p>
+        <Image
+          src="/brand/logo.svg"
+          alt="OpenTik"
+          width={150}
+          height={40}
+          priority
+          className="h-9 w-auto"
+        />
         <Link
           href="/login"
           className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:text-zinc-900"
