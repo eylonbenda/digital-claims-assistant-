@@ -44,6 +44,23 @@ describe("toClaimData — driver", () => {
   it("omits driver entirely when the driver question was not answered", () => {
     expect(toClaimData(base).driver).toBeUndefined();
   });
+
+  it("omits driver when the car was parked (nobody drove)", () => {
+    const d = toClaimData({ ...base, driver: { ...base.driver, parked: true } });
+    expect(d.driver).toBeUndefined();
+  });
+});
+
+describe("toClaimData — third party", () => {
+  it("keeps the partial third-party block on details_unknown (hit-and-run)", () => {
+    const d = toClaimData({
+      ...base,
+      thirdParty: { present: true, details_unknown: true, name: "", phone: "", plate: "1234567", insurer: "" },
+    });
+    expect(d.third_parties).toEqual([
+      { owner_name: "", driver_name: "", phone: "", vehicle_plate: "1234567", insurer: "" },
+    ]);
+  });
 });
 
 describe("toClaimData — declaration", () => {

@@ -17,16 +17,32 @@ export default function TpDetailsStep({
   tpInsurerCustom: boolean;
   setTpInsurerOther: (v: boolean) => void;
 }) {
+  const unknown = !!s.thirdParty.details_unknown;
   return (
     <div>
       <h2 className="text-2xl font-bold">פרטי הצד השני</h2>
       <div className="mt-4 space-y-3">
-        <Text required label="שם הנהג השני" value={s.thirdParty.name} onChange={(v) => set({ thirdParty: { ...s.thirdParty, name: v } })} />
+        <label className="flex items-start gap-2 rounded-xl border border-zinc-200 p-3">
+          <input
+            type="checkbox"
+            checked={unknown}
+            onChange={(e) => set({ thirdParty: { ...s.thirdParty, details_unknown: e.target.checked } })}
+            className="mt-1 h-5 w-5"
+          />
+          <span className="text-base">
+            אין לי את פרטי הצד השני
+            <span className="block text-xs text-zinc-500">למשל: הרכב הפוגע עזב את המקום</span>
+          </span>
+        </label>
+        {unknown && (
+          <p className="text-sm text-zinc-500">אפשר להמשיך — ואם ידוע לך פרט כלשהו (אפילו חלקי), כל פרט עוזר.</p>
+        )}
+        <Text required={!unknown} label="שם הנהג השני" value={s.thirdParty.name} onChange={(v) => set({ thirdParty: { ...s.thirdParty, name: v } })} />
         <Text label="טלפון" type="tel" value={s.thirdParty.phone} onChange={(v) => set({ thirdParty: { ...s.thirdParty, phone: v } })} />
-        <Text required label="מספר רישוי" inputMode="numeric" warn={plateWarn(s.thirdParty.plate)} value={s.thirdParty.plate} onChange={(v) => set({ thirdParty: { ...s.thirdParty, plate: v } })} />
+        <Text required={!unknown} label="מספר רישוי" inputMode="numeric" warn={plateWarn(s.thirdParty.plate)} value={s.thirdParty.plate} onChange={(v) => set({ thirdParty: { ...s.thirdParty, plate: v } })} />
         <label className="block">
           <span className="text-base text-zinc-600">
-            חברת הביטוח שלו<span className="text-red-500"> *</span>
+            חברת הביטוח שלו{!unknown && <span className="text-red-500"> *</span>}
           </span>
           <select
             value={tpInsurerCustom ? OTHER_INSURER : s.thirdParty.insurer}
@@ -48,7 +64,7 @@ export default function TpDetailsStep({
           </select>
         </label>
         {tpInsurerCustom && (
-          <Text required label="שם חברת הביטוח" value={s.thirdParty.insurer} onChange={(v) => set({ thirdParty: { ...s.thirdParty, insurer: v } })} />
+          <Text required={!unknown} label="שם חברת הביטוח" value={s.thirdParty.insurer} onChange={(v) => set({ thirdParty: { ...s.thirdParty, insurer: v } })} />
         )}
       </div>
     </div>
