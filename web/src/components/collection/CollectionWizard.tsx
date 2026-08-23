@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Fault } from "@/lib/formfill/types";
 import { compressImage } from "@/lib/images/compress";
 import { type State, type DocType, INSURERS } from "@/lib/collection/claim-state";
-import { clearWizardState, loadWizardState, saveWizardState } from "@/lib/collection/persist";
+import { clearWizardState, draftToSaved, loadWizardState, saveWizardState } from "@/lib/collection/persist";
 import { isValidIsraeliId, isPlausiblePlate } from "@/lib/validation/il";
 import { reverseGeocode } from "@/lib/geo/reverse";
 import {
@@ -79,9 +79,13 @@ function mergeWithEmpty(prefill?: StatePrefill): State {
 export default function CollectionWizard({
   token,
   prefill,
+  serverDraft,
 }: {
   token: string;
   prefill?: StatePrefill;
+  // summary_json.draft from the DB — the cross-device resume source. Untrusted
+  // JSON shape; draftToSaved validates it.
+  serverDraft?: unknown;
 }) {
   const [s, setS] = useState<State>(() => mergeWithEmpty(prefill));
   const [stepKey, setStepKey] = useState<StepKey>("intro");
@@ -93,7 +97,10 @@ export default function CollectionWizard({
   const [hydrated, setHydrated] = useState(false);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const saved = loadWizardState(token, mergeWithEmpty(prefill));
+    // Local save first (fresher on this device); server draft as fallback —
+    // that's the reopened-in-another-browser / evicted-webview-storage case.
+    const base = mergeWithEmpty(prefill);
+    const saved = loadWizardState(token, base) ?? draftToSaved(serverDraft, base);
     if (saved) {
       setS(saved.state);
       // A restored key that's no longer relevant (state changed since the save,
@@ -109,6 +116,23 @@ export default function CollectionWizard({
   useEffect(() => {
     if (!hydrated || done) return;
     saveWizardState(token, stepKey, s);
+  }, [hydrated, done, token, stepKey, s]);
+  // Server-side draft sync, so progress survives a different browser/device
+  // (localStorage above is per-browser only). Debounced — tap answers and typing
+  // bursts collapse into one write; keepalive lets the last save land even if
+  // the tab is closing. Gated on consent so merely opening the link writes nothing;
+  // failures are ignored (localStorage still covers the same-device case).
+  useEffect(() => {
+    if (!hydrated || done || !s.consent) return;
+    const t = setTimeout(() => {
+      fetch("/api/claims/draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token, step_key: stepKey, collected: s }),
+        keepalive: true,
+      }).catch(() => {});
+    }, 1200);
+    return () => clearTimeout(t);
   }, [hydrated, done, token, stepKey, s]);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -132,6 +156,32 @@ export default function CollectionWizard({
   useEffect(() => {
     stepKeyRef.current = stepKey;
   }, [stepKey]);
+  // Flush the draft on tab hide/close — an answer given inside the debounce
+  // window above would otherwise never reach the server. sendBeacon survives
+  // page teardown; reads via refs so one stable listener sends current state.
+  useEffect(() => {
+    if (!hydrated || done) return;
+    const flush = () => {
+      if (!sRef.current.consent || document.visibilityState !== "hidden") return;
+      try {
+        navigator.sendBeacon?.(
+          "/api/claims/draft",
+          new Blob(
+            [JSON.stringify({ token, step_key: stepKeyRef.current, collected: sRef.current })],
+            { type: "application/json" },
+          ),
+        );
+      } catch {
+        // best-effort — the debounced sync and localStorage still cover most exits.
+      }
+    };
+    document.addEventListener("visibilitychange", flush);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", flush);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [hydrated, done, token]);
   // Set by goTo() (summary edit-jump); consumed by the next navigateNext() call
   // so a tap-step selection or "המשך" made after the jump returns to the
   // summary instead of continuing forward through the wizard.
