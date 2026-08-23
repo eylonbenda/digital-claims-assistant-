@@ -25,7 +25,7 @@ export default async function CollectPage({
   const svc = createServiceClient();
   const { data: claim } = await svc
     .from("claims")
-    .select("id, status, client_name, client_phone")
+    .select("id, status, client_name, client_phone, summary_json")
     .eq("access_token", token)
     .single();
 
@@ -73,5 +73,9 @@ export default async function CollectPage({
   };
   const prefill = Object.keys(insuredPrefill).length ? { insured: insuredPrefill } : undefined;
 
-  return <CollectionWizard token={token} prefill={prefill} />;
+  // Server-synced wizard draft (summary_json.draft) — cross-device resume. The
+  // wizard prefers its own localStorage save and falls back to this.
+  const serverDraft = (claim.summary_json as { draft?: unknown } | null)?.draft;
+
+  return <CollectionWizard token={token} prefill={prefill} serverDraft={serverDraft} />;
 }

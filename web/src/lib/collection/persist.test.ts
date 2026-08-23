@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { State } from "./claim-state";
-import { clearWizardState, loadWizardState, saveWizardState, storageKey } from "./persist";
+import { clearWizardState, draftToSaved, loadWizardState, saveWizardState, storageKey } from "./persist";
 
 const BASE: State = {
   consent: false,
@@ -132,6 +132,35 @@ describe("wizard persistence", () => {
     const state: State = { ...BASE };
     ls.setItem(`claim-wizard:v2:tok`, JSON.stringify({ stepKey: "no_such_step", state }));
     expect(loadWizardState("tok", BASE)?.stepKey).toBeNull();
+  });
+
+  it("draftToSaved restores state + step key from a server draft", () => {
+    const draft = {
+      step_key: "vehicle",
+      collected: { consent: true, insured: { first_name: "דנה" } },
+      saved_at: "2026-08-23T10:00:00Z",
+    };
+    const restored = draftToSaved(draft, BASE)!;
+    expect(restored.stepKey).toBe("vehicle");
+    expect(restored.state.consent).toBe(true);
+    expect(restored.state.insured.first_name).toBe("דנה");
+    expect(restored.state.declaration).toEqual(BASE.declaration);
+  });
+
+  it("draftToSaved sanitizes docs and tolerates junk", () => {
+    const draft = {
+      collected: {
+        documents: [
+          { localId: "a", type: "car_photo", name: "a.jpg", status: "done" },
+          { localId: "b", type: "car_photo", name: "b.jpg", status: "uploading" },
+        ],
+      },
+    };
+    expect(draftToSaved(draft, BASE)!.state.documents.map((d) => d.localId)).toEqual(["a"]);
+    expect(draftToSaved(draft, BASE)!.stepKey).toBeNull();
+    expect(draftToSaved(null, BASE)).toBeNull();
+    expect(draftToSaved("x", BASE)).toBeNull();
+    expect(draftToSaved({ step_key: "vehicle" }, BASE)).toBeNull();
   });
 
   it("clearWizardState removes both versions", () => {

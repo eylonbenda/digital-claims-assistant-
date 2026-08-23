@@ -110,6 +110,23 @@ export function loadWizardState(token: string, base: State): { stepKey: StepKey 
   return loadV2(s, token, base) ?? loadV1(s, token, base);
 }
 
+// Restores from the server-synced draft (summary_json.draft) — the fallback for
+// a device/browser with no localStorage save (link reopened in another browser,
+// WhatsApp webview storage evicted, second device). Same merge + doc sanitation
+// as the local path; the draft blob is untrusted JSON from the DB, so shape-check.
+export function draftToSaved(
+  draft: unknown,
+  base: State,
+): { stepKey: StepKey | null; state: State } | null {
+  if (typeof draft !== "object" || draft === null) return null;
+  const { step_key, collected } = draft as { step_key?: unknown; collected?: unknown };
+  if (typeof collected !== "object" || collected === null) return null;
+  return {
+    stepKey: isStepKey(step_key) ? step_key : null,
+    state: mergeState(base, collected as Partial<State>),
+  };
+}
+
 export function clearWizardState(token: string): void {
   const s = storage();
   if (!s) return;
