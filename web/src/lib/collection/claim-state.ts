@@ -20,6 +20,7 @@ export type State = {
   insured: { first_name: string; last_name: string; id_number: string; mobile: string; city: string };
   driver: {
     isInsured: boolean | null;
+    parked?: boolean; // nobody drove — the car was hit while parked. Optional: absent on pre-existing saves.
     first_name: string;
     last_name: string;
     id_number: string;
@@ -29,7 +30,9 @@ export type State = {
   vehicle: { plate: string; manufacturer: string; year: string };
   accident: { date: string; time: string; location: string; description: string };
   fault: Fault | null;
-  thirdParty: { present: boolean | null; name: string; phone: string; plate: string; insurer: string };
+  // details_unknown: the client can't identify the other side (e.g. hit-and-run) —
+  // unblocks the wizard while keeping whatever partial details they do have.
+  thirdParty: { present: boolean | null; details_unknown?: boolean; name: string; phone: string; plate: string; insurer: string };
   declaration: {
     data_consent: boolean;
     poa_third_party: boolean;
@@ -96,8 +99,9 @@ export function toClaimData(s: State): ClaimData {
         }
       : {}),
     // Driver — only once the "who was driving" question is answered. When the insured
-    // drove, copy their identity into the driver section the forms expect.
-    ...(s.driver?.isInsured == null
+    // drove, copy their identity into the driver section the forms expect. A parked
+    // car had no driver, so the section stays empty on the form.
+    ...(s.driver?.parked || s.driver?.isInsured == null
       ? {}
       : {
           driver: s.driver.isInsured

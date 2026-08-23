@@ -84,6 +84,22 @@ describe("step registry", () => {
     expect(step.isComplete(filled)).toBe(true);
   });
 
+  it("driver_who completes and skips driver_details when the car was parked", () => {
+    const parked: State = { ...BASE, driver: { ...BASE.driver, parked: true } };
+    const who = STEPS.find((s) => s.key === "driver_who")!;
+    expect(who.isComplete(parked)).toBe(true);
+    expect(visibleSteps(parked).map((s) => s.key)).not.toContain("driver_details");
+  });
+
+  it("tp_details.isComplete passes on details_unknown even with empty fields", () => {
+    const step = STEPS.find((s) => s.key === "tp_details")!;
+    const hitAndRun: State = {
+      ...BASE,
+      thirdParty: { ...BASE.thirdParty, present: true, details_unknown: true },
+    };
+    expect(step.isComplete(hitAndRun)).toBe(true);
+  });
+
   it("tp_details.isComplete requires name/plate/insurer, not just some", () => {
     const step = STEPS.find((s) => s.key === "tp_details")!;
     const missingName: State = {
