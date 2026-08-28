@@ -18,23 +18,23 @@ const shlomo: Template = {
     { key: "insured.last_name", right: 560, y: 727, size: 8 },
     { key: "insured.first_name", right: 473, y: 727, size: 8 },
     { key: "policy_number", right: 405, y: 727, size: 8 },
-    { key: "insured.id_number", right: 260, y: 729, size: 8 }, // digit-comb cell — sit above the ticks
+    { key: "insured.id_number", right: 260, y: 720, size: 8 }, // digit-comb cell — in the tick band, below the caption
     { key: "insured.phone", right: 100, y: 737, size: 7 }, // טל' בעבודה — value left of label
     { key: "insured.mobile", right: 100, y: 727, size: 7 }, // טל' בית
 
     // ===== פרטי הנהג בארוע =====
-    { key: "driver.last_name", right: 567, y: 675, size: 9 },
-    { key: "driver.first_name", right: 494, y: 675, size: 9 },
-    { key: "driver.address_line", right: 385, y: 675, size: 7 },
-    { key: "driver.relation_to_insured", right: 218, y: 675, size: 8 },
+    { key: "driver.last_name", right: 567, y: 683, size: 9 },
+    { key: "driver.first_name", right: 494, y: 683, size: 9 },
+    { key: "driver.address_line", right: 385, y: 683, size: 7 },
+    { key: "driver.relation_to_insured", right: 218, y: 683, size: 8 },
     { key: "driver.phone", right: 68, y: 694, size: 7 }, // טל' בעבודה — value left of label
     { key: "driver.mobile", right: 68, y: 684, size: 7 }, // טל' בית
 
-    { key: "driver.birth_date", right: 543, y: 663, size: 6.5 }, // digit-comb — centered, raised off bottom border
-    { key: "driver.id_number", right: 451, y: 663, size: 7 }, // digit-comb — sit above the ticks
+    { key: "driver.birth_date", right: 543, y: 656, size: 6.5 }, // digit-comb — in the tick band, below the caption
+    { key: "driver.id_number", right: 451, y: 653, size: 7 }, // digit-comb — in the tick band, below the caption
     { key: "driver.license_number", right: 328, y: 655, size: 8 },
     { key: "driver.license_type", right: 269, y: 655, size: 8 },
-    { key: "driver.license_date", right: 165, y: 660, size: 7 }, // digit-comb — centered, raised off bottom border
+    { key: "driver.license_date", right: 165, y: 662, size: 7 }, // digit-comb — centered, raised off bottom border
     {
       key: "driver.license_origin",
       type: "checkbox",
@@ -43,14 +43,14 @@ const shlomo: Template = {
     },
 
     // ===== פרטי הרכב =====
-    { key: "vehicle.plate", right: 552, y: 616, size: 8 }, // plate digit-comb — raised off bottom border
+    { key: "vehicle.plate", right: 552, y: 607, size: 8 }, // plate digit-comb — in the tick band, below the caption
     { key: "vehicle.year", right: 470, y: 613, size: 8 },
     { key: "vehicle.manufacturer", right: 230, y: 613, size: 7 }, // שם היצרן
     { key: "vehicle.model", right: 340, y: 613, size: 7 }, // דגם cell (no separate make field)
     { key: "vehicle.type", right: 280, y: 613, size: 7 }, // סוג הרכב, free-text -> Hebrew via labels
 
     // ===== פרטי המקרה/התאונה =====
-    { key: "accident.date", right: 546, y: 569, size: 6.5 }, // digit-comb — centered, raised off bottom border
+    { key: "accident.date", right: 546, y: 564, size: 6.5 }, // digit-comb — in the tick band, below the caption
     { key: "accident.time", right: 478, y: 563, size: 8 },
     { key: "accident.location", right: 430, y: 563, size: 7 },
     { key: "accident.police.station", right: 202, y: 563, size: 7 },
@@ -112,7 +112,7 @@ const shlomo: Template = {
     { key: "injured_persons.0.name", right: 567, y: 178, size: 8 },
     { key: "injured_persons.0.address", right: 434, y: 178, size: 7 },
     { key: "injured_persons.0.id_number", right: 273, y: 183, size: 6.5 }, // digit-comb — sit above the ticks
-    { key: "injured_persons.0.age", right: 163, y: 155, size: 8 },
+    { key: "injured_persons.0.age", right: 280, y: 155, size: 8 }, // גיל cell — between אושפז caption and גיל label
     { key: "injured_persons.0.injury_nature", right: 543, y: 155, size: 8 },
     {
       key: "injured_persons.0.hospitalized",
@@ -124,7 +124,7 @@ const shlomo: Template = {
     { key: "injured_persons.1.name", right: 567, y: 141, size: 8 },
     { key: "injured_persons.1.address", right: 434, y: 141, size: 7 },
     { key: "injured_persons.1.id_number", right: 273, y: 146, size: 6.5 }, // digit-comb — sit above the ticks
-    { key: "injured_persons.1.age", right: 163, y: 118, size: 8 },
+    { key: "injured_persons.1.age", right: 280, y: 118, size: 8 }, // גיל cell — between אושפז caption and גיל label
     { key: "injured_persons.1.injury_nature", right: 543, y: 118, size: 8 },
     {
       key: "injured_persons.1.hospitalized",
@@ -136,7 +136,7 @@ const shlomo: Template = {
     { key: "injured_persons.2.name", right: 567, y: 104, size: 8 },
     { key: "injured_persons.2.address", right: 434, y: 104, size: 7 },
     { key: "injured_persons.2.id_number", right: 273, y: 109, size: 6.5 }, // digit-comb — sit above the ticks
-    { key: "injured_persons.2.age", right: 163, y: 81, size: 8 },
+    { key: "injured_persons.2.age", right: 280, y: 81, size: 8 }, // גיל cell — between אושפז caption and גיל label
     { key: "injured_persons.2.injury_nature", right: 543, y: 81, size: 8 },
     {
       key: "injured_persons.2.hospitalized",

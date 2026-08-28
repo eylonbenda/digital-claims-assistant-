@@ -63,17 +63,18 @@ const clal: Template = {
     // Row 2 (מספר רכב right col / סוג הרכב left col) shares one baseline with the checkbox
     // list below it (no separate blank row for the plate).
     { key: "third_parties.0.vehicle_plate", page: 2, right: 555, y: 237, size: 8 },
-    // Checkbox glyphs (□) precede each label in RTL order (box x > label's own x). "פרטי" is
-    // the last/rightmost option and its box glyph wasn't in the extracted text stream —
-    // estimated from the ~5-6pt label-edge-to-box gap consistent across the other 5 options.
+    // Checkbox glyphs (□) sit to the LEFT of each label in this RTL row (box x < label's own
+    // x — the previous estimate had this backwards, which put the X off the left edge of the
+    // מספר רכב cell). Re-measured directly off coords.mjs's text stream for page index 2:
+    // "□"@(329,233) precedes "פרטי"@(342,234); "□"@(284,233) precedes "מסחרי"@(297,234).
     {
       key: "third_parties.0.vehicle_type",
       type: "checkbox",
       page: 2,
-      size: 8,
+      size: 9,
       options: {
-        private: [367, 237],
-        commercial: [330, 237],
+        private: [329, 233],
+        commercial: [284, 233],
       },
     },
 
@@ -87,7 +88,11 @@ const clal: Template = {
     // id_number: right anchored near the grid's own right edge (552.3), not mid-grid — a
     // right-anchored single-string draw doesn't land per-digit-cell, but anchoring near the
     // true right border keeps the digits hugging the grid instead of drifting left of it.
-    { key: "third_parties.0.id_number", page: 2, right: 548, y: 180, size: 8 },
+    // size 7 / y=178 (was 8/180): the 9-char string is far narrower than the 9-cell comb
+    // (~127pt), so a couple of internal ticks crossing it is unavoidable (same as
+    // templates/phoenix.ts's id-comb fields) — the smaller size just tightens the string so
+    // fewer ticks are crossed, nudged up off the row's bottom border.
+    { key: "third_parties.0.id_number", page: 2, right: 548, y: 178, size: 7 },
     { key: "third_parties.0.driver_name", part: "rest", page: 2, right: 422, y: 180, size: 8 }, // שם משפחה
     { key: "third_parties.0.driver_name", part: "first", page: 2, right: 308, y: 180, size: 8 }, // שם פרטי
 
