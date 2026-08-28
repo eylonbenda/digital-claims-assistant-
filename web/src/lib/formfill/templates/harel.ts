@@ -25,7 +25,7 @@ const harel: Template = {
     // below the label with no clear band — so digits are raised to sit just above the tick tops
     // (baseline right under the label) at a small size, clearing the ticks instead of straddling
     // them (was struck through at size 8/y=681, mid-tick). 2026-08-28.
-    { key: "insured.id_number", right: 397, y: 686, size: 7 },
+    { key: "insured.id_number", right: 397, y: 681, size: 10 },
     { key: "insured.first_name", right: 504, y: 691, size: 8 },
     { key: "insured.last_name", right: 460, y: 691, size: 8 },
     // vehicle.type — free-text cell would collide with the checkbox glyphs on this row, so map
@@ -61,8 +61,8 @@ const harel: Template = {
     // the row's top line (y=592) and the tick dividers fill the band right below it — draw the
     // digits small, just above the tick tops, same fix as insured.id_number above. Was y=580/
     // size 8, which sat mid-tick and rendered struck through. 2026-08-28.
-    { key: "driver.id_number", right: 297, y: 584, size: 7 },
-    { key: "driver.birth_date", right: 162, y: 584, size: 7 },
+    { key: "driver.id_number", right: 297, y: 579, size: 10 },
+    { key: "driver.birth_date", right: 162, y: 579, size: 10 },
 
     { key: "driver.address_line", right: 531, y: 571, size: 8 }, // רחוב cell (single free-text line)
     { key: "driver.phone", right: 514, y: 551, size: 9 },
@@ -173,7 +173,7 @@ const harel: Template = {
     // small size, baseline raised just above the tick tops. Other cells' labels occupy most of
     // the cell width, so answers are written to the label's left.
     { key: "third_parties.0.owner_name", right: 498, y: 208, size: 8 },
-    { key: "third_parties.0.id_number", right: 388, y: 203, size: 6.5 },
+    { key: "third_parties.0.id_number", right: 388, y: 198, size: 10 },
     { key: "third_parties.0.address", right: 224, y: 208, size: 8 },
     { key: "third_parties.0.phone", right: 84, y: 208, size: 8 },
 
