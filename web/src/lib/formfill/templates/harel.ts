@@ -20,8 +20,12 @@ const harel: Template = {
     { key: "vehicle.model", right: 300, y: 711, size: 8 }, // תוצר ודגם (manufacturer+model cell)
     { key: "vehicle.plate", right: 515, y: 711, size: 9 },
 
-    // מס' ת.ז. is a 9-digit grid cell (right edge 400); ticks sit just below the label line.
-    { key: "insured.id_number", right: 397, y: 681, size: 8 },
+    // מס' ת.ז. is a 9-digit comb cell (right edge ~400); the tick dividers run from the label's
+    // baseline down to the row's bottom border (fromtop ~152-164pt), filling the entire space
+    // below the label with no clear band — so digits are raised to sit just above the tick tops
+    // (baseline right under the label) at a small size, clearing the ticks instead of straddling
+    // them (was struck through at size 8/y=681, mid-tick). 2026-08-28.
+    { key: "insured.id_number", right: 397, y: 686, size: 7 },
     { key: "insured.first_name", right: 504, y: 691, size: 8 },
     { key: "insured.last_name", right: 460, y: 691, size: 8 },
     // vehicle.type — free-text cell would collide with the checkbox glyphs on this row, so map
@@ -39,7 +43,9 @@ const harel: Template = {
     { key: "insured.street", right: 531, y: 669, size: 9 },
     { key: "insured.house_no", right: 324, y: 669, size: 9 },
     { key: "insured.city", right: 278, y: 669, size: 8 },
-    { key: "insured.postal_code", right: 60, y: 669, size: 8 },
+    // מיקוד cell is narrow (left border x=29, label starts x=63) — 7 digits at size 8 (right=60)
+    // overflowed past the left border; shrunk + nudged right to fit clear of it. 2026-08-28.
+    { key: "insured.postal_code", right: 58, y: 669, size: 6.5 },
 
     { key: "insured.phone", right: 513, y: 649, size: 9 },
     { key: "insured.mobile", right: 360, y: 649, size: 9 },
@@ -51,10 +57,12 @@ const harel: Template = {
     // column, unlike the insured row above — use the synthetic .full_name key (engine.ts)
     // to join first+last rather than dropping the surname.
     { key: "driver.full_name", right: 517, y: 592, size: 8 },
-    // מס' ת.ז. / תאריך לידה are per-digit grid cells (right edges 301 / 165); label sits on the
-    // row's top line (y=592), the digit boxes are lower (y≈580) — offset down to avoid collision.
-    { key: "driver.id_number", right: 297, y: 580, size: 8 },
-    { key: "driver.birth_date", right: 162, y: 580, size: 8 },
+    // מס' ת.ז. / תאריך לידה are per-digit comb cells (right edges 301 / 165); label baseline is
+    // the row's top line (y=592) and the tick dividers fill the band right below it — draw the
+    // digits small, just above the tick tops, same fix as insured.id_number above. Was y=580/
+    // size 8, which sat mid-tick and rendered struck through. 2026-08-28.
+    { key: "driver.id_number", right: 297, y: 584, size: 7 },
+    { key: "driver.birth_date", right: 162, y: 584, size: 7 },
 
     { key: "driver.address_line", right: 531, y: 571, size: 8 }, // רחוב cell (single free-text line)
     { key: "driver.phone", right: 514, y: 551, size: 9 },
@@ -160,10 +168,12 @@ const harel: Template = {
       },
     },
 
-    // owner row: id_number is a 9-digit grid (cell 253-391); ticks sit just below the label (y=208).
-    // Other cells' labels occupy most of the cell width, so answers are written to the label's left.
+    // owner row: id_number is a 9-digit comb cell (253-391); ticks fill the band right below the
+    // label (y=208) down to the row's bottom border, same as the other id_number cells above —
+    // small size, baseline raised just above the tick tops. Other cells' labels occupy most of
+    // the cell width, so answers are written to the label's left.
     { key: "third_parties.0.owner_name", right: 498, y: 208, size: 8 },
-    { key: "third_parties.0.id_number", right: 388, y: 200, size: 8 },
+    { key: "third_parties.0.id_number", right: 388, y: 203, size: 6.5 },
     { key: "third_parties.0.address", right: 224, y: 208, size: 8 },
     { key: "third_parties.0.phone", right: 84, y: 208, size: 8 },
 

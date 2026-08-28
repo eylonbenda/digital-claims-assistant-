@@ -12,7 +12,9 @@ const shomera: Template = {
   srcFile: "shomera.pdf",
   fields: [
     // פרטי המבוטח והפוליסה
-    { key: "insured.id_number", right: 440, y: 735, size: 8 },
+    // Comb ticks for this cell sit low, right against the row's bottom border (bottom-origin
+    // y≈733.9-747.6) — baseline raised into the blank band above them, clear of the ticks.
+    { key: "insured.id_number", right: 440, y: 748, size: 8 },
     { key: "insured.full_name", right: 494, y: 735, size: 8 }, // single "שם המבוטח" cell, no split first/last
     { key: "insured.address_line", right: 160, y: 736, size: 8 },
     { key: "insured.mobile", right: 409, y: 726, size: 8 }, // single "מס' טלפון / נייד" cell
@@ -27,10 +29,16 @@ const shomera: Template = {
       size: 7,
       options: { comprehensive: [102, 700], third_party: [102, 691], mandatory: [102, 682] },
     },
-    { key: "agent_name", right: 488, y: 679, size: 8 },
+    // Very short row (~4pt blank band above the comb ticks, right under the row's top
+    // border) — sized down hard to clear both the border above and the ticks below.
+    // Straddles the dashed comb ticks like the other comb fields — legibility over purity
+    // (a tick-clearing position only fits at ~4pt, which is unreadable).
+    { key: "agent_name", right: 488, y: 688, size: 6.5 },
 
     // פרטי הרכב
-    { key: "vehicle.plate", right: 546, y: 640, size: 8 },
+    // Comb ticks run most of the row height; raised into the ~6.5pt blank band just below
+    // the section header / row-top border, sized down so ascenders stay clear of it.
+    { key: "vehicle.plate", right: 546, y: 653, size: 7 },
     { key: "vehicle.model", right: 304, y: 640, size: 8 }, // שם יצרן הרכב והדגם (combined cell)
     // סוג רכב: פרטי / מסחרי — "אחר" has no matching canonical VehicleType, left unmapped.
     {
@@ -42,9 +50,14 @@ const shomera: Template = {
 
     // פרטי הנהג
     { key: "driver.full_name", right: 496, y: 594, size: 8 },
-    { key: "driver.id_number", right: 428, y: 594, size: 8 },
+    // Comb ticks sit low in this cell (bottom-origin y≈606-619); raised into the blank band
+    // right under the "פרטי הנהג" section header, clear of them.
+    { key: "driver.id_number", right: 428, y: 612, size: 8 },
     { key: "driver.relation_to_insured", right: 224, y: 594, size: 8 }, // הקשר לבעל הרכב
-    { key: "driver.address_line", right: 102, y: 594, size: 8 },
+    // Narrow leftmost cell in this row (shares the row with name/ת"ז/הקשר לבעל הרכב) — much
+    // less width than the insured's dedicated address row above, so shrunk hard to stay clear
+    // of the table's left border instead of overflowing past the page edge.
+    { key: "driver.address_line", right: 99, y: 594, size: 6.5 },
     { key: "driver.mobile", right: 515, y: 583, size: 8 }, // מס' טלפון / נייד
     { key: "driver.birth_date", right: 418, y: 575, size: 7 }, // תאריך לידה של הנהג (3-line label)
     { key: "driver.license_number", right: 326, y: 573, size: 8 }, // מס' רישיון
@@ -110,7 +123,9 @@ const shomera: Template = {
     // האירוע above) — write the value in the blank strip above the caption, not beside it.
     { key: "third_parties.0.driver_name", right: 458, y: 324, size: 8 },
     { key: "third_parties.0.phone", right: 228, y: 330, size: 8 },
-    { key: "third_parties.0.vehicle_plate", right: 125, y: 316, size: 8 }, // מס' רישוי
+    // Comb ticks start well below the row's top border here — plenty of headroom (~14pt),
+    // raised well clear of them.
+    { key: "third_parties.0.vehicle_plate", right: 125, y: 327, size: 8 }, // מס' רישוי
     { key: "third_parties.0.owner_name", right: 473, y: 299, size: 8 },
     { key: "third_parties.0.id_number", right: 395, y: 286, size: 8 }, // owner's ת"ז
     {
@@ -127,7 +142,8 @@ const shomera: Template = {
     // הרשאה לביצוע העברה בנקאית
     { key: "bank_account.bank", right: 225, y: 230, size: 8 },
     { key: "bank_account.branch", right: 88, y: 230, size: 8 },
-    { key: "bank_account.account_number", right: 549, y: 211, size: 8 }, // מספר חשבון
+    // Straddles the comb ticks (like agent_name) — the tick-free band only fits ~5.5pt.
+    { key: "bank_account.account_number", right: 549, y: 217, size: 7 }, // מספר חשבון
 
     // הצהרת המבוטח — single check-to-consent boxes (unchecked = false, no "no" box on form).
     {

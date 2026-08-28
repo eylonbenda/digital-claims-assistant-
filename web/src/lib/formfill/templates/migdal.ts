@@ -12,7 +12,12 @@ const migdal: Template = {
     // א. פרטי המבוטח
     { key: "insured.first_name", right: 241, y: 662 },
     { key: "insured.last_name", right: 402, y: 662 },
-    { key: "insured.id_number", right: 536, y: 662 },
+    // ID comb has 9 boxes at ~11.1pt pitch, x≈467-566 (dividers via migdal_lines.mjs).
+    // Default size drew the whole 9-digit string ~52pt wide (≈5.8pt/char) starting mid-comb,
+    // so several digits shared one box while the trailing boxes sat empty. size:18 makes the
+    // string's total width (~93pt / 10.3pt per char) approximate the comb's pitch so digits
+    // land roughly one-per-box; right anchored a couple pt inside the comb's right edge (566).
+    { key: "insured.id_number", right: 564, y: 660, size: 18 },
     { key: "insured.birth_date", right: 142, y: 662 },
     { key: "insured.street", right: 405, y: 635 },
     { key: "insured.house_no", right: 286, y: 635 },
@@ -64,8 +69,13 @@ const migdal: Template = {
     { key: "driver.email", right: 140, y: 440, size: 8 },
 
     // ד. פרטי האירוע
-    { key: "accident.date", right: 558, y: 335 },
-    { key: "accident.time", right: 504, y: 335 },
+    // Date/time cells sit in adjacent columns divided at pdf x≈509.6 (found via
+    // migdal_render_xy.mjs zoom); at default size the two values' text abutted the
+    // divider from both sides with ~5pt combined gap and read as one jammed string
+    // ("14:3022/06/2026"). size:9 + right anchors pulled off the divider (564/500)
+    // give each value clear breathing room inside its own cell.
+    { key: "accident.date", right: 564, y: 335, size: 9 },
+    { key: "accident.time", right: 500, y: 335, size: 9 },
     { key: "accident.passengers", right: 181, y: 335 },
     {
       key: "accident.trip_type",
@@ -96,7 +106,17 @@ const migdal: Template = {
 
     // ── Page 2 (index 1) ────────────────────────────────────────────────────
 
-    // ה. פרטי נפגעי גוף — row 1: "האם הנפגע אושפז בבי"ח" כן/לא
+    // ה. פרטי נפגעי גוף — row 1
+    // Identity sub-row (name/id/address; "האם בעת התאונה הייית" in/out-of-vehicle has no
+    // canonical field — schema gap) sits just above the phone/age/hospital sub-row.
+    // Columns (right→left): שם הנפגע [433-564] | מספר זהות comb [333.9-433.1, 9 boxes
+    // @~11pt pitch] | האם בעת התאונה הייית [205-334, schema gap] | כתובת מגורים [28-205].
+    { key: "injured_persons.0.name", page: 1, right: 558, y: 490, size: 9 },
+    // Same 9-box comb convention as insured.id_number on page 1: size:18 makes the
+    // 9-digit string's width approximate the comb's pitch so digits land one-per-box.
+    { key: "injured_persons.0.id_number", page: 1, right: 431, y: 484, size: 18 },
+    { key: "injured_persons.0.address", page: 1, right: 198, y: 490, size: 8 },
+    // "האם הנפגע אושפז בבי"ח" כן/לא
     {
       key: "injured_persons.0.hospitalized",
       type: "checkbox",
@@ -104,6 +124,8 @@ const migdal: Template = {
       size: 9,
       options: { yes: [337, 459], no: [359, 459] },
     },
+    // מהות הפגיעה — narrow leftmost column [28-98] of the phone/age/hospital sub-row.
+    { key: "injured_persons.0.injury_nature", page: 1, right: 97, y: 459, size: 7 },
 
     // ── Page 3 (index 2) ────────────────────────────────────────────────────
 
@@ -116,17 +138,20 @@ const migdal: Template = {
     { key: "third_parties.0.address", page: 2, right: 295, y: 690, size: 8 },
 
     // מי אשם — "מי לדעתך אחרי לתאונה?"
-    // אני(המבוטח): מלא=[255,596]  חלקי=[230,596]  לא ידוע=[204,596]
-    // צד ג':        מלא=[530,596]  חלקי=[505,596]  לא ידוע=[479,596]
+    // Box centres (boxdetect.mjs): אני(המבוטח) מלא=(255,596) חלקי=(230,596) לא ידוע=(204,596)
+    //                               צד ג'        מלא=(530,596) חלקי=(505,596) לא ידוע=(479,596)
+    // X-position = box centre minus ~4,4 (this form's usual convention). The previous values
+    // were offset an extra -3 in x, landing the X half outside the "מלא" box's left edge
+    // (box spans x251-259/x526-534/x200-208) — corrected here to centre-4.
     // Mapping: fault=me -> X in "אני מלא"; fault=third_party -> X in "צד ג' מלא"; fault=unknown -> X in "אני לא ידוע"
     {
       key: "fault",
       type: "checkbox",
       page: 2,
       options: {
-        me: [248, 592],
-        third_party: [523, 592],
-        unknown: [197, 592],
+        me: [251, 592],
+        third_party: [526, 592],
+        unknown: [200, 592],
       },
     },
     // ט. הצהרות המבוטח — "אני מסכים/ה שהאגף לשירותי מידע במשרד התחבורה יעביר מידע..."
