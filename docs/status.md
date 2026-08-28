@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-08-23**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-08-28**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -255,6 +255,15 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **Summary screen** now shows a **צד שני** row (name · plate, falling back to "מעורב — אין פרטים"; edit-jumps to `tp_details`, or `tp_present` when there's no third party), and the נהג row reads "אף אחד — הרכב היה חנוי" for a parked car.
 - Unit-tested: new cases in `steps.test.ts` (parked completes `driver_who` and hides `driver_details`; `details_unknown` completes `tp_details`) and `claim-state.test.ts` (parked omits the driver block; the partial TP block survives `details_unknown`).
 - **Still open from the same feedback batch:** the "שלח בוואטסאפ" link on `NewClaimForm` (`web/src/app/dashboard/NewClaimForm.tsx`) still builds a phone-less `wa.me/?text=…`, so it opens WhatsApp's contact picker instead of the client's chat. The design note specs the fix (reuse `waHref` from `lib/wa.ts`); it is **not** in this PR.
+
+### Done since last sync (2026-08-28, PR #53 — הפניקס template rework)
+- **No migration, one file:** `web/src/lib/formfill/templates/phoenix.ts` — coordinates and font sizes only. No engine, schema, route or other-insurer change.
+- **Legibility pass.** Most fields were drawn at 5–8pt (some at 5pt, effectively unreadable in print); they are now 7–10pt across the template — description 8→10, plate 8→9, injured-person rows 6–7→7–8, mailing-address row 5–6→6–7.
+- **ת.ז. combs fixed.** `insured.id_number` and `driver.id_number` were sitting on the caption baseline instead of inside the 9-digit comb; both now land in the tick band (insured `right=248/y=638/size 9`, driver `right=436/y=595/size 9`).
+- **"מי אשם" circles re-measured.** The three `fault` circle centres were consistently short of the true centres, so the X printed above-right of the circle rather than inside it. Re-read off a 20× mupdf render per option (`render.mjs`) — `boxdetect.mjs` only sees rectangle `constructPath` ops, so vector circles never showed up there and the earlier y≈337 "triplet" was unrelated glyph noise.
+- **Third-party top block was one row off.** That block is **three** stacked rows sharing the same columns (A = רכב/ביטוח, B = בעל הרכב, C = נהג); `driver_name`/`address`/`id_number`/`phone` were all written into row B (the owner row) and now sit in row C (y=244 → y=220). `third_parties.0.owner_name` — previously declared unmappable in the file header and left blank — is mapped in row B (y=242).
+- **Signature block.** `declarations.signatory_name` used to print once at `right=325/y=158`, which turned out to be an **uncaptioned** middle cell, not "חתימת המבוטח". It is now printed on the three captioned signature lines (חתימת המבוטח · חתימת הנהג · חתימת בעל הרכב), and `declarations.date` fills the previously-empty "תאריך" box. Same typed-name-as-signature product decision as [the 2026-07-14 design note](superpowers/specs/2026-07-14-driver-and-declaration-design.md) — that note predates this rework and still describes הפניקס as having *two* signature boxes.
+- **Not verified here:** no render QA artefact is committed with the PR (`.pdfwork/*_coords.json` / `*.png` are gitignored), so the new positions rest on the in-file measurements. Re-render via `web/scripts/fill.ts` before trusting them in the pilot.
 
 ---
 
