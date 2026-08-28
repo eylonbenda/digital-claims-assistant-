@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-08-23**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-08-28**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -255,6 +255,15 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **Summary screen** now shows a **צד שני** row (name · plate, falling back to "מעורב — אין פרטים"; edit-jumps to `tp_details`, or `tp_present` when there's no third party), and the נהג row reads "אף אחד — הרכב היה חנוי" for a parked car.
 - Unit-tested: new cases in `steps.test.ts` (parked completes `driver_who` and hides `driver_details`; `details_unknown` completes `tp_details`) and `claim-state.test.ts` (parked omits the driver block; the partial TP block survives `details_unknown`).
 - **Still open from the same feedback batch:** the "שלח בוואטסאפ" link on `NewClaimForm` (`web/src/app/dashboard/NewClaimForm.tsx`) still builds a phone-less `wa.me/?text=…`, so it opens WhatsApp's contact picker instead of the client's chat. The design note specs the fix (reuse `waHref` from `lib/wa.ts`); it is **not** in this PR.
+
+### Done since last sync (2026-08-28, PR #55 — form render pass: שלמה · מגדל · הראל · שומרה · כלל)
+- **No migration.** Coordinate templates only — five files under `web/src/lib/formfill/templates/` (`shlomo.ts`, `migdal.ts`, `harel.ts`, `shomera.ts`, `clal.ts`). No schema, route, engine or canonical-schema change; the registry is still the same 11 insurers.
+- **The recurring defect was digit-comb cells.** ת"ז / תאריך / מס' רישוי cells are split into per-digit boxes whose tick dividers fill most of the row height, and values drawn at the old y/size sat mid-tick — rendering **struck through** (הראל `insured`/`driver`/`third_parties.0` `id_number` + `driver.birth_date`; שומרה `insured`/`driver.id_number`, `vehicle.plate`, `third_parties.0.vehicle_plate`; שלמה's five comb fields; כלל `third_parties.0.id_number`). The convention now used across the templates — draw in the tick-free band at a reduced size (6.5–8), and where no legible band exists (שומרה `agent_name`, `bank_account.account_number`, ~4–5.5pt) straddle the ticks on purpose — is recorded in [form-field-map.md](form-field-map.md).
+- **מגדל's combs are the exception:** 9 boxes at ~11pt pitch, so `insured.id_number` + `injured_persons.0.id_number` use `size: 18` to make the string's width approximate the comb pitch and land roughly one digit per box.
+- **Two checkbox groups were mis-placed and are now taken from the detected box rects.** כלל `third_parties.0.vehicle_type`: the box glyph sits to the **left** of its label in that RTL row — the earlier estimate assumed the opposite and put the X off the cell's left edge. מגדל `fault`: the X carried an extra −3 in x and landed half outside the "מלא" box; now box-centre − 4.
+- **מגדל page 2 gained the נפגעי גוף identity sub-row** — `injured_persons.0.name` / `.id_number` / `.address` / `.injury_nature` are now mapped (all four already existed in the canonical schema). **Schema gap, flagged in the code:** that row's "האם בעת התאונה הייית" (ברכב / מחוץ לרכב) column has no canonical field and stays blank.
+- **Overflow/collision fixes:** הראל `insured.postal_code` (7 digits ran past the מיקוד cell's left border) and שומרה `driver.address_line` (narrow shared cell) shrunk to 6.5; מגדל `accident.date` + `.time` abutted their shared column divider and read as one string ("14:3022/06/2026") — size 9 with both anchors pulled off the divider.
+- **Not regenerated:** the filled QA examples in `docs/accidentStatementPdf/filled-examples/` still predate this pass for מגדל / הראל / שלמה, and כלל + שומרה still have none (open since PR #40).
 
 ---
 
