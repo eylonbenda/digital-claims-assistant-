@@ -53,8 +53,13 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # Pin a model with `--model claude-opus-4-8` here if your key supports it.
+          # Model is pinned deliberately. Unpinned, the action uses its own default
+          # (currently Opus 5, $5/$25 per MTok) — which made doc-sync 76% of the
+          # August API bill at ~$1.82/run across 14 runs. Sonnet 5 is $2/$10 for a
+          # job that reconciles docs against a diff under a detailed skill spec.
+          # Note: Opus 4.8 is priced the same as Opus 5, so pinning it saves nothing.
           claude_args: >-
+            --model claude-sonnet-5
             --allowedTools "Bash,Read,Edit,Write,Glob,Grep,Skill"
           prompt: |
             You are running headless in CI on pull request #${{ github.event.pull_request.number }}.
