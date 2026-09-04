@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-08-28**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-09-04**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -272,6 +272,11 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **Third-party top block was one row off.** That block is **three** stacked rows sharing the same columns (A = רכב/ביטוח, B = בעל הרכב, C = נהג); `driver_name`/`address`/`id_number`/`phone` were all written into row B (the owner row) and now sit in row C (y=244 → y=220). `third_parties.0.owner_name` — previously declared unmappable in the file header and left blank — is mapped in row B (y=242).
 - **Signature block.** `declarations.signatory_name` used to print once at `right=325/y=158`, which turned out to be an **uncaptioned** middle cell, not "חתימת המבוטח". It is now printed on the three captioned signature lines (חתימת המבוטח · חתימת הנהג · חתימת בעל הרכב), and `declarations.date` fills the previously-empty "תאריך" box. Same typed-name-as-signature product decision as [the 2026-07-14 design note](superpowers/specs/2026-07-14-driver-and-declaration-design.md) — that note predates this rework and still describes הפניקס as having *two* signature boxes.
 - **Not verified here:** no render QA artefact is committed with the PR (`.pdfwork/*_coords.json` / `*.png` are gitignored), so the new positions rest on the in-file measurements. Re-render via `web/scripts/fill.ts` before trusting them in the pilot.
+
+### Done since last sync (2026-09-04, PR #57 — brief-rank truncation + Anthropic client timeout)
+- **The morning-brief ranking call truncated itself out of the day-cache.** `rank.ts`'s output budget (`1000 + n * 150`, capped at 8000) didn't account for adaptive-thinking tokens drawing on the same budget; at 25 claims the response hit `max_tokens`, `JSON.parse` threw on the truncated JSON, `rankClaims` returned `null`, and — per the PR #26 note just above — `brief.ts` refuses to cache a null ranking, so every dashboard load re-ran the ~60s call instead of only the day's first. New `rankMaxTokens(claimCount)` budgets `1000 + n * 400` (capped at 16000, ~2.5x the measured ~160 output tokens/claim); verified end-to-end at 25 and 40 claims. A `stop_reason === "max_tokens"` hit is now logged explicitly instead of surfacing as an unexplained JSON-syntax error.
+- **The shared Anthropic client (`web/src/lib/anthropic.ts`, also used by `analyze.ts`) now bounds every call:** `timeout: 120_000` + `maxRetries: 1`, replacing the SDK defaults (10-minute timeout, 2 retries, scaled further up for large `max_tokens` on non-streaming calls) that could otherwise pin a caller for ~30 minutes on a degraded API day.
+- Narrows, but doesn't close, the PR #26 note above: an Anthropic outage during ranking is now bounded to ~120s × 2 attempts instead of tens of minutes, but there is still no cross-request backoff.
 
 ---
 
