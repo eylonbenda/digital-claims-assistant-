@@ -21,6 +21,22 @@ export function fallbackTier(score: number): Tier {
 
 export type RankSignal = { claim_id: string; tier: Tier; reason: string; flags: string[] };
 
+// Output budget for one ranking call.
+//
+// `max_tokens` is a ceiling, not a spend — billing follows what's actually
+// generated — so this buys real headroom rather than trimming cost. Adaptive
+// thinking tokens come out of this same budget, which is what the previous
+// `1000 + n * 150` missed: at 25 claims the response hit the cap, the JSON came
+// back truncated, `JSON.parse` threw, and `rankClaims` returned null. brief.ts
+// deliberately refuses to cache a null ranking, so the day-cache never filled and
+// *every* dashboard load re-ran a ~60s call instead of only the day's first.
+//
+// Measured worst case is ~160 output tokens per claim (Opus 4.8, adaptive
+// thinking), so 400 leaves ~2.5x. Verified end-to-end at 25 and 40 claims.
+export function rankMaxTokens(claimCount: number): number {
+  return Math.min(16_000, 1_000 + claimCount * 400);
+}
+
 const TIERS = new Set<string>(["act_now", "this_week", "waiting", "ok"]);
 
 // Deterministic gate between the LLM and the brief: unknown ids and malformed
@@ -82,14 +98,25 @@ export async function rankClaims(sheets: FactSheet[]): Promise<RankSignal[] | nu
       score: s.score,
       facts: s.facts,
     }));
+    const maxTokens = rankMaxTokens(sheets.length);
     const res = await client.messages.create({
       model: CLAIMS_MODEL,
-      max_tokens: Math.min(8000, 1000 + sheets.length * 150),
+      max_tokens: maxTokens,
       thinking: { type: "adaptive" },
       system: SYSTEM,
       messages: [{ role: "user", content: `התיקים (JSON):\n${JSON.stringify(promptSheets, null, 2)}` }],
       output_config: { format: { type: "json_schema", schema: RANK_SCHEMA } },
     });
+    // Truncation is the one failure that used to masquerade as a parse bug: the
+    // JSON is cut mid-object, so the throw below fires with a message about
+    // syntax rather than budget. Name it explicitly — an unexplained null here
+    // costs a re-run on every single page load, not just the day's first.
+    if (res.stop_reason === "max_tokens") {
+      console.error(
+        `brief rank: hit max_tokens (${maxTokens}) ranking ${sheets.length} claims — the JSON is truncated, so this ranking cannot be cached and will re-run on every dashboard load. Raise rankMaxTokens().`,
+      );
+      return null;
+    }
     const block = res.content.find((b) => b.type === "text");
     if (!block || block.type !== "text") return null;
     return sanitizeSignals(JSON.parse(block.text), new Set(sheets.map((s) => s.claim_id)));
