@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-08-28**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-09-04**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -255,6 +255,14 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **Summary screen** now shows a **צד שני** row (name · plate, falling back to "מעורב — אין פרטים"; edit-jumps to `tp_details`, or `tp_present` when there's no third party), and the נהג row reads "אף אחד — הרכב היה חנוי" for a parked car.
 - Unit-tested: new cases in `steps.test.ts` (parked completes `driver_who` and hides `driver_details`; `details_unknown` completes `tp_details`) and `claim-state.test.ts` (parked omits the driver block; the partial TP block survives `details_unknown`).
 - **Still open from the same feedback batch:** the "שלח בוואטסאפ" link on `NewClaimForm` (`web/src/app/dashboard/NewClaimForm.tsx`) still builds a phone-less `wa.me/?text=…`, so it opens WhatsApp's contact picker instead of the client's chat. The design note specs the fix (reuse `waHref` from `lib/wa.ts`); it is **not** in this PR.
+
+### Done since last sync (2026-09-04, PR #58 — dashboard brief off the render path)
+- **No migration.** Perf-only fix, four files: `web/src/lib/brief/brief.ts`, `web/src/app/dashboard/page.tsx`, new `web/src/app/dashboard/BriefAutoRefresh.tsx`, new `web/src/lib/brief/brief.cached-only.test.ts`.
+- **The bug: a cold brief cache blocked the whole dashboard HTML on the model.** `/dashboard` awaited `getOrCreateBrief` directly with no Suspense boundary, so a ~20–50s ranking call held the entire render — worst on the first login of each day, since the day-cache key is the UTC date and rolls over at 03:00 Israel time.
+- **Fix: `getOrCreateBrief(agentId, { cachedOnly: true })`.** New render-path mode in `brief.ts` — serves today's cached AI ranking if one exists, otherwise the deterministic rules-only brief (`assembleBrief`'s `fallbackTier`, `ai:false`), and never calls `rankClaims`. The non-`cachedOnly` path (used by `warmBriefRanking` and `/api/brief/refresh`) is unchanged.
+- **Cold cache warms itself off-render.** When the render served a rules-only brief on a non-empty book, the dashboard page schedules `warmBriefRanking(agentId)` via Next's `after()` so it runs post-response; a per-instance `Set` dedupes concurrent warms for the same `agent:day`. `export const maxDuration = 60` bounds the window (Vercel's ceiling on every plan) — a very large book may not finish warming, which degrades to "stays rules-only, retries next load," never to a slow page.
+- **`BriefAutoRefresh.tsx`** (new client component, mounted only while a warm is in flight): a single `setTimeout(() => router.refresh(), 45_000)`, so the agent's first dashboard load of the day picks up the AI ordering without a manual reload. Deliberately one-shot, not a poll.
+- Unit-tested: `brief.cached-only.test.ts` covers cold-cache (`ai:false`, model not called) and warm-cache (`ai:true`, served from `agent_briefs`) under `cachedOnly`, plus a regression check that the plain `getOrCreateBrief()` path still calls the model.
 
 ### Done since last sync (2026-08-28, PR #55 — form render pass: שלמה · מגדל · הראל · שומרה · כלל)
 - **No migration.** Coordinate templates only — five files under `web/src/lib/formfill/templates/` (`shlomo.ts`, `migdal.ts`, `harel.ts`, `shomera.ts`, `clal.ts`). No schema, route, engine or canonical-schema change; the registry is still the same 11 insurers.
