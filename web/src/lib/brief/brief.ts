@@ -48,11 +48,38 @@ export function assembleBrief(sheets: FactSheet[], signals: RankSignal[] | null,
   };
 }
 
+// Per-instance guard against stampeding the model. A cold cache plus a few quick
+// reloads would otherwise fire one ranking call per load, and they'd all race to
+// write the same row. This dedupes within one server instance, which covers the
+// common case (a reload lands on the warm instance); across instances the upsert
+// is idempotent, so the worst case is duplicate spend, not a corrupt cache.
+const rankingInFlight = new Set<string>();
+
+// Fill today's ranking cache off the render path. Fire-and-forget: every failure
+// mode already degrades to the rules-only brief, so there is nothing to report
+// back to a caller that has, by design, already sent its response.
+export async function warmBriefRanking(agentId: string): Promise<void> {
+  const key = `${agentId}:${briefDate(new Date())}`;
+  if (rankingInFlight.has(key)) return;
+  rankingInFlight.add(key);
+  try {
+    await getOrCreateBrief(agentId);
+  } catch (err) {
+    console.error("brief warm failed:", err);
+  } finally {
+    rankingInFlight.delete(key);
+  }
+}
+
 // I/O wrapper: cache-or-compute. Best-effort — returns null on any failure so
 // the dashboard renders without a brief rather than erroring.
+//
+// `cachedOnly` is the no-LLM mode used by anything on a render path: today's
+// cached ranking if it exists, otherwise the deterministic rules-only brief.
+// It never blocks on the model. See warmBriefRanking() for the other half.
 export async function getOrCreateBrief(
   agentId: string,
-  opts?: { refresh?: boolean },
+  opts?: { refresh?: boolean; cachedOnly?: boolean },
 ): Promise<Brief | null> {
   try {
     const svc = createServiceClient();
@@ -158,6 +185,13 @@ export async function getOrCreateBrief(
     if (cached) {
       signals = cached.signals; // AI ran when cached → ai:true via assembleBrief
       generatedAt = cached.generated_at;
+    } else if (opts?.cachedOnly) {
+      // Cold cache on a render path. Degrade to the deterministic ranking rather
+      // than making the caller wait ~30s for the model — assembleBrief already
+      // tiers by score via fallbackTier and stamps ai:false. warmBriefRanking()
+      // fills the cache behind the response so the next load gets the AI ordering.
+      signals = null;
+      generatedAt = now.toISOString();
     } else {
       signals = await rankClaims(sheets);
       generatedAt = now.toISOString();

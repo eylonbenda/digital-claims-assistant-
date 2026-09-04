@@ -21,7 +21,7 @@ Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod che
 | `/` | public | marketing landing page ("OpenTik"), Hebrew/RTL |
 | `/login` | agent | Supabase Auth sign-in |
 | `/c/[token]` | client | token-gated collection wizard (no login) |
-| `/dashboard` | agent | **one list** — `TodayList` (one card per open claim, sectioned צריך אותך / בהמתנה / תקינים; brief + queue are folded in as data, not as their own panels) + a searchable archive claims table |
+| `/dashboard` | agent | **one list** — `TodayList` (one card per open claim, sectioned צריך אותך / בהמתנה / תקינים; brief + queue are folded in as data, not as their own panels) + a searchable archive claims table. Server component: on a cold brief cache it renders the rules-only ordering immediately, warms the AI ranking after the response via `after()`, and mounts `BriefAutoRefresh.tsx` (client, one-shot `router.refresh()` at 45s) to pick it up |
 | `/dashboard/[id]` | agent | claim **cockpit** — a persistent header (identity + one primary next action) over **4 tabs**: סקירה / עבודה על התיק / טופס ההודעה / קבצים (active tab mirrored in `?tab=`) |
 
 The client wizard's own files live in `web/src/components/collection/`: `steps.ts` (the step registry — order, chapters, relevance, completeness; the single source of truth for position), `CollectionWizard.tsx` (state, navigation, uploads, submit), `WizardShell.tsx` (chapter chips / dots / nav chrome + the milestone screen), one component per step under `steps/` with shared inputs in `steps/fields.tsx`, and `FollowupUpload.tsx` (the post-submit upload screen).
@@ -34,7 +34,7 @@ The client wizard's own files live in `web/src/components/collection/`: `steps.t
 | `formfill/` | canonical claim schema (`types.ts`) → filled insurer PDFs: generic `engine.ts`, all 11 coordinate `templates/`, `effective.ts` (agent edits win over client input), `dates.ts` (ISO → dd/mm/yyyy at the fill boundary), bundled `assets/` |
 | `claims/` | `classify.ts` (deterministic track decision), `checklist.ts` (`computeChecklist` + `chaseableLabels`), `analysis-cache.ts` |
 | `tasks/` | task engine: pure `engine.ts` (`advanceTasks`), declarative `templates.ts` rule table, `runner.ts` (`runEngine`, best-effort) |
-| `brief/` | morning brief: `facts.ts` → `score.ts` (deterministic) → `rank.ts` (AI tier) → `brief.ts` (`getOrCreateBrief`) |
+| `brief/` | morning brief: `facts.ts` → `score.ts` (deterministic) → `rank.ts` (AI tier) → `brief.ts` (`getOrCreateBrief`, `{cachedOnly}` for render paths — never blocks on the model; `warmBriefRanking` fills a cold cache off-render) |
 | `outbound/` | outbound queue: `rules.ts` (per-task-key send descriptors + cooldowns + the `auto` flip-to-send seam + a presentation-only `labels()` beside `build()`), pure `queue.ts` (`buildQueue` — lanes, cooldown, one-per-claim-per-day cap, give-up escalation, ordering), `load.ts` (`loadQueue`, the only I/O, best-effort) |
 | `dashboard/` | the `/dashboard` index view model: pure `compose.ts` (`composeDashboard` — claims ⊕ queue ⊕ brief ⊕ open tasks → one `ClaimCard` per claim, split into `attention` / `waiting` / `ok`) and pure `copy.ts` (the Hebrew language layer: greeting, date, track labels, action/וגם/waiting lines). Both unit-tested |
 | `cockpit/` | the `/dashboard/[id]` view model: pure `derive.ts` (`deriveCockpit` — page data → one primary next action by precedence + per-tab badges, caller passes `now`) and pure `copy.ts` (its Hebrew lines, reusing `dashboard/copy.ts` idioms). Both unit-tested |
