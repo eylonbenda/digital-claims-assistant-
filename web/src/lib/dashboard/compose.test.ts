@@ -180,3 +180,19 @@ describe("composeDashboard — card anatomy", () => {
     expect(d2.attention[0].also_line).toBeNull();
   });
 });
+
+describe("composeDashboard — ai_line provenance", () => {
+  // A cold day-cache renders the rules-only ordering, where `reason` falls back to
+  // the top structured fact. Badging that with 🤖 would credit the model for plain
+  // heuristics on every first load of the day.
+  it("badges the line only when the item actually came from the model", () => {
+    const withAi = compose([cl()], q(), briefWith([{ claim_id: "c1", ai: true, reason: "שיקול מהמודל" }]));
+    expect(withAi.attention[0]?.ai_line ?? withAi.waiting[0]?.ai_line).toBe("🤖 שיקול מהמודל");
+  });
+
+  it("leaves ai_line null for a rules-only item, even though reason is set", () => {
+    const rulesOnly = compose([cl()], q(), briefWith([{ claim_id: "c1", ai: false, reason: "מסלול: צד ג׳ · פתוחה 14 ימים" }]));
+    const card = rulesOnly.attention[0] ?? rulesOnly.waiting[0];
+    expect(card?.ai_line).toBeNull();
+  });
+});
