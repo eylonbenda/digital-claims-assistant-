@@ -1,15 +1,23 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import NewClaimForm from "./NewClaimForm";
 import ClaimsTable from "./ClaimsTable";
 import TodayList from "./TodayList";
+import BriefAutoRefresh from "./BriefAutoRefresh";
 import { composeDashboard } from "@/lib/dashboard/compose";
 import { greeting, hebDate } from "@/lib/dashboard/copy";
-import { getOrCreateBrief } from "@/lib/brief/brief";
+import { getOrCreateBrief, warmBriefRanking } from "@/lib/brief/brief";
 import { createServiceClient } from "@/lib/supabase/service";
 import { loadQueue } from "@/lib/outbound/load";
 import type { OutboundQueue as OutboundQueueType } from "@/lib/outbound/queue";
+
+// Bound the post-response window `after()` runs in. The ranking call is ~20-50s
+// at a realistic book size; 60s is the ceiling on every Vercel plan, so a very
+// large book may not finish warming. That degrades to "stays rules-only and
+// retries on the next load" — never to a slow page.
+export const maxDuration = 60;
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -31,6 +39,9 @@ export default async function DashboardPage() {
   // service key or any lookup failure degrades to no-brief, not a 500.
   let brief = null;
   let queue: OutboundQueueType | null = null;
+  // True when this render is showing the rules-only ordering and a ranking is
+  // being warmed behind it — drives the one-shot client refresh below.
+  let awaitingRanking = false;
   try {
     const svc = createServiceClient();
     const { data: agentRow } = await svc
@@ -39,14 +50,27 @@ export default async function DashboardPage() {
       .eq("auth_user_id", user.id)
       .maybeSingle();
     if (agentRow) {
-      brief = await getOrCreateBrief(agentRow.id);
+      // Never wait on the model here. The AI ranking is a ~20-50s call, and this
+      // page has no Suspense boundary, so awaiting it held the entire dashboard
+      // HTML — which is what made the first login of each day (the day-cache is
+      // keyed on the UTC date, so 03:00 Israel time rolls it over) take ~35s.
+      brief = await getOrCreateBrief(agentRow.id, { cachedOnly: true });
       // The queue takes the brief only as an ordering signal — a null brief
       // (AI down / cache broken) must not take the send queue down with it.
       queue = await loadQueue(agentRow.id, origin, brief);
+      // Cold cache → fill it after the response is flushed, so this render pays
+      // nothing and the next one gets the AI ordering. An empty book has nothing
+      // to rank, so don't schedule a warm that would only no-op.
+      if (brief && !brief.ai && brief.items.length > 0) {
+        const agentId = agentRow.id;
+        awaitingRanking = true;
+        after(() => warmBriefRanking(agentId));
+      }
     }
   } catch {
     brief = null;
     queue = null;
+    awaitingRanking = false;
   }
 
   const { data: claims } = await supabase
@@ -87,6 +111,8 @@ export default async function DashboardPage() {
           </div>
         </div>
       </header>
+
+      {awaitingRanking && <BriefAutoRefresh />}
 
       <main className="mx-auto max-w-5xl space-y-6 p-6">
         <div className="flex items-center justify-between">
