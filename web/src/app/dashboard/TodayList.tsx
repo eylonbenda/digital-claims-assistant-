@@ -103,15 +103,58 @@ function Card({ card, tone }: { card: ClaimCard; tone: "red" | "amber" | "plain"
 }
 
 export default function TodayList({
-  list, greeting, dateLabel, claimsCount, name,
+  list, greeting, dateLabel, claimsCount, name, showBrief = false,
 }: {
   list: DashboardList;
   greeting: string;
   dateLabel: string;
   claimsCount: number;
   name?: string | null;
+  showBrief?: boolean;
 }) {
-  const { attention, waiting, ok } = list;
+  const { cards, attention, waiting, ok } = list;
+
+  // Intake-first (the default since 2026-09-27): one flat list, newest claim first.
+  // Pilot feedback from the operator — her day is intake → form → send to the
+  // insurer, so the screen leads with the claim that just came in rather than with
+  // a ranked triage of the whole book. Urgency stays visible per card instead of
+  // driving the page structure.
+  if (!showBrief) {
+    return (
+      <section dir="rtl">
+        <div className="mb-3">
+          <h2 className="text-lg font-bold text-zinc-900">
+            {greeting}{name ? `, ${name}` : ""} 👋{" "}
+            <span className="text-sm font-normal text-zinc-500">· {dateLabel}</span>
+          </h2>
+        </div>
+
+        {claimsCount === 0 ? (
+          <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center">
+            <p className="font-medium text-zinc-800">צור את התביעה הראשונה שלך</p>
+            <p className="mt-1 text-sm text-zinc-500">
+              לחץ &quot;תביעה חדשה&quot;, שלח ללקוח את הקישור — והמערכת תאסוף את המסמכים והפרטים בשבילך.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="mb-2 text-sm text-zinc-500">
+              {cards.length} תיקים פתוחים · החדש ביותר למעלה
+            </p>
+            <ul className="space-y-2">
+              {cards.map((c) => (
+                <Card
+                  key={c.claim_id}
+                  card={c}
+                  tone={c.send ? "red" : c.needs_action ? "amber" : "plain"}
+                />
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+    );
+  }
 
   return (
     <section dir="rtl">
