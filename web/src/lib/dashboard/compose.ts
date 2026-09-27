@@ -102,7 +102,14 @@ export function composeDashboard(input: {
       claim_id: c.id, client_name: c.client_name,
       track_label: TRACK_LABEL[c.claim_type] ?? c.claim_type,
       action_line,
-      ai_line: b?.reason ? `🤖 ${b.reason}` : null,
+      // Only badge a line as the model's when it actually came from the model.
+      // BriefItem.reason falls back to the top structured fact when the AI didn't
+      // rank this claim, so keying on `reason` alone attributed plain heuristics
+      // to the AI. That was rare while the ranking was computed inline; now that
+      // a cold cache renders rules-only by design, it would be every first load
+      // of the day. `ai` is per item, so a claim the AI skipped in an otherwise
+      // successful run correctly loses the badge too.
+      ai_line: b?.ai && b.reason ? `🤖 ${b.reason}` : null,
       also_line: also ? alsoLine(also.title, also.overdue_days) : null,
       send,
       overdue_days: Math.max(send?.overdue_days ?? 0, dos[0]?.overdue_days ?? 0),

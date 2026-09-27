@@ -286,6 +286,11 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **The shared Anthropic client (`web/src/lib/anthropic.ts`, also used by `analyze.ts`) now bounds every call:** `timeout: 120_000` + `maxRetries: 1`, replacing the SDK defaults (10-minute timeout, 2 retries, scaled further up for large `max_tokens` on non-streaming calls) that could otherwise pin a caller for ~30 minutes on a degraded API day.
 - Narrows, but doesn't close, the PR #26 note above: an Anthropic outage during ranking is now bounded to ~120s × 2 attempts instead of tens of minutes, but there is still no cross-request backoff.
 
+### Done since last sync (2026-09-04, PR #59 — brief 🤖-line provenance + refresh timing)
+- **No migration.** Two-file fix: `web/src/lib/dashboard/compose.ts`, `web/src/app/dashboard/BriefAutoRefresh.tsx`.
+- **The bug: a rules-only card could still show a 🤖 line.** `compose.ts` badged a card's line as the model's whenever `BriefItem.reason` was set, but `reason` also carries the deterministic fallback text when the AI didn't rank that claim (`ai:false` from `fallbackTier`, or an item the AI skipped in an otherwise-successful run). Since PR #58 made a cold day-cache render rules-only on every first load, that meant crediting the model for plain heuristics on every agent's first dashboard load of the day. Fixed by keying `ai_line` on `b?.ai && b.reason` instead of `b?.reason` alone; new cases in `compose.test.ts`.
+- **`BriefAutoRefresh.tsx` now schedules two refreshes, not one** (`REFRESH_DELAYS_MS = [55_000, 115_000]`, both set on mount). Measured against the dev project, a 14-claim book took ~46s from response flush to the cache row landing, so the original single 45s attempt (PR #58) raced the write and lost about half the time; 55s clears that, and 115s covers a larger book or a first warm cut short by Vercel's `maxDuration`. Both timers are set once on mount — if the cache is warm the server drops the component (unmounting it and clearing the timers); if still cold it stays mounted so the second timer is the one already pending, not a fresh one.
+
 ---
 
 ## To run the AI path live
