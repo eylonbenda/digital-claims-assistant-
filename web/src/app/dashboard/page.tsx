@@ -8,6 +8,7 @@ import TodayList from "./TodayList";
 import BriefAutoRefresh from "./BriefAutoRefresh";
 import { composeDashboard } from "@/lib/dashboard/compose";
 import { greeting, hebDate } from "@/lib/dashboard/copy";
+import { briefEnabled } from "@/lib/dashboard/flags";
 import { getOrCreateBrief, warmBriefRanking } from "@/lib/brief/brief";
 import { createServiceClient } from "@/lib/supabase/service";
 import { loadQueue } from "@/lib/outbound/load";
@@ -16,7 +17,8 @@ import type { OutboundQueue as OutboundQueueType } from "@/lib/outbound/queue";
 // Bound the post-response window `after()` runs in. The ranking call is ~20-50s
 // at a realistic book size; 60s is the ceiling on every Vercel plan, so a very
 // large book may not finish warming. That degrades to "stays rules-only and
-// retries on the next load" — never to a slow page.
+// retries on the next load" — never to a slow page. Only reached with the brief
+// enabled; with it off nothing runs after the response.
 export const maxDuration = 60;
 
 export default async function DashboardPage() {
@@ -37,6 +39,7 @@ export default async function DashboardPage() {
   // Agent row (agents.id ≠ auth uid). No row yet → no claims → no brief.
   // Best-effort: the brief must never break the dashboard, so a missing
   // service key or any lookup failure degrades to no-brief, not a 500.
+  const showBrief = briefEnabled();
   let brief = null;
   let queue: OutboundQueueType | null = null;
   // True when this render is showing the rules-only ordering and a ranking is
@@ -50,21 +53,28 @@ export default async function DashboardPage() {
       .eq("auth_user_id", user.id)
       .maybeSingle();
     if (agentRow) {
-      // Never wait on the model here. The AI ranking is a ~20-50s call, and this
-      // page has no Suspense boundary, so awaiting it held the entire dashboard
-      // HTML — which is what made the first login of each day (the day-cache is
-      // keyed on the UTC date, so 03:00 Israel time rolls it over) take ~35s.
-      brief = await getOrCreateBrief(agentRow.id, { cachedOnly: true });
-      // The queue takes the brief only as an ordering signal — a null brief
-      // (AI down / cache broken) must not take the send queue down with it.
-      queue = await loadQueue(agentRow.id, origin, brief);
-      // Cold cache → fill it after the response is flushed, so this render pays
-      // nothing and the next one gets the AI ordering. An empty book has nothing
-      // to rank, so don't schedule a warm that would only no-op.
-      if (brief && !brief.ai && brief.items.length > 0) {
-        const agentId = agentRow.id;
-        awaitingRanking = true;
-        after(() => warmBriefRanking(agentId));
+      // Brief off (the default): no model call, no day-cache read, no after().
+      // The queue still loads — it takes the brief purely as an ordering hint and
+      // already treats null as "no signal".
+      if (!showBrief) {
+        queue = await loadQueue(agentRow.id, origin, null);
+      } else {
+        // Never wait on the model here. The AI ranking is a ~20-50s call, and this
+        // page has no Suspense boundary, so awaiting it held the entire dashboard
+        // HTML — which is what made the first login of each day (the day-cache is
+        // keyed on the UTC date, so 03:00 Israel time rolls it over) take ~35s.
+        brief = await getOrCreateBrief(agentRow.id, { cachedOnly: true });
+        // The queue takes the brief only as an ordering signal — a null brief
+        // (AI down / cache broken) must not take the send queue down with it.
+        queue = await loadQueue(agentRow.id, origin, brief);
+        // Cold cache → fill it after the response is flushed, so this render pays
+        // nothing and the next one gets the AI ordering. An empty book has nothing
+        // to rank, so don't schedule a warm that would only no-op.
+        if (brief && !brief.ai && brief.items.length > 0) {
+          const agentId = agentRow.id;
+          awaitingRanking = true;
+          after(() => warmBriefRanking(agentId));
+        }
       }
     }
   } catch {
@@ -112,7 +122,7 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      {awaitingRanking && <BriefAutoRefresh />}
+      {showBrief && awaitingRanking && <BriefAutoRefresh />}
 
       <main className="mx-auto max-w-5xl space-y-6 p-6">
         <div className="flex items-center justify-between">
@@ -126,6 +136,7 @@ export default async function DashboardPage() {
           dateLabel={hebDate(now)}
           name={user.email?.split("@")[0] ?? null}
           claimsCount={(claims ?? []).length}
+          showBrief={showBrief}
         />
 
         <ClaimsTable claims={claims ?? []} />

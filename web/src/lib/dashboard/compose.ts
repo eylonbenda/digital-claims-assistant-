@@ -15,8 +15,19 @@ export type ClaimCard = {
   action_line: string; ai_line: string | null; also_line: string | null;
   send: SendItem | null;
   overdue_days: number;
+  created_at: string;
+  // Derived from queue/task/classification state only — deliberately not from the
+  // brief. The intake-first list must order and colour itself identically whether
+  // or not the AI brief is enabled.
+  needs_action: boolean;
 };
-export type DashboardList = { attention: ClaimCard[]; waiting: ClaimCard[]; ok: ClaimCard[] };
+// `cards` is the intake-first view: every open claim in one list, newest first.
+// `attention`/`waiting`/`ok` are the brief-driven sectioning, rendered only when
+// the brief is enabled. Both are always computed; the dashboard picks one.
+export type DashboardList = {
+  cards: ClaimCard[];
+  attention: ClaimCard[]; waiting: ClaimCard[]; ok: ClaimCard[];
+};
 
 export function composeDashboard(input: {
   claims: ComposeClaim[];
@@ -100,6 +111,8 @@ export function composeDashboard(input: {
 
     const card: ClaimCard = {
       claim_id: c.id, client_name: c.client_name,
+      created_at: c.created_at,
+      needs_action: !!send || dos.length > 0 || unclassified,
       track_label: TRACK_LABEL[c.claim_type] ?? c.claim_type,
       action_line,
       // Only badge a line as the model's when it actually came from the model.
@@ -138,5 +151,13 @@ export function composeDashboard(input: {
   });
   ok.sort((a, b) => (a.client_name ?? "").localeCompare(b.client_name ?? "", "he"));
 
-  return { attention, waiting, ok };
+  // Pilot feedback (2026-09-13): the operator's day is intake → form → send to the
+  // insurer, and she asked for the most recently opened claim first. Sorted here
+  // rather than leaning on the caller's query order, so the guarantee belongs to
+  // the compose layer and the unit tests can hold it.
+  const cards = [...attention, ...waiting, ...ok].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+
+  return { cards, attention, waiting, ok };
 }
