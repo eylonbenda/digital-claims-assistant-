@@ -29,7 +29,7 @@ Vercel deploys **code**, not **schema**. There is no auto-migration. So:
 
 1. Develop on a branch; run any new `web/db/migrations/NNN_*.sql` **against the dev Supabase** SQL editor while building.
 2. PR → CI (lint/test/build) must be green. The preview URL runs against dev — eyeball it.
-3. **If the branch added a migration:** before or in lockstep with the merge, paste that same migration into the **prod (`claims-pilot`) SQL editor** and run it. Prod schema must be ready *before* the new code goes live.
+3. **If the branch added a migration:** before or in lockstep with the merge, paste that same migration into the **prod (`claims-pilot`) SQL editor** and run it. Prod schema must be ready *before* the new code goes live. The **`migration-guard`** check enforces this: on any PR touching `web/db/migrations/` it posts the SQL to paste as a PR comment and stays red until you add the **`migration-applied-prod`** label (it also fails on duplicate `NNN_` numbers and warns when an already-merged migration is edited). `main` isn't branch-protected, so red is a signal, not a hard block.
 4. Merge to `main` → Vercel auto-deploys Production against prod Supabase.
 5. Post-deploy smoke: hit `/api/health` (key wiring) + `/api/version`.
 

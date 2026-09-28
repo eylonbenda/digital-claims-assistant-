@@ -1,0 +1,35 @@
+name: migration-guard
+
+# Migrations are pasted into the Supabase SQL editor by hand (dev + prod); deploy
+# never applies them. This check stays red on any PR that adds or edits a
+# migration until it carries the `migration-applied-prod` label, and posts the
+# SQL to paste as a sticky comment. Logic lives in .github/scripts/migration-guard.cjs.
+#
+# labeled/unlabeled re-run it so adding the label flips the check green.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    paths:
+      - 'web/db/migrations/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: migration-guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check migrations
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { run } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/migration-guard.cjs`);
+            await run({ github, context, core });
