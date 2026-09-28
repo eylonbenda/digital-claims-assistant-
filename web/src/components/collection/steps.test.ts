@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { STEPS, firstIncompleteKey, isStepKey, visibleSteps } from "./steps";
+import { STEPS, docsSatisfied, firstIncompleteKey, isStepKey, visibleSteps } from "./steps";
 import type { State } from "@/lib/collection/claim-state";
 
 const BASE: State = {
@@ -53,7 +53,7 @@ describe("step registry", () => {
     expect(firstIncompleteKey(quickDone)).toBe("vehicle");
   });
 
-  it("falls back to summary when everything is complete", () => {
+  it("stops at documents when the required uploads are still owed", () => {
     const full: State = {
       ...BASE,
       consent: true,
@@ -67,7 +67,17 @@ describe("step registry", () => {
       accident: { date: "2026-08-01", time: "10:00", location: "איילון", description: "פגיעה מאחור" },
       thirdParty: { ...BASE.thirdParty, present: false },
     };
-    expect(firstIncompleteKey(full)).toBe("summary");
+    // Everything typed, but no licence/registration yet — resume must land on
+    // documents rather than skipping to summary and submitting past the requirement.
+    expect(firstIncompleteKey(full)).toBe("documents");
+    // Satisfy them (one uploaded, one deferred) and it falls through to summary.
+    expect(
+      firstIncompleteKey({
+        ...full,
+        documents: [{ localId: "1", type: "drivers_license", name: "a.jpg", status: "done" }],
+        docsDeferred: { vehicle_reg: true },
+      }),
+    ).toBe("summary");
   });
 
   it("driver_details.isComplete requires first/last/id, not just some", () => {
@@ -118,5 +128,58 @@ describe("step registry", () => {
     expect(isStepKey("vehicle")).toBe(true);
     expect(isStepKey("no_such")).toBe(false);
     expect(isStepKey(4)).toBe(false);
+  });
+});
+
+describe("required documents (pilot 2026-09-27)", () => {
+  const doc = (type: "drivers_license" | "vehicle_reg" | "car_photo", status: "done" | "uploading" | "error" = "done") =>
+    ({ localId: `${type}-${status}`, type, name: "f.jpg", status }) as const;
+
+  it("is not satisfied by an empty documents list", () => {
+    expect(docsSatisfied(BASE)).toBe(false);
+  });
+
+  it("needs both the licence and the registration, not just one", () => {
+    expect(docsSatisfied({ ...BASE, documents: [doc("drivers_license")] })).toBe(false);
+    expect(docsSatisfied({ ...BASE, documents: [doc("vehicle_reg")] })).toBe(false);
+    expect(docsSatisfied({ ...BASE, documents: [doc("drivers_license"), doc("vehicle_reg")] })).toBe(true);
+  });
+
+  it("ignores car photos, which stay optional", () => {
+    expect(docsSatisfied({ ...BASE, documents: [doc("car_photo")] })).toBe(false);
+    expect(
+      docsSatisfied({
+        ...BASE,
+        documents: [doc("drivers_license"), doc("vehicle_reg"), doc("car_photo")],
+      }),
+    ).toBe(true);
+  });
+
+  it("does not count an upload that never finished", () => {
+    expect(
+      docsSatisfied({ ...BASE, documents: [doc("drivers_license", "uploading"), doc("vehicle_reg")] }),
+    ).toBe(false);
+    expect(
+      docsSatisfied({ ...BASE, documents: [doc("drivers_license", "error"), doc("vehicle_reg")] }),
+    ).toBe(false);
+  });
+
+  // R2: every mandatory field needs an escape hatch, or real clients get stuck.
+  it("accepts an explicit deferral in place of an upload", () => {
+    expect(docsSatisfied({ ...BASE, docsDeferred: { drivers_license: true, vehicle_reg: true } })).toBe(true);
+    expect(
+      docsSatisfied({ ...BASE, documents: [doc("vehicle_reg")], docsDeferred: { drivers_license: true } }),
+    ).toBe(true);
+  });
+
+  it("treats a false or absent deferral as unsatisfied", () => {
+    expect(docsSatisfied({ ...BASE, docsDeferred: { drivers_license: false, vehicle_reg: true } })).toBe(false);
+    expect(docsSatisfied({ ...BASE, docsDeferred: { vehicle_reg: true } })).toBe(false);
+  });
+
+  it("the documents step in the registry uses that rule", () => {
+    const step = STEPS.find((s) => s.key === "documents")!;
+    expect(step.isComplete(BASE)).toBe(false);
+    expect(step.isComplete({ ...BASE, docsDeferred: { drivers_license: true, vehicle_reg: true } })).toBe(true);
   });
 });

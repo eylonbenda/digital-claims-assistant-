@@ -4,6 +4,10 @@ import { toILDate } from "@/lib/dates";
 // The wizard's working shape. Persisted verbatim to `claims.summary_json.collected`
 // at submit, so the agent side can re-derive the canonical ClaimData server-side.
 export type DocType = "car_photo" | "drivers_license" | "vehicle_reg";
+// The two documents the base checklist marks mandatory+blocking. The wizard
+// requires them, but never hard-blocks on them — see `docsDeferred`.
+export const REQUIRED_DOC_TYPES = ["drivers_license", "vehicle_reg"] as const;
+export type RequiredDocType = (typeof REQUIRED_DOC_TYPES)[number];
 export type UploadedDoc = {
   localId: string;
   type: DocType;
@@ -39,6 +43,15 @@ export type State = {
     signed_date: string; // ISO yyyy-mm-dd, captured when data_consent is first ticked
   };
   documents: UploadedDoc[];
+  // Pilot feedback (2026-09-27, the operator): the licence and vehicle-registration
+  // uploads must be required, because today they arrive missing and she chases them
+  // by hand. They are required — but with an explicit way out, because R2 (the one
+  // validated behavioural finding in docs/assumptions-canvas.md) is that every
+  // mandatory field needs an escape hatch: post-accident the documents are often in
+  // a towed car or with the police. A deferral is recorded rather than silently
+  // absent, so the agent sees "the client said they'd send it" instead of guessing.
+  // Optional: absent on drafts saved by an older deploy.
+  docsDeferred?: Partial<Record<RequiredDocType, boolean>>;
 };
 
 // Israeli insurers. `templated` = we have a coordinate template, so the form auto-fills.

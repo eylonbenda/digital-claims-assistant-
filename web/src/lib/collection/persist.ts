@@ -48,6 +48,7 @@ function mergeState(base: State, saved: Partial<State>): State {
     thirdParty: { ...base.thirdParty, ...(saved.thirdParty ?? {}) },
     declaration: { ...base.declaration, ...(saved.declaration ?? {}) },
     documents: sanitizeDocs(saved.documents),
+    docsDeferred: { ...(base.docsDeferred ?? {}), ...(saved.docsDeferred ?? {}) },
   };
 }
 

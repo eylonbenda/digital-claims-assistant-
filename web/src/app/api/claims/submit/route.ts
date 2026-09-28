@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
   const { data: claim } = await svc
     .from("claims")
-    .select("id, status")
+    .select("id, status, created_at, summary_json")
     .eq("access_token", token)
     .single();
 
@@ -51,6 +51,28 @@ export async function POST(request: Request) {
   const clientName =
     [insured.first_name, insured.last_name].filter(Boolean).join(" ") || null;
 
+  // Carry the funnel forward. summary_json is replaced by { collected } here, which
+  // drops summary_json.draft — and with it how far this claimant had to travel. A
+  // completed session that stalled at documents is exactly as interesting as an
+  // abandoned one, so keep the compact record instead of losing it at the finish line.
+  const prevDraft =
+    ((claim.summary_json as Record<string, unknown> | null)?.draft as Record<string, unknown> | null) ??
+    {};
+  const deferred = Object.entries(
+    (collected?.docsDeferred ?? {}) as Record<string, boolean>,
+  )
+    .filter(([, v]) => v === true)
+    .map(([k]) => k);
+  const funnel = {
+    completed: true,
+    max_step_key: "summary",
+    ...(typeof prevDraft.first_saved_at === "string"
+      ? { first_saved_at: prevDraft.first_saved_at }
+      : {}),
+    submitted_at: new Date().toISOString(),
+    ...(deferred.length ? { docs_deferred: deferred } : {}),
+  };
+
   // Persist collected data; summary_json.analysis filled later by AI flow.
   await svc
     .from("claims")
@@ -61,7 +83,7 @@ export async function POST(request: Request) {
       client_phone: insured.mobile || null,
       policy_insurer: policyInsurer,
       fault: (collected?.fault as string) || null,
-      summary_json: { collected },
+      summary_json: { collected, funnel },
     })
     .eq("id", claim.id);
 

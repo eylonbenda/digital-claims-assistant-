@@ -111,12 +111,18 @@ const TRACK_ITEMS: Record<string, ChecklistItemDef[]> = {
 
 // ─── public API ──────────────────────────────────────────────────────────────
 
+// A document the claimant explicitly deferred in the wizard ("אין לי את זה כרגע —
+// אשלח בהמשך"). The item stays undone and still blocks, but the agent sees why it
+// is missing instead of guessing whether the client skipped, failed or never looked.
+export const DEFERRED_NOTE = "הלקוח סימן שישלח בהמשך";
+
 export function computeChecklist(
   claimType: string,
   uploadedDocTypes: Set<string>,
   hasGeneratedForm: boolean,
   checklistState: Record<string, boolean>,
   flags: ClaimFlags,
+  deferredDocTypes: Set<string> = new Set(),
 ): ComputedItem[] {
   let items = [...(TRACK_ITEMS[claimType] ?? TRACK_ITEMS.unknown)];
 
@@ -138,15 +144,23 @@ export function computeChecklist(
     i.requiresFlag && !flags[i.requiresFlag] ? { ...i, blocking: false } : i,
   );
 
-  return items.map((item) => ({
-    ...item,
-    done:
+  return items.map((item) => {
+    const done =
       item.kind === "form"
         ? hasGeneratedForm
         : item.kind === "doc"
           ? !!(item.docType && uploadedDocTypes.has(item.docType))
-          : !!checklistState[item.key],
-  }));
+          : !!checklistState[item.key];
+    // Only annotate while it is still missing — once the file lands the note is
+    // stale, and an item's own note (a conditional's circumstance) always wins.
+    const deferred =
+      !done && item.kind === "doc" && !!item.docType && deferredDocTypes.has(item.docType);
+    return {
+      ...item,
+      done,
+      ...(deferred && !item.note ? { note: DEFERRED_NOTE } : {}),
+    };
+  });
 }
 
 // Client-facing chase messages (WhatsApp) must only ask for docs the client can

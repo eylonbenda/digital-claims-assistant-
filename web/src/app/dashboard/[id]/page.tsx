@@ -176,12 +176,21 @@ export default async function ClaimDetailPage({
   };
   const uploadedDocTypes = new Set((rows ?? []).map((r) => r.type as string));
   const checklistState = ((claim as Record<string, unknown>).checklist_state as Record<string, boolean> | null) ?? {};
+  // What the claimant said they'd send later (wizard `docsDeferred`), so a missing
+  // blocking document reads as "the client will send it" rather than an unexplained
+  // gap. Reuses `collected` from the classification block above.
+  const deferredDocTypes = new Set(
+    Object.entries(collected?.docsDeferred ?? {})
+      .filter(([, v]) => v === true)
+      .map(([k]) => k),
+  );
   const checklistItems = computeChecklist(
     claim.claim_type,
     uploadedDocTypes,
     (formRows ?? []).length > 0,
     checklistState,
     flags,
+    deferredDocTypes,
   );
 
   // Ownership is already proven by the RLS queries above; the service client only

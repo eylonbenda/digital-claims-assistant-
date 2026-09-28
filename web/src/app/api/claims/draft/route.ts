@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
+import { stepIndex } from "@/components/collection/steps";
 
 export const runtime = "nodejs"; // needs the service client
 
@@ -59,6 +60,16 @@ export async function POST(request: Request) {
 
   // Merge, don't clobber — summary_json is shared (collected/analysis/form_data live here too).
   const summary = (claim.summary_json as Record<string, unknown> | null) ?? {};
+
+  // Furthest step reached, kept monotonic. This is the funnel signal: the claimant
+  // moves backwards freely, so `step_key` alone (wherever they happened to stop)
+  // understates their progress. Needed to answer how far abandoned sessions get —
+  // the open remainder on C1 in docs/assumptions-canvas.md — and to see whether a
+  // newly required field starts costing completions.
+  const prevDraft = (summary.draft as Record<string, unknown> | null) ?? {};
+  const prevMax = prevDraft.max_step_key;
+  const maxStepKey =
+    stepIndex(step_key) > stepIndex(prevMax) ? (step_key as string) : (prevMax as string | undefined);
   const { error } = await svc
     .from("claims")
     .update({
@@ -66,6 +77,10 @@ export async function POST(request: Request) {
         ...summary,
         draft: {
           ...(typeof step_key === "string" ? { step_key } : {}),
+          ...(typeof maxStepKey === "string" ? { max_step_key: maxStepKey } : {}),
+          ...(prevDraft.first_saved_at
+            ? { first_saved_at: prevDraft.first_saved_at }
+            : { first_saved_at: new Date().toISOString() }),
           collected,
           saved_at: new Date().toISOString(),
         },
