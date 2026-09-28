@@ -23,13 +23,35 @@ export type FunnelRow = {
   summary_json: unknown;
 };
 
+// Two different questions live in here, and mixing them misleads:
+//
+//   delivery — do clients open the link at all?      → never_started
+//   wizard   — of those who start, how many finish?  → completion_rate_of_started
+//
+// A link that was never opened is not wizard abandonment (wrong number, never
+// actually sent, client ignored the WhatsApp), but it does drag `completion_rate`
+// down. Judge a wizard change by `completion_rate_of_started`, which is blind to
+// how many links went out that week.
+//
+// The buckets nest — `never_started` is a subset of `abandoned`, not a peer:
+//   links_sent = submitted + abandoned
+//   abandoned  = never_started + Σ(abandoned_at counts)
+//   started    = links_sent - never_started
 export type FunnelSummary = {
   links_sent: number;
   submitted: number;
-  /** Claims that never reached submit. */
+  /** Claims that never reached submit. Includes `never_started`. */
   abandoned: number;
-  /** submitted / links_sent, 0-1, rounded to 3dp. 0 when nothing was sent. */
+  /** submitted / links_sent, 0-1, 3dp. Mixes delivery with the wizard — see above. */
   completion_rate: number;
+  /**
+   * Claimants who got at least as far as one saved answer, plus everyone who
+   * submitted. A submitted claim counts as started by definition, even when it
+   * predates this tracking and left no draft behind.
+   */
+  started: number;
+  /** submitted / started, 0-1, 3dp. The number to watch after a wizard change. */
+  completion_rate_of_started: number;
   /** Abandoned claims that never saved a single draft — the link was likely never opened. */
   never_started: number;
   /** Furthest step reached, counted over abandoned claims that did start. */
@@ -37,6 +59,8 @@ export type FunnelSummary = {
   /** Of submitted claims, how many deferred each required document. */
   docs_deferred: Record<string, number>;
 };
+
+const rate = (num: number, den: number) => (den === 0 ? 0 : Math.round((num / den) * 1000) / 1000);
 
 function asRecord(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
@@ -79,12 +103,18 @@ export function summarizeFunnel(rows: FunnelRow[]): FunnelSummary {
     }
   }
 
+  // Everyone except the links that were never opened. Submitted claims are counted
+  // as started unconditionally: the ones from before this tracking existed left no
+  // draft, and excluding them would put finishers outside the denominator.
+  const started = rows.length - neverStarted;
+
   return {
     links_sent: rows.length,
     submitted: submittedRows.length,
     abandoned: abandonedRows.length,
-    completion_rate:
-      rows.length === 0 ? 0 : Math.round((submittedRows.length / rows.length) * 1000) / 1000,
+    completion_rate: rate(submittedRows.length, rows.length),
+    started,
+    completion_rate_of_started: rate(submittedRows.length, started),
     never_started: neverStarted,
     // Flow order, not count order — reading a funnel means reading it in sequence.
     abandoned_at: STEPS.map((s) => s.key)
