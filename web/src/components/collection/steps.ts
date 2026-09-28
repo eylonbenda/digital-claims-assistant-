@@ -1,6 +1,6 @@
 // The wizard's single source of truth for step order, chapters, relevance and
 // completeness (spec §3, §6). Pure — no React, no I/O.
-import type { State } from "@/lib/collection/claim-state";
+import { REQUIRED_DOC_TYPES, type State } from "@/lib/collection/claim-state";
 
 export type StepKey =
   | "intro" | "injuries" | "driver_who" | "fault" | "tp_present"
@@ -19,6 +19,17 @@ export type StepDef = {
 
 const filled = (v: string) => v.trim().length > 0;
 const always = () => true;
+
+// Each required document is satisfied by a completed upload OR an explicit
+// "I'll send it later" tap. Uploads still in flight or failed don't count — only
+// `done` reached the server.
+export function docsSatisfied(s: State): boolean {
+  return REQUIRED_DOC_TYPES.every(
+    (t) =>
+      s.documents.some((d) => d.type === t && d.status === "done") ||
+      s.docsDeferred?.[t] === true,
+  );
+}
 
 export const STEPS: StepDef[] = [
   { key: "intro",          chapter: "intro",   isTapStep: false, isRelevant: always, isComplete: (s) => s.consent },
@@ -45,7 +56,7 @@ export const STEPS: StepDef[] = [
     isComplete: (s) => filled(s.accident.date) && filled(s.accident.time) && filled(s.accident.location) },
   { key: "description",    chapter: "details", isTapStep: false, isRelevant: always,
     isComplete: (s) => filled(s.accident.description) },
-  { key: "documents",      chapter: "finish",  isTapStep: false, isRelevant: always, isComplete: always },
+  { key: "documents",      chapter: "finish",  isTapStep: false, isRelevant: always, isComplete: docsSatisfied },
   { key: "summary",        chapter: "finish",  isTapStep: false, isRelevant: always, isComplete: always },
 ];
 
@@ -54,12 +65,13 @@ export function visibleSteps(s: State): StepDef[] {
 }
 
 // Resume position: the first visible step the claimant hasn't completed.
-// `documents`/`summary` are always "complete", so a fully-filled state lands on
-// documents — firstIncompleteKey therefore skips always-complete steps and
-// falls back to "summary" only past the end.
+// `documents` carries real completeness since the required uploads landed, so a
+// resumed session that still owes a licence or registration returns there rather
+// than skipping to the summary and submitting past the requirement. `summary` has
+// no completeness of its own and is the past-the-end fallback.
 export function firstIncompleteKey(s: State): StepKey {
   for (const step of visibleSteps(s)) {
-    if (step.key === "documents" || step.key === "summary") continue;
+    if (step.key === "summary") continue;
     if (!step.isComplete(s)) return step.key;
   }
   return "summary";
@@ -67,6 +79,14 @@ export function firstIncompleteKey(s: State): StepKey {
 
 export function isStepKey(v: unknown): v is StepKey {
   return typeof v === "string" && STEPS.some((s) => s.key === v);
+}
+
+// Position of a step in the flow, used to keep the furthest-reached point
+// monotonic: the claimant navigates backwards freely, and a funnel that dropped to
+// whatever step they happened to be on last would understate how far they got.
+// -1 for anything unrecognised, so an unknown key can never win a comparison.
+export function stepIndex(key: unknown): number {
+  return STEPS.findIndex((s) => s.key === key);
 }
 
 export const CHIP_LABEL: Record<Exclude<Chapter, "intro">, string> = {

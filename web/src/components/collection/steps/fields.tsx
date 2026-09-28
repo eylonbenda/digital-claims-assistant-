@@ -77,6 +77,7 @@ export function DocField({
   hint,
   type,
   multiple,
+  required,
   docs,
   onPick,
   onRemove,
@@ -85,6 +86,7 @@ export function DocField({
   hint?: string;
   type: DocType;
   multiple?: boolean;
+  required?: boolean;
   docs: UploadedDoc[];
   onPick: (type: DocType, files: FileList) => void;
   onRemove: (localId: string) => void;
@@ -93,7 +95,10 @@ export function DocField({
   return (
     <div className="rounded-xl border border-zinc-200 p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-base font-medium">{label}</span>
+        <span className="text-base font-medium">
+          {label}
+          {required && <span className="ms-1 text-sm font-normal text-red-600">חובה</span>}
+        </span>
         <label className="min-h-12 inline-flex shrink-0 cursor-pointer items-center rounded-lg border border-blue-600 px-3 py-2.5 text-sm text-blue-700">
           {mine.length ? "הוסף/י" : "צילום / קובץ"}
           <input

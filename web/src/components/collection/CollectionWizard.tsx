@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Fault } from "@/lib/formfill/types";
 import { compressImage } from "@/lib/images/compress";
-import { type State, type DocType, INSURERS } from "@/lib/collection/claim-state";
+import { type State, type DocType, type RequiredDocType, INSURERS } from "@/lib/collection/claim-state";
 import { clearWizardState, draftToSaved, loadWizardState, saveWizardState } from "@/lib/collection/persist";
 import { isValidIsraeliId, isPlausiblePlate } from "@/lib/validation/il";
 import { reverseGeocode } from "@/lib/geo/reverse";
@@ -13,7 +13,7 @@ import {
   normalizePlate,
   type VehicleInfo,
 } from "@/lib/vehicles/registry";
-import { visibleSteps, firstIncompleteKey, type StepKey } from "./steps";
+import { visibleSteps, firstIncompleteKey, STEPS, type StepKey } from "./steps";
 import WizardShell from "./WizardShell";
 import IntroStep from "./steps/IntroStep";
 import InjuriesStep from "./steps/InjuriesStep";
@@ -49,6 +49,7 @@ const EMPTY: State = {
   thirdParty: { present: null, name: "", phone: "", plate: "", insurer: "" },
   declaration: { data_consent: false, poa_third_party: false, signed_date: "" },
   documents: [],
+  docsDeferred: {},
 };
 
 // Prefill allows partial nested objects (e.g. only mobile pre-filled from the claim).
@@ -322,6 +323,12 @@ export default function CollectionWizard({
     Array.from(files).forEach((file) => uploadDoc(type, file));
   }
 
+  // Recording the deferral is what turns a silent gap into something the agent can
+// act on. Attaching the file later supersedes it (see setDeferred call in uploadDoc).
+  function setDeferred(type: RequiredDocType, next: boolean) {
+    setS((p) => ({ ...p, docsDeferred: { ...(p.docsDeferred ?? {}), [type]: next } }));
+  }
+
   function removeDoc(localId: string) {
     setS((p) => ({ ...p, documents: p.documents.filter((d) => d.localId !== localId) }));
   }
@@ -347,6 +354,11 @@ export default function CollectionWizard({
         documents: p.documents.map((d) =>
           d.localId === localId ? { ...d, status: res.ok ? "done" : "error", error: err } : d
         ),
+        // The file arrived — clear any "I'll send it later" the client had ticked,
+        // so a stale deferral can't outlive the document that satisfies it.
+        ...(res.ok && (type === "drivers_license" || type === "vehicle_reg")
+          ? { docsDeferred: { ...(p.docsDeferred ?? {}), [type]: false } }
+          : {}),
       }));
     } catch {
       setS((p) => ({
@@ -453,10 +465,13 @@ export default function CollectionWizard({
   }
 
   const isSummary = active.key === "summary";
-  const nextDisabled = isSummary ? submitBusy || !s.declaration.data_consent : !active.isComplete(s);
+  const docsStep = STEPS.find((st) => st.key === "documents")!;
+  const nextDisabled = isSummary
+    ? submitBusy || !s.declaration.data_consent || !docsStep.isComplete(s)
+    : !active.isComplete(s);
   const nextLabel = isSummary ? (submitBusy ? "שולח…" : "שליחה לסוכן") : active.key === "intro" ? "בוא נתחיל" : "המשך";
   const requiredHint =
-    !active.isTapStep && active.key !== "intro" && active.key !== "documents" && !isSummary && !active.isComplete(s);
+    !active.isTapStep && active.key !== "intro" && !isSummary && !active.isComplete(s);
   // The injuries tap step is the one exception: on "יש נפגעים" it must keep
   // showing the shell's המשך instead of auto-advancing past the warning.
   const isTapStep = active.isTapStep && !(active.key === "injuries" && s.injuries === true);
@@ -502,7 +517,7 @@ export default function CollectionWizard({
       )}
       {active.key === "description" && <DescriptionStep s={s} set={set} />}
       {active.key === "documents" && (
-        <DocumentsStep s={s} onPick={onPickDocs} onRemove={removeDoc} />
+        <DocumentsStep s={s} onPick={onPickDocs} onRemove={removeDoc} onDefer={setDeferred} />
       )}
       {active.key === "summary" && (
         <SummaryStep s={s} set={set} goTo={goTo} docDone={docDone} submitError={submitError} />
