@@ -127,3 +127,53 @@ describe("summarizeFunnel", () => {
     expect(s.docs_deferred).toEqual({ vehicle_reg: 1 });
   });
 });
+
+describe("summarizeFunnel — started vs. links sent", () => {
+  it("keeps the buckets consistent: never_started nests inside abandoned", () => {
+    const rows = [
+      row({ submitted_at: "2026-09-21T09:00:00Z", summary_json: submitted() }),
+      row({ summary_json: draft({ max_step_key: "documents" }) }),
+      row({ summary_json: draft({ max_step_key: "vehicle" }) }),
+      row(),
+      row(),
+    ];
+    const s = summarizeFunnel(rows);
+    expect(s.links_sent).toBe(s.submitted + s.abandoned);
+    const inFlow = s.abandoned_at.reduce((n, a) => n + a.count, 0);
+    expect(s.abandoned).toBe(s.never_started + inFlow);
+    expect(s.started).toBe(s.links_sent - s.never_started);
+  });
+
+  it("excludes never-opened links from the wizard's own rate", () => {
+    // 1 finished, 1 gave up mid-wizard, 3 links never opened.
+    const rows = [
+      row({ submitted_at: "2026-09-21T09:00:00Z", summary_json: submitted() }),
+      row({ summary_json: draft({ max_step_key: "documents" }) }),
+      row(),
+      row(),
+      row(),
+    ];
+    const s = summarizeFunnel(rows);
+    expect(s.completion_rate).toBe(0.2); // 1/5 — dragged down by undelivered links
+    expect(s.started).toBe(2);
+    expect(s.completion_rate_of_started).toBe(0.5); // 1/2 — the wizard's actual record
+  });
+
+  it("counts a submitted claim as started even with no draft or funnel record", () => {
+    // The 50+ pilot claims that predate this tracking: submit had already
+    // overwritten summary_json, so there is nothing to read back.
+    const s = summarizeFunnel([
+      row({ submitted_at: "2026-08-20T09:00:00Z", summary_json: { collected: {} } }),
+      row({ submitted_at: "2026-08-21T09:00:00Z", summary_json: null }),
+    ]);
+    expect(s.never_started).toBe(0);
+    expect(s.started).toBe(2);
+    expect(s.completion_rate_of_started).toBe(1);
+  });
+
+  it("does not divide by zero when every link went unopened", () => {
+    const s = summarizeFunnel([row(), row()]);
+    expect(s.started).toBe(0);
+    expect(s.completion_rate_of_started).toBe(0);
+  });
+});
