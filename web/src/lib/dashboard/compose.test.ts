@@ -196,3 +196,49 @@ describe("composeDashboard — ai_line provenance", () => {
     expect(card?.ai_line).toBeNull();
   });
 });
+
+describe("composeDashboard — intake-first flat list", () => {
+  // The operator asked for the most recently opened claim first (pilot, 2026-09-13).
+  it("orders cards newest-created first, across all three sections", () => {
+    const oldQuiet = cl({ id: "old", client_name: "ותיק", created_at: daysFromNow(-40) });
+    const newest = cl({ id: "new", client_name: "חדש", created_at: daysFromNow(-1) });
+    const middle = cl({ id: "mid", client_name: "אמצע", created_at: daysFromNow(-10) });
+    // Give the oldest claim the loudest signal — it must still sort last.
+    const d = compose([oldQuiet, newest, middle], q([sendItem({ claim_id: "old" })]), null);
+    expect(d.cards.map((c) => c.claim_id)).toEqual(["new", "mid", "old"]);
+  });
+
+  it("holds the order regardless of the order claims arrive in", () => {
+    const a = cl({ id: "a", created_at: daysFromNow(-3) });
+    const b = cl({ id: "b", created_at: daysFromNow(-2) });
+    const c = cl({ id: "c", created_at: daysFromNow(-1) });
+    expect(compose([a, b, c], q(), null).cards.map((x) => x.claim_id)).toEqual(["c", "b", "a"]);
+    expect(compose([c, a, b], q(), null).cards.map((x) => x.claim_id)).toEqual(["c", "b", "a"]);
+  });
+
+  it("includes every open claim exactly once", () => {
+    const claims = [cl({ id: "x" }), cl({ id: "y" }), cl({ id: "z" })];
+    const d = compose(claims, q([sendItem({ claim_id: "x" })]), null);
+    expect(d.cards).toHaveLength(3);
+    expect(new Set(d.cards.map((c) => c.claim_id)).size).toBe(3);
+    expect(d.cards.length).toBe(d.attention.length + d.waiting.length + d.ok.length);
+  });
+
+  it("flags needs_action from queue/classification state, never from the brief", () => {
+    const pending = cl({ id: "p", submitted_at: null, created_at: daysFromNow(-1) });
+    const chase = cl({ id: "s", created_at: daysFromNow(-2) });
+    const unclassified = cl({ id: "u", claim_type: "unknown", created_at: daysFromNow(-3) });
+    const d = compose([pending, chase, unclassified], q([sendItem({ claim_id: "s" })]), null);
+    const by = new Map(d.cards.map((c) => [c.claim_id, c]));
+    expect(by.get("s")!.needs_action).toBe(true);
+    expect(by.get("u")!.needs_action).toBe(true);
+    // Waiting on the client is not the operator's action.
+    expect(by.get("p")!.needs_action).toBe(false);
+  });
+
+  it("does not let an act_now brief tier flip needs_action on", () => {
+    const c = cl({ id: "c1", created_at: daysFromNow(-1) });
+    const d = compose([c], q(), briefWith([{ claim_id: "c1", tier: "act_now", score: 99 }]));
+    expect(d.cards[0].needs_action).toBe(false);
+  });
+});
