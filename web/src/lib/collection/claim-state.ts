@@ -8,6 +8,34 @@ export type DocType = "car_photo" | "drivers_license" | "vehicle_reg";
 // requires them, but never hard-blocks on them — see `docsDeferred`.
 export const REQUIRED_DOC_TYPES = ["drivers_license", "vehicle_reg"] as const;
 export type RequiredDocType = (typeof REQUIRED_DOC_TYPES)[number];
+
+export type RequiredDocSpec = {
+  type: RequiredDocType;
+  /** Completed uploads needed. Two for the licence: front and back. */
+  min: number;
+  /** Skipped entirely when false — an irrelevant document must never block. */
+  appliesTo: (s: State) => boolean;
+};
+
+// Pilot feedback (2026-09-29): **both sides** of the driving licence, and the
+// licence of whoever was driving at the time of the accident — not automatically
+// the policyholder. Kept on the existing `drivers_license` doc type (two files)
+// rather than splitting into front/back types, which are a Postgres enum and would
+// need a hand-applied migration plus changes across checklist, form-fill and chase.
+//
+// The licence is asked for even when the car was hit while parked (product call,
+// 2026-09-29). It was briefly exempted there on the grounds that nobody drove, but
+// the insurer wants the policyholder's licence on the accident notice either way,
+// and the escape hatch already means asking can't hard-block anyone: a claimant with
+// no licence to hand ticks "אשלח בהמשך" and moves on. Only the wording changes —
+// the parked case asks for the owner's licence, not the driver's.
+//
+// `appliesTo` is kept as the hook for a requirement that genuinely doesn't apply to
+// some claims; nothing uses it to exclude a document today.
+export const REQUIRED_DOCS: RequiredDocSpec[] = [
+  { type: "drivers_license", min: 2, appliesTo: () => true },
+  { type: "vehicle_reg", min: 1, appliesTo: () => true },
+];
 export type UploadedDoc = {
   localId: string;
   type: DocType;

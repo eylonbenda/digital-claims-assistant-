@@ -466,12 +466,24 @@ export default function CollectionWizard({
 
   const isSummary = active.key === "summary";
   const docsStep = STEPS.find((st) => st.key === "documents")!;
+  const docsIncomplete = !docsStep.isComplete(s);
   const nextDisabled = isSummary
-    ? submitBusy || !s.declaration.data_consent || !docsStep.isComplete(s)
+    ? submitBusy || !s.declaration.data_consent || docsIncomplete
     : !active.isComplete(s);
   const nextLabel = isSummary ? (submitBusy ? "שולח…" : "שליחה לסוכן") : active.key === "intro" ? "בוא נתחיל" : "המשך";
-  const requiredHint =
-    !active.isTapStep && active.key !== "intro" && !isSummary && !active.isComplete(s);
+  // Say *why* the forward button is dead. Found in a browser pass: a claimant who
+  // reaches the summary with documents still owed saw a greyed "שליחה לסוכן" and no
+  // explanation — the generic hint was suppressed there, and it cites an asterisk the
+  // documents step doesn't use anyway.
+  const requiredHint = isSummary
+    ? docsIncomplete
+      ? "חסרים מסמכים — חזור/חזרי לשלב המסמכים כדי לצרף אותם או לסמן שיישלחו בהמשך"
+      : null
+    : active.isTapStep || active.key === "intro" || active.isComplete(s)
+      ? null
+      : active.key === "documents"
+        ? "יש לצרף את המסמכים המסומנים חובה, או לסמן שיישלחו בהמשך"
+        : "יש למלא את שדות החובה המסומנים בכוכבית (*)";
   // The injuries tap step is the one exception: on "יש נפגעים" it must keep
   // showing the shell's המשך instead of auto-advancing past the warning.
   const isTapStep = active.isTapStep && !(active.key === "injuries" && s.injuries === true);

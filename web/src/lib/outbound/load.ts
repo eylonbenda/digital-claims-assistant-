@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { computeChecklist, chaseableLabels } from "@/lib/claims/checklist";
+import { computeChecklist, chaseableLabels, satisfiedDocTypes } from "@/lib/claims/checklist";
 import type { Brief } from "@/lib/brief/brief";
 import {
   buildQueue,
@@ -30,7 +30,7 @@ export async function loadQueue(
     const { data: claims, error: claimsErr } = await svc
       .from("claims")
       .select(
-        "id, client_name, client_phone, access_token, claim_type, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider",
+        "id, client_name, client_phone, access_token, claim_type, created_at, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider",
       )
       .eq("agent_id", agentId)
       .not("status", "in", "(closed,abandoned)");
@@ -73,7 +73,7 @@ export async function loadQueue(
       const docs = docsBy.get(c.id) ?? [];
       const checklist = computeChecklist(
         c.claim_type,
-        new Set(docs.map((d) => d.type)),
+        satisfiedDocTypes(docs, c.created_at as string),
         formClaims.has(c.id),
         (c.checklist_state as Record<string, boolean> | null) ?? {},
         {

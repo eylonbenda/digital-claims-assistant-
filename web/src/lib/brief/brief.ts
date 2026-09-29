@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
+import { satisfiedDocTypes } from "@/lib/claims/checklist";
 import { buildFactSheet, type BriefClaimRow, type FactSheet } from "./facts";
 import { rankClaims, fallbackTier, TIER_ORDER, type RankSignal, type Tier } from "./rank";
 
@@ -146,7 +147,10 @@ export async function getOrCreateBrief(
         {
           claim: row,
           openTasks: (tasksBy.get(c.id) ?? []).map((t) => ({ title: t.title as string, due_at: t.due_at as string | null })),
-          docTypes: new Set(claimDocs.map((d) => d.type as string)),
+          docTypes: satisfiedDocTypes(
+            claimDocs.map((d) => ({ type: d.type as string })),
+            c.created_at as string,
+          ),
           hasForm: (formsBy.get(c.id) ?? []).length > 0,
           lastActivityAt,
         },

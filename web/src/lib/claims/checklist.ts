@@ -111,6 +111,40 @@ const TRACK_ITEMS: Record<string, ChecklistItemDef[]> = {
 
 // ─── public API ──────────────────────────────────────────────────────────────
 
+// Completed uploads needed before a document counts as supplied on the agent side.
+// The driving licence needs both sides (pilot, 2026-09-29) — kept on one doc type
+// because `doc_type` is a Postgres enum and splitting it would mean a hand-applied
+// migration plus changes across form-fill and chase.
+export const DOC_MIN_COUNT: Record<string, number> = { drivers_license: 2 };
+
+// Applied only to claims opened from this date. The ~50 pilot claims already holding
+// a single licence image would otherwise all flip back to incomplete at once and
+// reopen their chase tasks, flooding the agent's list. Those files still need both
+// sides — she chases them by hand rather than through a backlog dumped in one go.
+// Bump this if the change ships later than planned.
+export const BOTH_SIDES_LICENCE_FROM = "2026-09-30T00:00:00Z";
+
+// Which document types are satisfied, honouring the per-type minimum. Replaces
+// `new Set(docs.map(d => d.type))` at every call site: mere presence of one row was
+// the old definition of "supplied", and it would tick the licence on a single side —
+// closing `chase_missing_docs` while the back is still missing.
+export function satisfiedDocTypes(
+  rows: { type: string }[],
+  claimCreatedAt?: string | null,
+): Set<string> {
+  const opened = claimCreatedAt ? new Date(claimCreatedAt).getTime() : NaN;
+  const legacy = Number.isNaN(opened) || opened < Date.parse(BOTH_SIDES_LICENCE_FROM);
+
+  const counts = new Map<string, number>();
+  for (const r of rows) counts.set(r.type, (counts.get(r.type) ?? 0) + 1);
+
+  const out = new Set<string>();
+  for (const [type, n] of counts) {
+    if (n >= (legacy ? 1 : (DOC_MIN_COUNT[type] ?? 1))) out.add(type);
+  }
+  return out;
+}
+
 // A document the claimant explicitly deferred in the wizard ("אין לי את זה כרגע —
 // אשלח בהמשך"). The item stays undone and still blocks, but the agent sees why it
 // is missing instead of guessing whether the client skipped, failed or never looked.

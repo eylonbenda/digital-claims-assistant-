@@ -70,14 +70,25 @@ describe("step registry", () => {
     // Everything typed, but no licence/registration yet — resume must land on
     // documents rather than skipping to summary and submitting past the requirement.
     expect(firstIncompleteKey(full)).toBe("documents");
-    // Satisfy them (one uploaded, one deferred) and it falls through to summary.
+    // Satisfy them (licence both sides, registration deferred) → falls through.
+    expect(
+      firstIncompleteKey({
+        ...full,
+        documents: [
+          { localId: "1", type: "drivers_license", name: "a.jpg", status: "done" },
+          { localId: "2", type: "drivers_license", name: "b.jpg", status: "done" },
+        ],
+        docsDeferred: { vehicle_reg: true },
+      }),
+    ).toBe("summary");
+    // One side only is not enough.
     expect(
       firstIncompleteKey({
         ...full,
         documents: [{ localId: "1", type: "drivers_license", name: "a.jpg", status: "done" }],
         docsDeferred: { vehicle_reg: true },
       }),
-    ).toBe("summary");
+    ).toBe("documents");
   });
 
   it("driver_details.isComplete requires first/last/id, not just some", () => {
@@ -132,35 +143,41 @@ describe("step registry", () => {
 });
 
 describe("required documents (pilot 2026-09-27)", () => {
+  let n = 0;
   const doc = (type: "drivers_license" | "vehicle_reg" | "car_photo", status: "done" | "uploading" | "error" = "done") =>
-    ({ localId: `${type}-${status}`, type, name: "f.jpg", status }) as const;
+    ({ localId: `${type}-${status}-${++n}`, type, name: "f.jpg", status }) as const;
+  // Both sides of the licence — the requirement since 2026-09-29.
+  const licence2 = () => [doc("drivers_license"), doc("drivers_license")];
 
   it("is not satisfied by an empty documents list", () => {
     expect(docsSatisfied(BASE)).toBe(false);
   });
 
   it("needs both the licence and the registration, not just one", () => {
-    expect(docsSatisfied({ ...BASE, documents: [doc("drivers_license")] })).toBe(false);
+    expect(docsSatisfied({ ...BASE, documents: licence2() })).toBe(false);
     expect(docsSatisfied({ ...BASE, documents: [doc("vehicle_reg")] })).toBe(false);
-    expect(docsSatisfied({ ...BASE, documents: [doc("drivers_license"), doc("vehicle_reg")] })).toBe(true);
+    expect(docsSatisfied({ ...BASE, documents: [...licence2(), doc("vehicle_reg")] })).toBe(true);
   });
 
   it("ignores car photos, which stay optional", () => {
     expect(docsSatisfied({ ...BASE, documents: [doc("car_photo")] })).toBe(false);
     expect(
-      docsSatisfied({
-        ...BASE,
-        documents: [doc("drivers_license"), doc("vehicle_reg"), doc("car_photo")],
-      }),
+      docsSatisfied({ ...BASE, documents: [...licence2(), doc("vehicle_reg"), doc("car_photo")] }),
     ).toBe(true);
   });
 
   it("does not count an upload that never finished", () => {
     expect(
-      docsSatisfied({ ...BASE, documents: [doc("drivers_license", "uploading"), doc("vehicle_reg")] }),
+      docsSatisfied({
+        ...BASE,
+        documents: [doc("drivers_license"), doc("drivers_license", "uploading"), doc("vehicle_reg")],
+      }),
     ).toBe(false);
     expect(
-      docsSatisfied({ ...BASE, documents: [doc("drivers_license", "error"), doc("vehicle_reg")] }),
+      docsSatisfied({
+        ...BASE,
+        documents: [doc("drivers_license"), doc("drivers_license", "error"), doc("vehicle_reg")],
+      }),
     ).toBe(false);
   });
 
@@ -170,11 +187,46 @@ describe("required documents (pilot 2026-09-27)", () => {
     expect(
       docsSatisfied({ ...BASE, documents: [doc("vehicle_reg")], docsDeferred: { drivers_license: true } }),
     ).toBe(true);
+    // Only one side photographed — the escape hatch still has to work, or a client
+    // whose licence back is unreadable is stuck.
+    expect(
+      docsSatisfied({
+        ...BASE,
+        documents: [doc("drivers_license"), doc("vehicle_reg")],
+        docsDeferred: { drivers_license: true },
+      }),
+    ).toBe(true);
   });
 
   it("treats a false or absent deferral as unsatisfied", () => {
     expect(docsSatisfied({ ...BASE, docsDeferred: { drivers_license: false, vehicle_reg: true } })).toBe(false);
     expect(docsSatisfied({ ...BASE, docsDeferred: { vehicle_reg: true } })).toBe(false);
+  });
+
+  // Product call (2026-09-29): the licence is asked for on a parked car too — the
+  // insurer wants the policyholder's licence either way, and the escape hatch means
+  // asking can never hard-block the claimant.
+  it("still requires the licence when the car was hit while parked", () => {
+    const parked: State = { ...BASE, driver: { ...BASE.driver, parked: true } };
+    expect(docsSatisfied({ ...parked, documents: [doc("vehicle_reg")] })).toBe(false);
+    expect(docsSatisfied({ ...parked, documents: [...licence2(), doc("vehicle_reg")] })).toBe(true);
+  });
+
+  it("lets a parked-car claimant defer the licence like anyone else", () => {
+    const parked: State = { ...BASE, driver: { ...BASE.driver, parked: true } };
+    expect(
+      docsSatisfied({
+        ...parked,
+        documents: [doc("vehicle_reg")],
+        docsDeferred: { drivers_license: true },
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps requiring the licence when somebody was driving", () => {
+    const driven: State = { ...BASE, driver: { ...BASE.driver, parked: false, isInsured: false } };
+    expect(docsSatisfied({ ...driven, documents: [doc("vehicle_reg")] })).toBe(false);
+    expect(docsSatisfied({ ...driven, documents: [...licence2(), doc("vehicle_reg")] })).toBe(true);
   });
 
   it("the documents step in the registry uses that rule", () => {
