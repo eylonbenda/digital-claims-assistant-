@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeChecklist, chaseableLabels, type ClaimFlags } from "./checklist";
+import { computeChecklist, chaseableLabels, satisfiedDocTypes, type ClaimFlags } from "./checklist";
 
 const NO_FLAGS: ClaimFlags = {
   theft: false, lien: false, business_use: false,
@@ -109,5 +109,54 @@ describe("chaseableLabels", () => {
         { kind: "milestone", label: "רכב נכנס למוסך" },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("satisfiedDocTypes — both sides of the licence", () => {
+  const NEW = "2026-10-05T09:00:00Z"; // after BOTH_SIDES_LICENCE_FROM
+  const OLD = "2026-09-01T09:00:00Z"; // a pilot claim from before the rule
+  const d = (type: string) => ({ type });
+
+  it("needs two licence images on a claim opened under the rule", () => {
+    expect(satisfiedDocTypes([d("drivers_license")], NEW).has("drivers_license")).toBe(false);
+    expect(
+      satisfiedDocTypes([d("drivers_license"), d("drivers_license")], NEW).has("drivers_license"),
+    ).toBe(true);
+  });
+
+  it("leaves every other document at one", () => {
+    const s = satisfiedDocTypes([d("vehicle_reg"), d("car_photo")], NEW);
+    expect(s.has("vehicle_reg")).toBe(true);
+    expect(s.has("car_photo")).toBe(true);
+  });
+
+  // The ~50 pilot claims must not all flip back to incomplete and reopen their chases.
+  it("accepts a single licence image on a claim opened before the rule", () => {
+    expect(satisfiedDocTypes([d("drivers_license")], OLD).has("drivers_license")).toBe(true);
+  });
+
+  it("treats a missing or unparseable date as legacy", () => {
+    expect(satisfiedDocTypes([d("drivers_license")]).has("drivers_license")).toBe(true);
+    expect(satisfiedDocTypes([d("drivers_license")], null).has("drivers_license")).toBe(true);
+    expect(satisfiedDocTypes([d("drivers_license")], "not-a-date").has("drivers_license")).toBe(true);
+  });
+
+  it("omits types with no uploads at all", () => {
+    expect(satisfiedDocTypes([], NEW).size).toBe(0);
+  });
+
+  // The point of threading this through: one side must not close the chase task.
+  it("keeps the licence blocking in the checklist until both sides are in", () => {
+    const one = computeChecklist("own_policy", satisfiedDocTypes([d("drivers_license")], NEW), false, {}, NO_FLAGS);
+    expect(one.find((i) => i.key === "drivers_license")!.done).toBe(false);
+
+    const both = computeChecklist(
+      "own_policy",
+      satisfiedDocTypes([d("drivers_license"), d("drivers_license")], NEW),
+      false,
+      {},
+      NO_FLAGS,
+    );
+    expect(both.find((i) => i.key === "drivers_license")!.done).toBe(true);
   });
 });

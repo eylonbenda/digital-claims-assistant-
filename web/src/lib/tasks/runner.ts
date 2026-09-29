@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { computeChecklist } from "@/lib/claims/checklist";
+import { computeChecklist, satisfiedDocTypes } from "@/lib/claims/checklist";
 import { advanceTasks } from "./engine";
 import {
   STATUS_ORDER,
@@ -29,7 +29,7 @@ export async function runEngine(
       svc
         .from("claims")
         .select(
-          "id, claim_type, status, at_fault_insurer, checklist_state, submitted_at, theft, lien, business_use, policy_activated, garage_network_rider",
+          "id, claim_type, status, at_fault_insurer, checklist_state, created_at, submitted_at, theft, lien, business_use, policy_activated, garage_network_rider",
         )
         .eq("id", claimId)
         .single(),
@@ -50,7 +50,10 @@ export async function runEngine(
     const hasForm = (formCount ?? 0) > 0;
     const checklist = computeChecklist(
       claim.claim_type,
-      new Set((docs ?? []).map((d) => d.type as string)),
+      satisfiedDocTypes(
+        (docs ?? []).map((d) => ({ type: d.type as string })),
+        claim.created_at as string,
+      ),
       hasForm,
       (claim.checklist_state as Record<string, boolean> | null) ?? {},
       {

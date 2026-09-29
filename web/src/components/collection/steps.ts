@@ -1,6 +1,6 @@
 // The wizard's single source of truth for step order, chapters, relevance and
 // completeness (spec §3, §6). Pure — no React, no I/O.
-import { REQUIRED_DOC_TYPES, type State } from "@/lib/collection/claim-state";
+import { REQUIRED_DOCS, type State } from "@/lib/collection/claim-state";
 
 export type StepKey =
   | "intro" | "injuries" | "driver_who" | "fault" | "tp_present"
@@ -20,15 +20,18 @@ export type StepDef = {
 const filled = (v: string) => v.trim().length > 0;
 const always = () => true;
 
-// Each required document is satisfied by a completed upload OR an explicit
-// "I'll send it later" tap. Uploads still in flight or failed don't count — only
-// `done` reached the server.
+// A required document is satisfied by enough completed uploads (two for the licence
+// — both sides) OR an explicit "I'll send it later" tap. Uploads still in flight or
+// failed don't count: only `done` reached the server. Requirements that don't apply
+// to this claim (no driver on a parked car) are skipped, not deferred.
 export function docsSatisfied(s: State): boolean {
-  return REQUIRED_DOC_TYPES.every(
-    (t) =>
-      s.documents.some((d) => d.type === t && d.status === "done") ||
-      s.docsDeferred?.[t] === true,
+  return REQUIRED_DOCS.filter((r) => r.appliesTo(s)).every(
+    (r) => doneCount(s, r.type) >= r.min || s.docsDeferred?.[r.type] === true,
   );
+}
+
+export function doneCount(s: State, type: string): number {
+  return s.documents.filter((d) => d.type === type && d.status === "done").length;
 }
 
 export const STEPS: StepDef[] = [

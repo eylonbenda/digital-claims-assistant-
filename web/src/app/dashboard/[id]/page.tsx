@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { computeChecklist, chaseableLabels } from "@/lib/claims/checklist";
+import { computeChecklist, chaseableLabels, satisfiedDocTypes } from "@/lib/claims/checklist";
 import { classifyFromClaimData } from "@/lib/claims/classify";
 import { getOrCreateAnalysis, type SummaryJson } from "@/lib/claims/analysis-cache";
 import { toClaimData, type State } from "@/lib/collection/claim-state";
@@ -174,7 +174,10 @@ export default async function ClaimDetailPage({
     policy_activated:     !!(claim as Record<string, unknown>).policy_activated,
     garage_network_rider: !!(claim as Record<string, unknown>).garage_network_rider,
   };
-  const uploadedDocTypes = new Set((rows ?? []).map((r) => r.type as string));
+  const uploadedDocTypes = satisfiedDocTypes(
+    (rows ?? []).map((r) => ({ type: r.type as string })),
+    claim.created_at,
+  );
   const checklistState = ((claim as Record<string, unknown>).checklist_state as Record<string, boolean> | null) ?? {};
   // What the claimant said they'd send later (wizard `docsDeferred`), so a missing
   // blocking document reads as "the client will send it" rather than an unexplained
