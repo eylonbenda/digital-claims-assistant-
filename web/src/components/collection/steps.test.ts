@@ -203,15 +203,24 @@ describe("required documents (pilot 2026-09-27)", () => {
     expect(docsSatisfied({ ...BASE, docsDeferred: { vehicle_reg: true } })).toBe(false);
   });
 
-  // Nobody drove, so there is no driving licence to ask for. Requiring one would
-  // hard-block the parked-car case PR #50 exists to unblock.
-  it("drops the licence requirement entirely when the car was parked", () => {
+  // Product call (2026-09-29): the licence is asked for on a parked car too — the
+  // insurer wants the policyholder's licence either way, and the escape hatch means
+  // asking can never hard-block the claimant.
+  it("still requires the licence when the car was hit while parked", () => {
     const parked: State = { ...BASE, driver: { ...BASE.driver, parked: true } };
-    expect(docsSatisfied({ ...parked, documents: [doc("vehicle_reg")] })).toBe(true);
-    // ...and still asks for the registration.
-    expect(docsSatisfied(parked)).toBe(false);
-    // The requirement is skipped, not deferred — no deferral is recorded for it.
-    expect(docsSatisfied({ ...parked, documents: [doc("vehicle_reg")] })).toBe(true);
+    expect(docsSatisfied({ ...parked, documents: [doc("vehicle_reg")] })).toBe(false);
+    expect(docsSatisfied({ ...parked, documents: [...licence2(), doc("vehicle_reg")] })).toBe(true);
+  });
+
+  it("lets a parked-car claimant defer the licence like anyone else", () => {
+    const parked: State = { ...BASE, driver: { ...BASE.driver, parked: true } };
+    expect(
+      docsSatisfied({
+        ...parked,
+        documents: [doc("vehicle_reg")],
+        docsDeferred: { drivers_license: true },
+      }),
+    ).toBe(true);
   });
 
   it("keeps requiring the licence when somebody was driving", () => {

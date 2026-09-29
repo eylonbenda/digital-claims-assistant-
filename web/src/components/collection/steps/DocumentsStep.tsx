@@ -4,7 +4,8 @@ import { DocField } from "./fields";
 
 // The licence and vehicle registration are required (pilot, 2026-09-27: they were
 // arriving missing and the office chased every one by hand), and the licence needs
-// **both sides**, for whoever was driving at the time (pilot, 2026-09-29).
+// **both sides**, for whoever was driving at the time (pilot, 2026-09-29). It is
+// asked for on a parked car too — only the wording changes to the owner's licence.
 //
 // Not a hard block, though — post-accident the documents are often in a towed car or
 // with the police, and R2 in the assumptions canvas says every mandatory field needs
@@ -40,9 +41,14 @@ function DeferToggle({
   );
 }
 
-// Whose licence we're asking for. The wizard already knows: the policyholder drove,
-// someone else drove (named on the driver-details step), or nobody did.
+// Whose licence we're asking for. The wizard already knows: nobody drove (parked),
+// someone else drove (named on the driver-details step), or the policyholder drove.
+// "של מי שנהג/ה" would be nonsense on a parked car, so that case asks for the
+// owner's licence instead.
 function licenceOwnerHint(s: State): string {
+  if (s.driver?.parked) {
+    return "שני הצדדים (קדמי ואחורי) — של בעל/ת הרכב";
+  }
   if (s.driver?.isInsured === false) {
     const name = [s.driver.first_name, s.driver.last_name].filter(Boolean).join(" ").trim();
     return name
@@ -79,7 +85,9 @@ export default function DocumentsStep({
           : "רישיון הרכב נדרש לפתיחת התביעה. אם אין לך אותו כרגע — סמן/י ואפשר לשלוח בהמשך."}
       </p>
 
-      {/* No driver, no driving licence: the car was hit while parked. */}
+      {/* Spec-driven so the `appliesTo` hook stays honest: nothing excludes the
+          licence today, so this branch is always taken and the registration-only
+          copy above is currently unreachable. */}
       {licenceApplies && (
         <div>
           <DocField
