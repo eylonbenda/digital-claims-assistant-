@@ -29,6 +29,7 @@ A claim has 4 tracks (`claim_type`): `own_policy`, `third_party_report` ("דוח
 - **Draw Hebrew in logical order — do NOT reverse the string.** pdf-lib + fontkit shape RTL themselves; manual reversal looks right in code and renders as gibberish.
 - **Anthropic SDK work → consult the `claude-api` skill first** (model IDs, SDK surface). Never assert model facts from memory.
 - **This Next.js is v16** — per `web/AGENTS.md`, read `web/node_modules/next/dist/docs/` before writing Next code.
+- **A Stop hook type-checks `web/` before a turn can end** (`.claude/hooks/tsc-on-stop.mjs`). If it blocks you with tsc errors, fix them — don't work around it. It checks types only (`next build` is still on you), and it **silently skips when `web/node_modules` is missing** — i.e. in a fresh worktree until you install deps there.
 - The file once named `docs/accidentStatementPdf/כלל_טופס_תאונה.pdf` was actually **מנורה** (now renamed `מנורה_טופס_תאונה.pdf`). The real כלל form is `כלל_טופס-הודעה.pdf` — a 9-page claim kit; only pages 3–5 are the fillable form.
 
 ## Docs index
