@@ -14,7 +14,8 @@ export type ShellProps = {
   nextDisabled: boolean;
   onNext: () => void;
   nextVariant: "primary" | "submit";
-  requiredHint: boolean;
+  /** Why the forward button is disabled. Null when it isn't. */
+  requiredHint: string | null;
   cheer: string | null;
   children: ReactNode;
 };
@@ -71,9 +72,7 @@ export default function WizardShell(p: ShellProps) {
       <div className="flex-1">{p.children}</div>
 
       {p.requiredHint && (
-        <p className="mt-3 text-center text-sm text-amber-600">
-          יש למלא את שדות החובה המסומנים בכוכבית (*)
-        </p>
+        <p className="mt-3 text-center text-sm text-amber-600">{p.requiredHint}</p>
       )}
 
       <div className="mt-6 flex items-center justify-between gap-3">
