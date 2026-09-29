@@ -1,6 +1,6 @@
 # Digital Claims Assistant — עוזר התביעות הדיגיטלי
 
-AI claims-collection + management system for **Israeli insurance agents**, built with Claude.
+AI claims-collection + management system for the Israeli businesses that handle car-accident claims — **insurance agents and garages (מוסכים)** — built with Claude.
 
 > This file is the always-loaded project brief. The `docs/` folder is the **live source of truth** — several docs are updated more often than this brief, so when a detail here disagrees with a doc, trust the doc.
 
@@ -8,7 +8,7 @@ AI claims-collection + management system for **Israeli insurance agents**, built
 A client who had a car accident messages their agent ("עברתי תאונה"). The system runs the full info-collection flow (injuries, car photos, driver's license, vehicle registration, 3rd-party details, event summary), classifies the claim, auto-fills the **"הודעה על תאונה"** (accident-notice) form, and hands the agent an organized, ready-to-handle case file + a status dashboard. Replaces hours of WhatsApp/phone chasing. It is a claim *management* system, not just collection.
 
 ## Stage
-Validation-first, with a warm design partner (a known insurance agent). Goal: prove agents will **pay** before building heavily. Current status lives in `docs/validation-guide.md` and `docs/assumptions-canvas.md`.
+Validation-first, with a warm design partner. **Customer zero is a garage, not an insurance agent** — that is who the pilot has run with since 2026-07-19 and who the pricing conversation is with. Both segments are deliberately in scope; the garage came first because that was the warm contact, not by design. Goal: prove a customer will **pay** before building heavily. Current status lives in `docs/validation-guide.md` and `docs/assumptions-canvas.md`.
 
 ## Stack (approved)
 Next.js + TypeScript + Supabase (Postgres/Auth/Storage) + Anthropic Claude SDK + Vercel. Hebrew/RTL from day one. Handles sensitive PII (ID, license) under חוק הגנת הפרטיות.
@@ -27,6 +27,7 @@ Standing rule for this repo: **branch + PR per change — never commit to `main`
 A claim has 4 tracks (`claim_type`): `own_policy`, `third_party_report` ("דוח פרטי"), `third_party_settlement` ("הסדר"), and `unknown` (default, revisable). AI proposes the classification, the agent confirms. Third-party is the sharpest differentiation. Accident-notice forms are per-insurer but ~80% shared fields, and are flat PDFs (no AcroForm) → fill via **text overlay at coordinates**, not field-fill. Details in `docs/claim-management.md` + `docs/form-field-map.md`.
 
 ## Traps (unguessable from the code — remember these)
+- **`agents` / `agent_id` do not mean "insurance agent".** They are the business handling the claim — an agent **or** a garage. The only pilot customer is a **garage**, and the person actually doing the work is an employee (a פקידה), while the person who signs and pays is the owner. Buyer ≠ user: pitch the owner on jobs captured and cash cycle, not on his employee's saved hours. The schema keeps the `agents` name for now — renaming buys nothing and costs a migration.
 - **DB migrations are never applied automatically.** Deploying ships code, not schema: every `web/db/migrations/NNN_*.sql` is pasted into the Supabase SQL editor by hand — dev *and* prod. When a change adds one, say so explicitly in the handoff. A forgotten migration deploys green and 500s at runtime. Checklist in `docs/status.md`.
 - **Draw Hebrew in logical order — do NOT reverse the string.** pdf-lib + fontkit shape RTL themselves; manual reversal looks right in code and renders as gibberish.
 - **Anthropic SDK work → consult the `claude-api` skill first** (model IDs, SDK surface). Never assert model facts from memory.
