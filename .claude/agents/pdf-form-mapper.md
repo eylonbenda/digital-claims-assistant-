@@ -24,6 +24,9 @@ Map or enrich ONE insurer's coordinate template **in the app** — the single so
   - `assets/<insurer>.pdf` — the blank PDF the app fills (same file as the source PDF below).
 - **Coordinate lab (tools only):** `.pdfwork/` — `coords.mjs`, `boxdetect.mjs`, `inspect.mjs` extract
   positions; `render.mjs` renders for QA. (No schema lives here anymore — it's the app's.)
+  Comb/tick/box scanners already exist — `combscan.mjs`, `hcombscan.mjs`, `vticks.mjs`, `crop.mjs`,
+  `inkband.mjs`, `blobs.mjs`, `diffink.mjs` (usage line at the top of each). Reuse them before writing new ones.
+  Any throwaway script you do write goes in `.pdfwork/_scratch/` (git-ignored), never the lab root.
 - **Source PDFs:** `docs/accidentStatementPdf/<file>.pdf` — identical to the app's `assets/<insurer>.pdf`,
   so PDF-space coordinates transfer directly.
 
