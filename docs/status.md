@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-09-29**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-09-30**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -162,7 +162,7 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - Covered by a new case in `web/src/lib/claims/checklist.test.ts` (receipt mandatory + non-blocking, `garage_invoice` still blocking). **No migration**, no schema or route change.
 
 ### Done since last sync (2026-08-05, PR #31 — unknown insurer/coverage + name prefill)
-- **A client who doesn't know their insurer or coverage can now finish the wizard.** Both identity-step selects gained a **"לא בטוח/ה — הסוכן ישלים"** option (`unknown`), which satisfies the step's required-field gate. Downstream it is treated as *undetermined*, not as data: `toClaimData` omits `insurance_type` for `"unknown"` exactly as it does for `""` (`web/src/lib/collection/claim-state.ts`, `State.insuranceType` widened to `InsuranceType | "" | "unknown"`), and `POST /api/claims/submit` maps the insurer sentinel to `policy_insurer = null` — so the accident-notice auto-fill simply doesn't run and the agent picks the insurer + regenerates from the cockpit. The raw answer is still preserved in `summary_json.collected` for audit. In the classifier this lands on the existing `coverageKnown` path: no **אזהרת מימוש** is raised when coverage is unknown.
+- **A client who doesn't know their insurer or coverage can now finish the wizard.** Both identity-step selects gained a **"לא בטוח/ה — יושלם בהמשך"** option (`unknown`), which satisfies the step's required-field gate. Downstream it is treated as *undetermined*, not as data: `toClaimData` omits `insurance_type` for `"unknown"` exactly as it does for `""` (`web/src/lib/collection/claim-state.ts`, `State.insuranceType` widened to `InsuranceType | "" | "unknown"`), and `POST /api/claims/submit` maps the insurer sentinel to `policy_insurer = null` — so the accident-notice auto-fill simply doesn't run and the agent picks the insurer + regenerates from the cockpit. The raw answer is still preserved in `summary_json.collected` for audit. In the classifier this lands on the existing `coverageKnown` path: no **אזהרת מימוש** is raised when coverage is unknown.
 - **Name + phone prefilled from the agent's claim record** (`web/src/app/c/[token]/page.tsx`): the page now selects `client_name` alongside `client_phone` and seeds `insured.first_name` / `last_name` (naive first-word / rest split) / `mobile`. Both fields stay editable — a post-accident client shouldn't retype what the agent already typed.
 - Covered by new cases in `web/src/lib/collection/claim-state.test.ts` (concrete type kept; `""` and `"unknown"` both omitted). **No migration**, no schema change.
 ### Done since last sync (2026-08-05, PR #30 — wizard progress persistence)
@@ -317,6 +317,13 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **Agent side stays in sync via `satisfiedDocTypes`** (new, `web/src/lib/claims/checklist.ts`, replaces `new Set(docs.map(d => d.type))` at every call site — dashboard claim page, `brief.ts`, `outbound/load.ts`, `tasks/runner.ts`): honours `DOC_MIN_COUNT` (`{ drivers_license: 2 }`) so the checklist / chase / SLA-clock logic all require both sides too.
 - **Legacy cutoff, not a backfill:** the both-sides requirement only applies to claims opened on/after `BOTH_SIDES_LICENCE_FROM` (2026-09-30T00:00 UTC) — `satisfiedDocTypes` takes the claim's `created_at` and falls back to a single-side requirement for older claims, so the ~50 pilot claims already holding one licence photo don't all flip to incomplete and reopen their chase tasks at once.
 - Unit-tested: updated `web/src/components/collection/steps.test.ts` (`docsSatisfied`/`doneCount` over `REQUIRED_DOCS`) and `web/src/lib/claims/checklist.test.ts` (`satisfiedDocTypes` — min counts, the legacy cutoff, mixed claims).
+
+### Done since last sync (2026-09-30, PR #70 — client-facing recipient wording)
+- **No migration.** Copy + one query-shape change only.
+- **The client-facing wizard stopped telling every claimant their details go to "הסוכן."** The product serves both insurance agents and garages, and the only pilot customer is a garage — so that copy was flatly wrong for every real claim so far, including in the consent the claimant signs. New `web/src/lib/collection/recipient.ts` centralises the fix: `sentTitle(handlerName)` names the actual business ("הפרטים נשלחו למוסך כהן") when `agents.name` is known, else falls back to neutral wording ("הפרטים נשלחו לטיפול"); `NEUTRAL_HANDLER` and `CONSENT_RECIPIENT` cover spots (intro consent, declaration text) that can't carry a name or must stay legally generic ("לגוף המטפל בתביעה מטעמי").
+- `web/src/app/c/[token]/page.tsx` now selects `agents(name)` alongside the claim row and passes the resolved `handlerName` down into `CollectionWizard` and `FollowupUpload`; PostgREST's to-one embed is read defensively (object or array) and a blank name counts as absent.
+- Button/label copy also dropped the assumption: "שליחה לסוכן" → "שליחה לטיפול", and the identity step's unsure-coverage option **"לא בטוח/ה — הסוכן ישלים"** → **"לא בטוח/ה — יושלם בהמשך"** (referenced above and in `claim-management.md` — updated to match).
+- Unit-tested: new `web/src/lib/collection/recipient.test.ts` (name-present vs. neutral fallback, blank/whitespace name, trimming, both consent strings verified segment-neutral).
 
 ## To run the AI path live
 Add `ANTHROPIC_API_KEY` to `web/.env.local`, then:
