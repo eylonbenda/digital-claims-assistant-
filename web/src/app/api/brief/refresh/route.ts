@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getOrCreateBrief } from "@/lib/brief/brief";
+import { serverError } from "@/lib/observability/report";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,6 @@ export async function POST() {
   }
 
   const brief = await getOrCreateBrief(agent.id, { refresh: true });
-  if (!brief) return Response.json({ error: "brief failed" }, { status: 500 });
+  if (!brief) return serverError("/api/brief/refresh", "brief failed", { agentId: agent.id });
   return Response.json({ brief });
 }

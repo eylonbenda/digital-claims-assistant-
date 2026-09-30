@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { sniffFileType, SNIFF_MIME, SNIFF_EXT } from "@/lib/files/sniff";
 import { runEngine } from "@/lib/tasks/runner";
+import { reportError, serverError } from "@/lib/observability/report";
 
 export const runtime = "nodejs"; // needs the service client + Storage upload
 
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     // Supabase not configured — succeed silently so the wizard works in demo mode (no real upload).
     // Local only: in a deployed env a fake "ok" would mark a document uploaded that was never stored.
     if (process.env.NODE_ENV === "production") {
-      console.error("[documents] Supabase env missing in production");
+      await reportError("/api/claims/documents", "Supabase env missing in production");
       return Response.json({ error: "not configured" }, { status: 503 });
     }
     return Response.json({ ok: true, demo: true });
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
     .from(BUCKET)
     .upload(path, bytes, { contentType: mime, upsert: false });
   if (upErr) {
-    return Response.json({ error: `upload failed: ${upErr.message}` }, { status: 500 });
+    return serverError("/api/claims/documents", upErr, { claimId: claim.id, step: "upload" });
   }
 
   const { data: doc, error: dbErr } = await svc
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
     .single();
   if (dbErr) {
     await svc.storage.from(BUCKET).remove([path]); // don't leave an orphaned object
-    return Response.json({ error: `could not record document: ${dbErr.message}` }, { status: 500 });
+    return serverError("/api/claims/documents", dbErr, { claimId: claim.id, step: "insert" });
   }
 
   // Surface late uploads in the audit log so the agent notices documents added
