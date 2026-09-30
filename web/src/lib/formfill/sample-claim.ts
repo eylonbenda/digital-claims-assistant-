@@ -1,6 +1,6 @@
 import type { ClaimData } from "./types";
 
-// Demo claim for the GET /api/forms/<insurer> preview route. Mirrors the canonical schema in
+// Demo claim for scripts/fill.ts QA renders. Mirrors the canonical schema in
 // docs/form-field-map.md; kept in sync with .pdfwork/formfill/sample-claim.mjs.
 const sampleClaim: ClaimData = {
   agent_name: "ישראל ישראלי",
