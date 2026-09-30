@@ -1,10 +1,15 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { templates, fillForm } from "@/lib/formfill";
 import { toClaimData, type State } from "@/lib/collection/claim-state";
+import { after } from "next/server";
 import { runEngine } from "@/lib/tasks/runner";
+import { warmAnalysis } from "@/lib/claims/analysis-cache";
 import { ALREADY_SUBMITTED, SUBMITTED_STATUSES, parseSubmitBody } from "@/lib/collection/submit";
 
 export const runtime = "nodejs"; // form-fill reads the template PDF + font from disk
+// Bounds the post-response analysis warm (after()); the claimant's request itself
+// returns long before this.
+export const maxDuration = 60;
 
 const BUCKET = "claim-docs";
 
@@ -161,6 +166,11 @@ export async function POST(request: Request) {
 
   // Reactive task engine: spawn the doc-chase task if base docs are missing.
   await runEngine(claim.id, { type: "claim_submitted" });
+
+  // Warm the AI analysis now, after the claimant has their response, so the agent's
+  // first open of this claim reads it from cache instead of waiting on the model.
+  const claimId = claim.id;
+  after(() => warmAnalysis(claimId));
 
   return Response.json({ ok: true });
 }
