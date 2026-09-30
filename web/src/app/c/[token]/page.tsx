@@ -25,7 +25,10 @@ export default async function CollectPage({
   const svc = createServiceClient();
   const { data: claim } = await svc
     .from("claims")
-    .select("id, status, client_name, client_phone, summary_json")
+    // agents(name) is the business handling this claim — an insurance agent or a
+    // garage. Embedded via the claims.agent_id FK so the client screens can name
+    // the real recipient instead of assuming "הסוכן".
+    .select("id, status, client_name, client_phone, summary_json, agents(name)")
     .eq("access_token", token)
     .single();
 
@@ -39,12 +42,21 @@ export default async function CollectPage({
     );
   }
 
+  // The business handling this claim — an insurance agent or a garage. PostgREST
+  // returns an embedded to-one as an object, but an undetected relationship comes
+  // back as an array; accept both. A blank name counts as absent so the copy falls
+  // back to neutral wording rather than rendering "ל ".
+  const agentRel = (claim as { agents?: { name?: string | null } | { name?: string | null }[] })
+    .agents;
+  const rawName = Array.isArray(agentRel) ? agentRel[0]?.name : agentRel?.name;
+  const handlerName = rawName?.trim() ? rawName.trim() : null;
+
   if (claim.status === "closed") {
     return (
       <div className="mx-auto max-w-md p-10 text-center">
         <div className="text-5xl">✅</div>
         <h1 className="mt-4 text-2xl font-bold text-zinc-900">התביעה טופלה</h1>
-        <p className="mt-2 text-zinc-500">תודה! הסוכן סיים לטפל בתביעה זו.</p>
+        <p className="mt-2 text-zinc-500">תודה! הטיפול בתביעה זו הושלם.</p>
       </div>
     );
   }
@@ -59,7 +71,9 @@ export default async function CollectPage({
     for (const d of existing ?? []) {
       existingCounts[d.type] = (existingCounts[d.type] ?? 0) + 1;
     }
-    return <FollowupUpload token={token} existingCounts={existingCounts} />;
+    return (
+      <FollowupUpload token={token} existingCounts={existingCounts} handlerName={handlerName} />
+    );
   }
 
   // The agent already typed the client's name and phone when creating the claim —
@@ -77,5 +91,12 @@ export default async function CollectPage({
   // wizard prefers its own localStorage save and falls back to this.
   const serverDraft = (claim.summary_json as { draft?: unknown } | null)?.draft;
 
-  return <CollectionWizard token={token} prefill={prefill} serverDraft={serverDraft} />;
+  return (
+    <CollectionWizard
+      token={token}
+      prefill={prefill}
+      serverDraft={serverDraft}
+      handlerName={handlerName}
+    />
+  );
 }

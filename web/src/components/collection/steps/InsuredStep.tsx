@@ -33,7 +33,7 @@ export default function InsuredStep({
               {i.label}
             </option>
           ))}
-          <option value="unknown">לא בטוח/ה — הסוכן ישלים</option>
+          <option value="unknown">לא בטוח/ה — יושלם בהמשך</option>
         </select>
       </label>
       <label className="block">
@@ -49,10 +49,10 @@ export default function InsuredStep({
           <option value="comprehensive">מקיף</option>
           <option value="third_party">צד ג׳</option>
           <option value="mandatory">חובה בלבד</option>
-          <option value="unknown">לא בטוח/ה — הסוכן ישלים</option>
+          <option value="unknown">לא בטוח/ה — יושלם בהמשך</option>
         </select>
         <span className="mt-1 block text-xs text-zinc-400">
-          לא בטוח/ה? אין בעיה — בחר/י &quot;הסוכן ישלים&quot; והמשיכ/י.
+          לא בטוח/ה? אין בעיה — בחר/י &quot;יושלם בהמשך&quot; והמשיכ/י.
         </span>
       </label>
     </div>

@@ -34,7 +34,7 @@ export default function InjuriesStep({
       {s.injuries && (
         <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-base text-red-800">
           <strong>אם יש סכנת חיים — חייגו 101 מיד.</strong> מומלץ גם להזעיק משטרה
-          (100). הסוכן יקבל התראה דחופה. אפשר לסגור עכשיו ולחזור לקישור מאוחר
+          (100). תישלח התראה דחופה לטיפול. אפשר לסגור עכשיו ולחזור לקישור מאוחר
           יותר — התשובות שלך נשמרות.
         </div>
       )}

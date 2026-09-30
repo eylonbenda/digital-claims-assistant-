@@ -5,6 +5,7 @@ import type { Fault } from "@/lib/formfill/types";
 import { compressImage } from "@/lib/images/compress";
 import { type State, type DocType, type RequiredDocType, INSURERS } from "@/lib/collection/claim-state";
 import { clearWizardState, draftToSaved, loadWizardState, saveWizardState } from "@/lib/collection/persist";
+import { sentTitle } from "@/lib/collection/recipient";
 import { isValidIsraeliId, isPlausiblePlate } from "@/lib/validation/il";
 import { reverseGeocode } from "@/lib/geo/reverse";
 import {
@@ -81,12 +82,16 @@ export default function CollectionWizard({
   token,
   prefill,
   serverDraft,
+  handlerName,
 }: {
   token: string;
   prefill?: StatePrefill;
   // summary_json.draft from the DB — the cross-device resume source. Untrusted
   // JSON shape; draftToSaved validates it.
   serverDraft?: unknown;
+  // Name of the business handling the claim (agent or garage), when stored.
+  // Null in demo mode and wherever the row has no name — the copy falls back.
+  handlerName?: string | null;
 }) {
   const [s, setS] = useState<State>(() => mergeWithEmpty(prefill));
   const [stepKey, setStepKey] = useState<StepKey>("intro");
@@ -372,9 +377,9 @@ export default function CollectionWizard({
     return (
       <div className="mx-auto max-w-md p-6 text-center">
         <div className="text-5xl">✅</div>
-        <h1 className="mt-4 text-2xl font-bold">הפרטים נשלחו לסוכן</h1>
+        <h1 className="mt-4 text-2xl font-bold">{sentTitle(handlerName)}</h1>
         <p className="mt-2 text-zinc-600">
-          תודה. הסוכן יעבור על הפרטים וייצור איתך קשר להמשך הטיפול.
+          תודה. נעבור על הפרטים וניצור איתך קשר להמשך הטיפול.
         </p>
         <p className="mt-3 text-sm text-zinc-500">
           נזכרת במשהו? אפשר לחזור לקישור הזה בכל שלב כדי להוסיף תמונות ומסמכים.
@@ -470,9 +475,9 @@ export default function CollectionWizard({
   const nextDisabled = isSummary
     ? submitBusy || !s.declaration.data_consent || docsIncomplete
     : !active.isComplete(s);
-  const nextLabel = isSummary ? (submitBusy ? "שולח…" : "שליחה לסוכן") : active.key === "intro" ? "בוא נתחיל" : "המשך";
+  const nextLabel = isSummary ? (submitBusy ? "שולח…" : "שליחה לטיפול") : active.key === "intro" ? "בוא נתחיל" : "המשך";
   // Say *why* the forward button is dead. Found in a browser pass: a claimant who
-  // reaches the summary with documents still owed saw a greyed "שליחה לסוכן" and no
+  // reaches the summary with documents still owed saw a greyed "שליחה לטיפול" and no
   // explanation — the generic hint was suppressed there, and it cites an asterisk the
   // documents step doesn't use anyway.
   const requiredHint = isSummary

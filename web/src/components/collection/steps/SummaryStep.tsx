@@ -1,4 +1,5 @@
 import type { State } from "@/lib/collection/claim-state";
+import { CONSENT_RECIPIENT } from "@/lib/collection/recipient";
 import type { StepKey } from "../steps";
 import { toILDate } from "@/lib/dates";
 import { Row } from "./fields";
@@ -53,7 +54,8 @@ export default function SummaryStep({
         <p className="text-base font-medium">הצהרת המבוטח</p>
         <p className="mt-2 text-xs leading-relaxed text-zinc-600">
           אני החתום/ה מטה מצהיר/ה כי הפרטים שמסרתי נכונים ומלאים, ומסכים/ה כי המידע יועבר
-          לחברת הביטוח ולסוכן לצורך טיפול בתביעה, לרבות העברת מידע מהאגף לרישוי במשרד התחבורה.
+          לחברת הביטוח ו{CONSENT_RECIPIENT} לצורך טיפול בתביעה, לרבות העברת מידע מהאגף לרישוי במשרד
+          התחבורה.
         </p>
         <label className="mt-3 flex items-start gap-2">
           <input
