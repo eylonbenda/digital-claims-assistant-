@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { runEngine } from "@/lib/tasks/runner";
 import { warmAnalysis } from "@/lib/claims/analysis-cache";
 import { ALREADY_SUBMITTED, SUBMITTED_STATUSES, parseSubmitBody } from "@/lib/collection/submit";
+import { reportError, serverError } from "@/lib/observability/report";
 
 export const runtime = "nodejs"; // form-fill reads the template PDF + font from disk
 // Bounds the post-response analysis warm (after()); the claimant's request itself
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
     // Local demo mode only. In a deployed env a missing key must fail loudly — a fake
     // "ok" makes the wizard clear the claimant's answers while nothing was stored.
     if (process.env.NODE_ENV === "production") {
-      console.error("[submit] Supabase env missing in production");
+      await reportError("/api/claims/submit", "Supabase env missing in production");
       return Response.json({ error: "not configured" }, { status: 503 });
     }
     return Response.json({ ok: true, demo: true });
@@ -96,8 +97,7 @@ export async function POST(request: Request) {
 
   if (updateErr) {
     // The claimant's answers were NOT stored. Fail so the wizard keeps its local copy.
-    console.error("[submit] claim update failed", { claimId: claim.id, error: updateErr.message });
-    return Response.json({ error: "save failed" }, { status: 500 });
+    return serverError("/api/claims/submit", updateErr, { claimId: claim.id, step: "claim update" });
   }
   if (!flipped?.length) {
     return Response.json({ error: "already submitted", code: ALREADY_SUBMITTED }, { status: 409 });
@@ -105,9 +105,9 @@ export async function POST(request: Request) {
 
   // Everything below is best-effort: the submission itself is committed, and the
   // collected data (incl. third party) lives in summary_json regardless. Failures are
-  // logged, not returned — the claimant can't fix them and a retry would just 409.
-  const logFailure = (step: string, error: { message: string } | null) => {
-    if (error) console.error(`[submit] ${step} failed`, { claimId: claim.id, error: error.message });
+  // reported, not returned — the claimant can't fix them and a retry would just 409.
+  const logFailure = async (step: string, error: { message: string } | null) => {
+    if (error) await reportError("/api/claims/submit", error, { claimId: claim.id, step });
   };
 
   // Auto-generate the accident-notice form once, here, when we have a coordinate
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
           contentType: "application/pdf",
           upsert: false,
         });
-      logFailure("form upload", upErr);
+      await logFailure("form upload", upErr);
       if (!upErr) {
         const { error: formErr } = await svc.from("generated_forms").insert({
           claim_id: claim.id,
@@ -132,17 +132,17 @@ export async function POST(request: Request) {
           insurer: policyInsurer,
           storage_path: formPath,
         });
-        logFailure("generated_forms insert", formErr);
+        await logFailure("generated_forms insert", formErr);
         const { error: evErr } = await svc.from("claim_events").insert({
           claim_id: claim.id,
           type: "form_generated",
           payload_json: { insurer: policyInsurer },
         });
-        logFailure("form_generated event", evErr);
+        await logFailure("form_generated event", evErr);
       }
     } catch (e) {
       // The agent can still fill on demand from the dashboard.
-      logFailure("form fill", { message: e instanceof Error ? e.message : String(e) });
+      await logFailure("form fill", { message: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -154,7 +154,7 @@ export async function POST(request: Request) {
       plate: (thirdParty.plate as string) || null,
       insurer: (thirdParty.insurer as string) || null,
     });
-    logFailure("third_parties insert", tpErr);
+    await logFailure("third_parties insert", tpErr);
   }
 
   const { error: submittedEvErr } = await svc.from("claim_events").insert({
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
     type: "submitted",
     payload_json: { sections: Object.keys(collected) },
   });
-  logFailure("submitted event", submittedEvErr);
+  await logFailure("submitted event", submittedEvErr);
 
   // Reactive task engine: spawn the doc-chase task if base docs are missing.
   await runEngine(claim.id, { type: "claim_submitted" });

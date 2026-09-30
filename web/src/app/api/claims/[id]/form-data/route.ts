@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { ClaimData } from "@/lib/formfill/types";
+import { serverError } from "@/lib/observability/report";
 
 // PATCH /api/claims/[id]/form-data
 // Body: { form_data: ClaimData }
@@ -40,7 +41,7 @@ export async function PATCH(
     .from("claims")
     .update({ summary_json: { ...summary, form_data: formData } })
     .eq("id", id);
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) return serverError("/api/claims/[id]/form-data", error, { claimId: id });
 
   await svc.from("claim_events").insert({
     claim_id: id,

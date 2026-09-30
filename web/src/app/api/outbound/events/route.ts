@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { SEND_RULES } from "@/lib/outbound/rules";
+import { serverError } from "@/lib/observability/report";
 
 // POST /api/outbound/events
 // Body: { claim_id, task_id?, task_key, kind: 'sent' | 'skipped', body? }
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     actor: "agent",
     body_snapshot: kind === "sent" ? body : null,
   });
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) return serverError("/api/outbound/events", error);
 
   return Response.json({ ok: true });
 }
