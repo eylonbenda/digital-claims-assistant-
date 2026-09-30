@@ -7,8 +7,8 @@ export default function DescriptionStep({ s, set }: { s: State; set: (patch: Par
         מה קרה?<span className="text-red-500"> *</span>
       </h2>
       <p className="mt-1 text-base text-zinc-500">
-        תאר/י בקצרה את האירוע במילים שלך — גם 2–3 משפטים מספיקים. הסוכן ישלים
-        איתך פרטים אם צריך.
+        תאר/י בקצרה את האירוע במילים שלך — גם 2–3 משפטים מספיקים. נשלים איתך
+        פרטים אם צריך.
       </p>
       <textarea
         value={s.accident.description}

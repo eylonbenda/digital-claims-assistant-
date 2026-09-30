@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { sentTitle } from "@/lib/collection/recipient";
 import { compressImage } from "@/lib/images/compress";
 
 type DocType = "car_photo" | "drivers_license" | "vehicle_reg" | "third_party_doc";
@@ -31,9 +32,12 @@ const TYPE_LABEL: Record<string, string> = {
 export default function FollowupUpload({
   token,
   existingCounts,
+  handlerName,
 }: {
   token: string;
   existingCounts: Record<string, number>;
+  // Name of the business handling the claim (agent or garage), when stored.
+  handlerName?: string | null;
 }) {
   const [docs, setDocs] = useState<LocalDoc[]>([]);
 
@@ -68,10 +72,10 @@ export default function FollowupUpload({
     <div className="mx-auto max-w-md p-6">
       <div className="text-center">
         <div className="text-5xl">✅</div>
-        <h1 className="mt-4 text-2xl font-bold text-zinc-900">הפרטים נשלחו לסוכן</h1>
+        <h1 className="mt-4 text-2xl font-bold text-zinc-900">{sentTitle(handlerName)}</h1>
         <p className="mt-2 text-zinc-500">
           תודה! צריך להוסיף מסמך או תמונה שלא צירפת? אפשר להעלות גם עכשיו —
-          זה יתווסף לתיק אצל הסוכן.
+          זה יתווסף לתיק שלך.
         </p>
       </div>
 
