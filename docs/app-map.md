@@ -32,7 +32,7 @@ The client wizard's own files live in `web/src/components/collection/`: `steps.t
 | Module | Owns |
 |---|---|
 | `formfill/` | canonical claim schema (`types.ts`) → filled insurer PDFs: generic `engine.ts`, all 11 coordinate `templates/`, `effective.ts` (agent edits win over client input), `dates.ts` (ISO → dd/mm/yyyy at the fill boundary), bundled `assets/` |
-| `claims/` | `classify.ts` (deterministic track decision), `checklist.ts` (`computeChecklist` + `chaseableLabels`), `analysis-cache.ts` |
+| `claims/` | `classify.ts` (deterministic track decision), `checklist.ts` (`computeChecklist` + `chaseableLabels`), `analysis-cache.ts` (`readCachedAnalysis`/`needsAnalysis` for render paths — never call the model; `warmAnalysis` fills a cold cache off-render, called from submit and from a cold cockpit view) |
 | `tasks/` | task engine: pure `engine.ts` (`advanceTasks`), declarative `templates.ts` rule table, `runner.ts` (`runEngine`, best-effort) |
 | `brief/` | morning brief: `facts.ts` → `score.ts` (deterministic) → `rank.ts` (AI tier) → `brief.ts` (`getOrCreateBrief`, `{cachedOnly}` for render paths — never blocks on the model; `warmBriefRanking` fills a cold cache off-render) |
 | `outbound/` | outbound queue: `rules.ts` (per-task-key send descriptors + cooldowns + the `auto` flip-to-send seam + a presentation-only `labels()` beside `build()`), pure `queue.ts` (`buildQueue` — lanes, cooldown, one-per-claim-per-day cap, give-up escalation, ordering), `load.ts` (`loadQueue`, the only I/O, best-effort) |
@@ -54,7 +54,7 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | Route | Method | Purpose |
 |---|---|---|
 | `/api/claims` | GET/POST | agent claim list / create |
-| `/api/claims/submit` | POST | client submits the wizard → auto-fills the accident notice |
+| `/api/claims/submit` | POST | client submits the wizard → auto-fills the accident notice, then warms the AI analysis cache off-render (`after()`) so the agent's first cockpit view doesn't wait on the model |
 | `/api/claims/draft` | POST | **client** in-progress wizard state by token → merged into `summary_json.draft` (64 KB cap, `409` once the claim is submitted, `{ok:true, demo:true}` when Supabase isn't configured) |
 | `/api/claims/documents` | POST | **client** upload (magic-byte sniffed) |
 | `/api/claims/[id]/documents` | POST | **agent** upload with a type tag |
@@ -65,7 +65,7 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | `/api/claims/[id]/form-data` | PATCH | agent edits the canonical form fields |
 | `/api/claims/[id]/form/[insurer]` | GET | on-demand fill for one insurer |
 | `/api/forms/[insurer]` | POST | fill a PDF from a canonical claim body |
-| `/api/analyze` | POST | Claude analysis — **503 without `ANTHROPIC_API_KEY`**. Stateless; **no in-app caller** since the wizard's AI panel was removed — the agent page uses `getOrCreateAnalysis` server-side |
+| `/api/analyze` | POST | Claude analysis — **503 without `ANTHROPIC_API_KEY`**. Stateless; **no in-app caller** since the wizard's AI panel was removed — the agent page reads the cache (`readCachedAnalysis`) and warms it off-render (`warmAnalysis`) instead |
 | `/api/vehicle/[plate]` | GET | **client** plate → make/model/year from the Ministry of Transport registry (server-side proxy, per-instance memo, `200 {vehicle:null}` on a miss) |
 | `/api/reports/funnel` | GET | **agent** wizard funnel (`?days=N`, default 90, max 365) — links sent, `completion_rate` (of all links) vs `completion_rate_of_started` (excludes never-opened links — the wizard-only measure), where abandoned sessions stopped, doc-deferral counts; RLS-scoped, reads existing `claims` rows only, no new table |
 | `/api/brief/refresh` | POST | re-run the morning-brief ranking |
