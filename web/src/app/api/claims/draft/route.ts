@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { stepIndex } from "@/components/collection/steps";
+import { SUBMITTED_STATUSES } from "@/lib/collection/submit";
 
 export const runtime = "nodejs"; // needs the service client
 
@@ -9,15 +10,6 @@ export const runtime = "nodejs"; // needs the service client
 // route overwrites summary_json with { collected }, which clears the draft.
 const MAX_BYTES = 64 * 1024; // drafts are small; anything bigger is not a wizard state
 
-// Once submitted the collected data is authoritative — a late/stale draft write
-// must not resurrect summary_json.draft. Mirrors /c/[token]'s post-submit gate.
-const DRAFT_BLOCKED_STATUSES = new Set([
-  "submitted",
-  "classified",
-  "form_generated",
-  "checklist_active",
-  "closed",
-]);
 
 // POST { token, step_key, collected } -> merges summary_json.draft on the claim.
 export async function POST(request: Request) {
@@ -54,7 +46,9 @@ export async function POST(request: Request) {
   if (!claim) {
     return Response.json({ error: "invalid token" }, { status: 404 });
   }
-  if (DRAFT_BLOCKED_STATUSES.has(claim.status)) {
+  // Once submitted the collected data is authoritative — a late/stale draft write
+  // must not resurrect summary_json.draft.
+  if (SUBMITTED_STATUSES.has(claim.status)) {
     return Response.json({ error: "claim already submitted" }, { status: 409 });
   }
 
@@ -70,7 +64,11 @@ export async function POST(request: Request) {
   const prevMax = prevDraft.max_step_key;
   const maxStepKey =
     stepIndex(step_key) > stepIndex(prevMax) ? (step_key as string) : (prevMax as string | undefined);
-  const { error } = await svc
+  // Conditional on the status we read. The last wizard edit schedules a debounced
+  // draft save that can race the final submit; if submit flips the status between
+  // our read and this write, this matches 0 rows instead of writing the stale
+  // summary back over the just-submitted `collected`.
+  const { data: written, error } = await svc
     .from("claims")
     .update({
       summary_json: {
@@ -86,9 +84,14 @@ export async function POST(request: Request) {
         },
       },
     })
-    .eq("id", claim.id);
+    .eq("id", claim.id)
+    .eq("status", claim.status)
+    .select("id");
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
+  }
+  if (!written?.length) {
+    return Response.json({ error: "claim already submitted" }, { status: 409 });
   }
   return Response.json({ ok: true });
 }

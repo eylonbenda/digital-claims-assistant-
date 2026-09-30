@@ -54,9 +54,9 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | Route | Method | Purpose |
 |---|---|---|
 | `/api/claims` | GET/POST | agent claim list / create |
-| `/api/claims/submit` | POST | client submits the wizard → auto-fills the accident notice |
-| `/api/claims/draft` | POST | **client** in-progress wizard state by token → merged into `summary_json.draft` (64 KB cap, `409` once the claim is submitted, `{ok:true, demo:true}` when Supabase isn't configured) |
-| `/api/claims/documents` | POST | **client** upload (magic-byte sniffed) |
+| `/api/claims/submit` | POST | client submits the wizard → auto-fills the accident notice. Compare-and-set on the claim's status, so of two racing submits exactly one wins; the other (and a retry) gets `409` with a machine-readable `already_submitted` code the wizard treats as success. `503` in production when Supabase isn't configured — never a fake `{ok:true}` for data that wasn't stored |
+| `/api/claims/draft` | POST | **client** in-progress wizard state by token → merged into `summary_json.draft` (64 KB cap, `409` once the claim is submitted — compare-and-set on status closes the race with a concurrent submit — `{ok:true, demo:true}` outside production when Supabase isn't configured, `503` in production) |
+| `/api/claims/documents` | POST | **client** upload (magic-byte sniffed); `503` in production when Supabase isn't configured (demo `{ok:true}` only outside production) |
 | `/api/claims/[id]/documents` | POST | **agent** upload with a type tag |
 | `/api/claims/[id]/classify` | PATCH | agent confirms the track |
 | `/api/claims/[id]/checklist` | PATCH | tick a milestone |
