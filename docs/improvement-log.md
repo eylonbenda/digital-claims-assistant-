@@ -6,6 +6,10 @@ Ledger of `/improve` sessions (`.claude/skills/improve/`). Each finding keeps it
 
 Seven read-only lenses. Every item below was spot-checked against the code. Impact/Effort: H/M/L · S (<½d) / M (1–3d) / L (>3d).
 
+### Context from the user (2026-09-30)
+- The owner pricing conversation is **next week (week of 2026-10-05)**, so 0930-09 moves to the top. Split it: 09a starts timestamping milestones now, because historical ticks have no dates and every day without them is lost data. 09b is the owner report.
+- The garage **does handle third-party claims**, so the third-party task-engine rules stay. The "prune third-party rules" idea is withdrawn.
+
 ### Main list
 - [ ] 0930-01 Submit integrity: `submit/route.ts:77-88` ignores the claims-update error yet returns `ok`, and the wizard then clears localStorage. The status check is SELECT-then-UPDATE, so a double tap duplicates side-effects, and a retry after a lost response dead-ends on a raw "already submitted". The draft autosave (`draft/route.ts:73-89`, a blind `summary_json` rewrite with no status predicate) can race submit and wipe `collected`. Fix: a CAS update `.in("status",[created,in_progress])` with `count`, check errors, have the client treat 409 as done, and make the draft write status-guarded. First run a prod query for `status<>'created' and summary_json->'collected' is null`. — H/S — proposed
 - [ ] 0930-02 Delete the unauthenticated `/api/analyze` (an open Opus proxy on our key) and `/api/forms/[insurer]`. Neither has a caller, and middleware doesn't cover `/api`. — H/S — proposed
