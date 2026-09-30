@@ -327,6 +327,14 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - Button/label copy also dropped the assumption: "שליחה לסוכן" → "שליחה לטיפול", and the identity step's unsure-coverage option **"לא בטוח/ה — הסוכן ישלים"** → **"לא בטוח/ה — יושלם בהמשך"** (referenced above and in `claim-management.md` — updated to match).
 - Unit-tested: new `web/src/lib/collection/recipient.test.ts` (name-present vs. neutral fallback, blank/whitespace name, trimming, both consent strings verified segment-neutral).
 
+### Done since last sync (2026-09-30, PR #76 — schema-drift check)
+- **No migration checklist gap this time — this PR builds the checklist a tool.** New `web/db/migrations/010_schema_migrations.sql` (folded into `schema.sql`) adds `public.schema_migrations` (service-role only, RLS on, no policies) and backfills `001`–`010`; every later migration must insert its own row (enforced by `migration-guard`, see the promote-to-prod checklist above).
+- **`/api/health` now does a real check instead of reporting key presence.** `next.config.ts` reads `web/db/migrations/*.sql` at build time into `EXPECTED_SCHEMA_VERSIONS`/`EXPECTED_SCHEMA_VERSION`; the route (`web/src/lib/schema-version.ts`) compares that to `public.schema_migrations` and returns **503** when the DB is missing a migration, the table itself is missing, or the DB is unreachable — 200 otherwise. Per-secret booleans (`supabaseAnonKey`, `anthropicKey`, …) are gone, replaced by one `configured` flag.
+- **`/api/version`** now returns the short `VERCEL_GIT_COMMIT_SHA` commit, `VERCEL_ENV`, and the build's expected schema version (`"local"`/`null` off-Vercel) — for comparing a live deploy's code against its expected schema.
+- **New `post-deploy-health` workflow** (`.github/workflows/post-deploy-health.yml`, on Vercel's `deployment_status`) curls `/api/health` after every deploy: fails the run on Production, only warns on Preview.
+- **`migration-guard`** (`.github/scripts/migration-guard.cjs`) gained a check: an added migration that doesn't end with its own `insert into public.schema_migrations(version) values ('NNN') on conflict do nothing;` row is blocked, even when the `migration-applied-prod` label is set. Unit-tested (`web/scripts/__tests__/migration-guard.test.mjs`, run via new `npm run test:scripts`).
+- `npm run test:brand` narrowed to `brand-assets.test.mjs` only (was `*.test.mjs`, which would have also picked up the new `migration-guard.test.mjs`).
+
 ## To run the AI path live
 Add `ANTHROPIC_API_KEY` to `web/.env.local`, then:
 ```

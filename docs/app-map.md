@@ -10,7 +10,7 @@
 2. Copy `web/.env.example` → `web/.env.local` and fill the Supabase keys + `ANTHROPIC_API_KEY`.
 3. From `web/`: `npm run dev`.
 
-Other scripts: `npm run build` · `npm run lint` · `npm run test` (Vitest, `web/vitest.config.ts`) · `npm run brand` · `npm run brand:wordmark` · `npm run test:brand` (brand assets — see §5).
+Other scripts: `npm run build` · `npm run lint` · `npm run test` (Vitest, `web/vitest.config.ts`) · `npm run brand` · `npm run brand:wordmark` · `npm run test:brand` · `npm run test:scripts` (brand assets + migration-guard — see §5).
 Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod checklist live in [status.md](status.md).
 
 ---
@@ -85,5 +85,6 @@ The mutation routes (`submit`, `classify`, `checklist`, `documents`) each call `
 - QA a fill locally with `web/scripts/fill.ts` (uses `formfill/sample-claim.ts`).
 - Env override: `CLAIMS_AI_MODEL` swaps the analysis model tier.
 - **Brand assets** live in `web/public/brand/`; the **SVG masters are the source of truth**. `npm run brand` (`web/scripts/build-brand-assets.mjs`) rasterizes every PNG from them and writes the multi-size `web/src/app/favicon.ico` (16/32/48, PNG-in-ICO) — **never hand-edit a generated PNG**, re-run the script. `npm run brand:wordmark` (`scripts/gen-wordmark.mjs`) regenerates the outlined wordmark/lockup SVGs (text is outlined so rendering needs no font). Rasterizing uses **`sharp` 0.34.5**, which resolves as an *optional transitive* dep of Next — it is not declared in `web/package.json`.
-- `npm run test:brand` runs `node --test scripts/__tests__/*.test.mjs` (asserts master-SVG invariants + rendered PNG sizes) — a **separate runner from Vitest**, so `npm run test` does not cover it.
+- `npm run test:brand` runs `node --test scripts/__tests__/brand-assets.test.mjs` (asserts master-SVG invariants + rendered PNG sizes) — a **separate runner from Vitest**, so `npm run test` does not cover it. `npm run test:scripts` runs `scripts/__tests__/migration-guard.test.mjs` (unit tests for `.github/scripts/migration-guard.cjs`) the same way.
+- `next.config.ts` reads `web/db/migrations/` at build time to bake `EXPECTED_SCHEMA_VERSIONS`/`EXPECTED_SCHEMA_VERSION` env vars (see [status.md](status.md) schema-drift check) — the build throws if the directory has no `NNN_*.sql` files.
 - Favicon + apple-touch icons are declared in `metadata.icons` (`web/src/app/layout.tsx`); the OG card (`/brand/og-image.png`, 1200×630) in the landing page's `metadata.openGraph` (`web/src/app/page.tsx`), whose header renders the `/brand/logo.svg` lockup.
