@@ -1,0 +1,48 @@
+name: post-deploy-health
+
+# After Vercel reports a successful deploy, hit <deployment>/api/health. It is
+# 503 when the live Supabase is missing a migration the build expects (migrations
+# are pasted by hand — see docs/status.md), so this catches the 007-style
+# "deployed green, schema never applied" incident within minutes.
+#
+#   Production → a non-200 FAILS the job (red X on the main commit).
+#   Preview    → warning only: previews run against the shared dev DB, which is
+#                routinely mid-migration while a branch is being built; failing
+#                every branch push on that would be noise, not signal.
+#
+# Vercel per-deployment URLs are behind Deployment Protection. Configure one of:
+#   secrets.VERCEL_AUTOMATION_BYPASS_SECRET (preferred; covers Preview too)
+#   vars.PROD_BASE_URL                      (Production only; public prod domain)
+# Logic lives in .github/scripts/post-deploy-health.mjs.
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      contains(fromJSON('["Production","Preview"]'),
+               github.event.deployment_status.environment || github.event.deployment.environment)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check /api/health
+        env:
+          DEPLOY_ENVIRONMENT: ${{ github.event.deployment_status.environment || github.event.deployment.environment }}
+          DEPLOY_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          PROD_BASE_URL: ${{ vars.PROD_BASE_URL }}
+        run: node .github/scripts/post-deploy-health.mjs

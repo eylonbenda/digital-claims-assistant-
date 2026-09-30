@@ -10,7 +10,8 @@
     "test": "vitest run",
     "brand": "node scripts/build-brand-assets.mjs",
     "brand:wordmark": "node scripts/gen-wordmark.mjs",
-    "test:brand": "node --test scripts/__tests__/*.test.mjs"
+    "test:brand": "node --test scripts/__tests__/brand-assets.test.mjs",
+    "test:scripts": "node --test scripts/__tests__/migration-guard.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",

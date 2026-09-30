@@ -71,7 +71,8 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | `/api/brief/refresh` | POST | re-run the morning-brief ranking |
 | `/api/outbound/events` | POST | record one outbound-queue decision (`sent` / `skipped`) — rejects an unknown `task_key`, RLS ownership probe on the claim, service-role insert into `outbound_events` |
 | `/api/auth/login` · `/api/auth/logout` | POST | session |
-| `/api/health` · `/api/version` | GET | which keys are wired · app name + version |
+| `/api/health` | GET | public schema-drift check: `200 {ok, configured, schema:{expected, actual, status}}` when `public.schema_migrations` has every migration the build was made with (`EXPECTED_SCHEMA_VERSIONS`, baked in `next.config.ts` from `web/db/migrations/`); **503** when behind (`missing:[…]`), table missing, or DB unreachable. No Supabase env → 200 `status:"skipped"` locally, 503 on Vercel production. Logic: `web/src/lib/schema-version.ts`. Curled by `.github/workflows/post-deploy-health.yml` |
+| `/api/version` | GET | live build: `{commit (short VERCEL_GIT_COMMIT_SHA, "local" off-Vercel), env (VERCEL_ENV), expectedSchema}` |
 
 The mutation routes (`submit`, `classify`, `checklist`, `documents`) each call `runEngine` inline, best-effort.
 

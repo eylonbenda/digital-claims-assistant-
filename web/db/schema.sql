@@ -229,3 +229,22 @@ alter default privileges in schema public
   grant all on sequences to anon, authenticated, service_role;
 alter default privileges in schema public
   grant all on routines  to anon, authenticated, service_role;
+
+-- ---------- schema version (migration 010) ----------
+-- Which migrations this database has run; /api/health compares it to the migration
+-- files baked into the build and 503s when the DB is behind. Every new migration
+-- ends with its own `insert into public.schema_migrations(version) values ('NNN')
+-- on conflict do nothing;` — keep this backfill in step when folding one in here.
+-- Service role only: RLS on, no policies, and the blanket grants above revoked.
+-- Kept after the grants block on purpose so the revoke wins.
+create table public.schema_migrations (
+  version    text primary key,
+  applied_at timestamptz not null default now()
+);
+alter table public.schema_migrations enable row level security;
+revoke all on public.schema_migrations from anon, authenticated;
+grant all on public.schema_migrations to service_role;
+insert into public.schema_migrations(version) values
+  ('001'), ('002'), ('003'), ('004'), ('005'),
+  ('006'), ('007'), ('008'), ('009'), ('010')
+on conflict do nothing;
