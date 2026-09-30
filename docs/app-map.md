@@ -10,7 +10,7 @@
 2. Copy `web/.env.example` → `web/.env.local` and fill the Supabase keys + `ANTHROPIC_API_KEY`.
 3. From `web/`: `npm run dev`.
 
-Other scripts: `npm run build` · `npm run lint` · `npm run test` (Vitest, `web/vitest.config.ts`) · `npm run brand` · `npm run brand:wordmark` · `npm run test:brand` (brand assets — see §5).
+Other scripts: `npm run build` · `npm run lint` · `npm run test` (Vitest, `web/vitest.config.ts`) · `npm run brand` · `npm run brand:wordmark` · `npm run test:brand` · `npm run test:scripts` (brand assets + migration-guard — see §5).
 Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod checklist live in [status.md](status.md).
 
 ---
@@ -71,7 +71,8 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | `/api/brief/refresh` | POST | re-run the morning-brief ranking |
 | `/api/outbound/events` | POST | record one outbound-queue decision (`sent` / `skipped`) — rejects an unknown `task_key`, RLS ownership probe on the claim, service-role insert into `outbound_events` |
 | `/api/auth/login` · `/api/auth/logout` | POST | session |
-| `/api/health` · `/api/version` | GET | which keys are wired · app name + version |
+| `/api/health` | GET | public schema-drift check: `200 {ok, configured, schema:{expected, actual, status}}` when `public.schema_migrations` has every migration the build was made with (`EXPECTED_SCHEMA_VERSIONS`, baked in `next.config.ts` from `web/db/migrations/`); **503** when behind (`missing:[…]`), table missing, or DB unreachable. No Supabase env → 200 `status:"skipped"` locally, 503 on Vercel production. Logic: `web/src/lib/schema-version.ts`. Curled by `.github/workflows/post-deploy-health.yml` |
+| `/api/version` | GET | live build: `{commit (short VERCEL_GIT_COMMIT_SHA, "local" off-Vercel), env (VERCEL_ENV), expectedSchema}` |
 
 The mutation routes (`submit`, `classify`, `checklist`, `documents`) each call `runEngine` inline, best-effort.
 
@@ -84,5 +85,6 @@ The mutation routes (`submit`, `classify`, `checklist`, `documents`) each call `
 - QA a fill locally with `web/scripts/fill.ts` (uses `formfill/sample-claim.ts`).
 - Env override: `CLAIMS_AI_MODEL` swaps the analysis model tier.
 - **Brand assets** live in `web/public/brand/`; the **SVG masters are the source of truth**. `npm run brand` (`web/scripts/build-brand-assets.mjs`) rasterizes every PNG from them and writes the multi-size `web/src/app/favicon.ico` (16/32/48, PNG-in-ICO) — **never hand-edit a generated PNG**, re-run the script. `npm run brand:wordmark` (`scripts/gen-wordmark.mjs`) regenerates the outlined wordmark/lockup SVGs (text is outlined so rendering needs no font). Rasterizing uses **`sharp` 0.34.5**, which resolves as an *optional transitive* dep of Next — it is not declared in `web/package.json`.
-- `npm run test:brand` runs `node --test scripts/__tests__/*.test.mjs` (asserts master-SVG invariants + rendered PNG sizes) — a **separate runner from Vitest**, so `npm run test` does not cover it.
+- `npm run test:brand` runs `node --test scripts/__tests__/brand-assets.test.mjs` (asserts master-SVG invariants + rendered PNG sizes) — a **separate runner from Vitest**, so `npm run test` does not cover it. `npm run test:scripts` runs `scripts/__tests__/migration-guard.test.mjs` (unit tests for `.github/scripts/migration-guard.cjs`) the same way.
+- `next.config.ts` reads `web/db/migrations/` at build time to bake `EXPECTED_SCHEMA_VERSIONS`/`EXPECTED_SCHEMA_VERSION` env vars (see [status.md](status.md) schema-drift check) — the build throws if the directory has no `NNN_*.sql` files.
 - Favicon + apple-touch icons are declared in `metadata.icons` (`web/src/app/layout.tsx`); the OG card (`/brand/og-image.png`, 1200×630) in the landing page's `metadata.openGraph` (`web/src/app/page.tsx`), whose header renders the `/brand/logo.svg` lockup.

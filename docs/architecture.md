@@ -123,6 +123,11 @@ outbound_events (id, claim_id → claims, task_id → tasks (on delete set null)
                  --     wa.me reports nothing back. Must become a real delivery record
                  --     (BSP receipts) before any rule flips to auto-send.
                  --   index (claim_id, task_key, created_at desc) serves the cooldown read
+schema_migrations (version text pk, applied_at)
+                 -- which migrations this DB has run (migration 010; 001–010 backfilled).
+                 --   Every later migration inserts its own row. /api/health compares it
+                 --   to the build's migration list and 503s when the DB is behind.
+                 --   RLS on, no policies, anon/authenticated grants revoked: service role only
                  --   RLS: agent reads own via claim_belongs_to_me, writes service-only
 collection_progress  -- can live as JSON on claims or as a separate table
 ```

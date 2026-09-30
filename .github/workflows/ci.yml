@@ -8,6 +8,7 @@ on:
     paths:
       - 'web/**'
       - '.github/workflows/ci.yml'
+      - '.github/scripts/**'
   push:
     branches: [main]
     paths:
@@ -43,6 +44,9 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Test CI scripts (migration-guard)
+        run: npm run test:scripts
 
       - name: Build
         run: npm run build

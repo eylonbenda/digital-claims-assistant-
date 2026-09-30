@@ -30,8 +30,10 @@ Vercel deploys **code**, not **schema**. There is no auto-migration. So:
 1. Develop on a branch; run any new `web/db/migrations/NNN_*.sql` **against the dev Supabase** SQL editor while building.
 2. PR → CI (lint/test/build) must be green. The preview URL runs against dev — eyeball it.
 3. **If the branch added a migration:** before or in lockstep with the merge, paste that same migration into the **prod (`claims-pilot`) SQL editor** and run it. Prod schema must be ready *before* the new code goes live. The **`migration-guard`** check enforces this: on any PR touching `web/db/migrations/` it posts the SQL to paste as a PR comment and stays red until you add the **`migration-applied-prod`** label (it also fails on duplicate `NNN_` numbers and warns when an already-merged migration is edited). `main` isn't branch-protected, so red is a signal, not a hard block.
+   **Every new migration must end with its own schema-version row** (convention since 010):
+   `insert into public.schema_migrations(version) values ('NNN') on conflict do nothing;` — pasting the file is what records it. `migration-guard` fails an added migration that lacks the row for its own number.
 4. Merge to `main` → Vercel auto-deploys Production against prod Supabase.
-5. Post-deploy smoke: hit `/api/health` (key wiring) + `/api/version`.
+5. Post-deploy: the **`post-deploy-health`** workflow (on Vercel's `deployment_status`) curls `/api/health` and fails the run if it isn't 200. `/api/health` is **503 when the DB is missing any migration the build expects** (build-time list from `web/db/migrations/`, compared to `public.schema_migrations`) or when that table is missing. Preview deploys (dev DB) only warn. The workflow needs `secrets.VERCEL_AUTOMATION_BYPASS_SECRET` (Vercel Deployment Protection bypass) or `vars.PROD_BASE_URL` to get past Vercel's SSO wall. `/api/version` shows the live commit + env + expected schema version.
 
 **The trap:** a merged PR whose migration you forgot to apply to prod deploys green, then 500s at runtime on the missing column/table. Migrations are a *two-place* change — code by merge, schema by hand.
 **PII rule:** schema flows **up** (dev → prod); production data never flows **down** to dev (חוק הגנת הפרטיות).
@@ -324,6 +326,14 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - `web/src/app/c/[token]/page.tsx` now selects `agents(name)` alongside the claim row and passes the resolved `handlerName` down into `CollectionWizard` and `FollowupUpload`; PostgREST's to-one embed is read defensively (object or array) and a blank name counts as absent.
 - Button/label copy also dropped the assumption: "שליחה לסוכן" → "שליחה לטיפול", and the identity step's unsure-coverage option **"לא בטוח/ה — הסוכן ישלים"** → **"לא בטוח/ה — יושלם בהמשך"** (referenced above and in `claim-management.md` — updated to match).
 - Unit-tested: new `web/src/lib/collection/recipient.test.ts` (name-present vs. neutral fallback, blank/whitespace name, trimming, both consent strings verified segment-neutral).
+
+### Done since last sync (2026-09-30, PR #76 — schema-drift check)
+- **No migration checklist gap this time — this PR builds the checklist a tool.** New `web/db/migrations/010_schema_migrations.sql` (folded into `schema.sql`) adds `public.schema_migrations` (service-role only, RLS on, no policies) and backfills `001`–`010`; every later migration must insert its own row (enforced by `migration-guard`, see the promote-to-prod checklist above).
+- **`/api/health` now does a real check instead of reporting key presence.** `next.config.ts` reads `web/db/migrations/*.sql` at build time into `EXPECTED_SCHEMA_VERSIONS`/`EXPECTED_SCHEMA_VERSION`; the route (`web/src/lib/schema-version.ts`) compares that to `public.schema_migrations` and returns **503** when the DB is missing a migration, the table itself is missing, or the DB is unreachable — 200 otherwise. Per-secret booleans (`supabaseAnonKey`, `anthropicKey`, …) are gone, replaced by one `configured` flag.
+- **`/api/version`** now returns the short `VERCEL_GIT_COMMIT_SHA` commit, `VERCEL_ENV`, and the build's expected schema version (`"local"`/`null` off-Vercel) — for comparing a live deploy's code against its expected schema.
+- **New `post-deploy-health` workflow** (`.github/workflows/post-deploy-health.yml`, on Vercel's `deployment_status`) curls `/api/health` after every deploy: fails the run on Production, only warns on Preview.
+- **`migration-guard`** (`.github/scripts/migration-guard.cjs`) gained a check: an added migration that doesn't end with its own `insert into public.schema_migrations(version) values ('NNN') on conflict do nothing;` row is blocked, even when the `migration-applied-prod` label is set. Unit-tested (`web/scripts/__tests__/migration-guard.test.mjs`, run via new `npm run test:scripts`).
+- `npm run test:brand` narrowed to `brand-assets.test.mjs` only (was `*.test.mjs`, which would have also picked up the new `migration-guard.test.mjs`).
 
 ## To run the AI path live
 Add `ANTHROPIC_API_KEY` to `web/.env.local`, then:

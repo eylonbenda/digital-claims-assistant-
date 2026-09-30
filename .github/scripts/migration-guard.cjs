@@ -4,6 +4,9 @@
 // pasted into the Supabase SQL editor by hand, dev *and* prod. A merged PR whose
 // migration never reached prod deploys green and 500s at runtime (the 007 incident).
 // This check stays red until a human attests, via label, that prod has it.
+// It also fails when an added migration doesn't record its own number in
+// public.schema_migrations (convention since 010; /api/health reads that table).
+// Tests: web/scripts/__tests__/migration-guard.test.mjs (npm run test:scripts).
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -12,6 +15,20 @@ const SCHEMA_FILE = "web/db/schema.sql";
 const LABEL = "migration-applied-prod";
 const MARKER = "<!-- migration-guard -->";
 const MAX_SQL_CHARS = 12000; // per file; GitHub comments cap at 65536 total
+
+/**
+ * Since migration 010 every migration records itself in public.schema_migrations,
+ * which /api/health compares against the build. True when `sql` has an
+ * `insert into [public.]schema_migrations ... values (...'NNN'...)` statement for
+ * `version` (a multi-row backfill counts). Comments are stripped first so a
+ * commented-out insert doesn't pass.
+ */
+function recordsOwnVersion(sql, version) {
+  const code = sql.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--[^\n]*/g, "");
+  const inserts = code.match(/insert\s+into\s+(?:public\.)?schema_migrations\b[^;]*/gi) ?? [];
+  const n = Number(version);
+  return inserts.some((stmt) => [...stmt.matchAll(/'(\d+)'/g)].some((m) => Number(m[1]) === n));
+}
 
 /**
  * Pure decision. `changed` is the PR's file list ({ filename, status } as returned
@@ -43,6 +60,18 @@ function evaluate({ changed, labels, migrationFiles, readFile }) {
   }
   if ((added.length || edited.length) && !attested) {
     failures.push(`Not yet attested: apply the SQL below to **prod**, then add the \`${LABEL}\` label.`);
+  }
+  const unrecorded = added.filter((f) => {
+    const version = /^(\d+)_/.exec(path.basename(f.filename))?.[1];
+    const sql = readFile(f.filename);
+    return version && sql !== null && !recordsOwnVersion(sql, version);
+  });
+  if (unrecorded.length) {
+    failures.push(
+      `Missing schema-version row: ${unrecorded.map((f) => `\`${path.basename(f.filename)}\``).join(", ")} must end with ` +
+        "`insert into public.schema_migrations(version) values ('NNN') on conflict do nothing;` for its own number — " +
+        "otherwise /api/health reports the DB as behind after deploy.",
+    );
   }
   if (edited.length) {
     warnings.push(
@@ -120,4 +149,4 @@ async function run({ github, context, core }) {
   if (!result.ok) core.setFailed(result.failures.join("\n"));
 }
 
-module.exports = { evaluate, run, LABEL };
+module.exports = { evaluate, run, recordsOwnVersion, LABEL };
