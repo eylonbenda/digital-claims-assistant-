@@ -188,7 +188,9 @@ create policy "agent owns claim" on claims
 
 -- child tables: visible/editable when the parent claim belongs to the agent.
 create or replace function claim_belongs_to_me(cid uuid) returns boolean
-language sql security invoker stable as $$
+language sql security invoker stable
+set search_path = public -- pinned (009): `claims` / `agents` can't be shadowed
+as $$
   select exists (
     select 1 from claims c
     join agents a on a.id = c.agent_id

@@ -41,6 +41,31 @@ exception
     raise notice '009: could not alter supabase_admin default privileges (%), skipped', sqlerrm;
 end $$;
 
+-- 4. Functions (Supabase security advisor, 2026-10-02 on dev). Postgres grants EXECUTE
+--    to PUBLIC by default, so these were callable over /rest/v1/rpc by anyone.
+--    Revoking EXECUTE does not affect trigger / event-trigger firing — the privilege is
+--    only checked on direct calls.
+--    a) handle_new_user() — SECURITY DEFINER trigger on auth.users (001). Never meant
+--       to be called directly.
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+
+--    b) rls_auto_enable() — SECURITY DEFINER event-trigger function behind the
+--       `ensure_rls` event trigger (auto-enables RLS on new public tables). Created via
+--       the Supabase dashboard on dev, not by a migration; may not exist on prod.
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    execute 'revoke execute on function public.rls_auto_enable() from public, anon, authenticated';
+  else
+    raise notice '009: public.rls_auto_enable() not present, skipped';
+  end if;
+end $$;
+
+--    c) claim_belongs_to_me(uuid) — used inside RLS policies, so `authenticated` must
+--       keep EXECUTE. Pin its search_path instead (advisor: function_search_path_mutable)
+--       so `claims` / `agents` can't be shadowed by objects in another schema.
+alter function public.claim_belongs_to_me(uuid) set search_path = public;
+
 -- authenticated + service_role grants are intentionally left as-is.
 -- Structural backstop: web/scripts/check-rls.mjs (CI) fails any `create table`
 -- in schema.sql / migrations without a matching `enable row level security`.
