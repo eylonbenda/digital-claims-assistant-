@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { serverError } from "@/lib/observability/report";
 
 export async function GET() {
   const supabase = await createClient();
@@ -16,7 +17,7 @@ export async function GET() {
     )
     .order("created_at", { ascending: false });
 
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) return serverError("GET /api/claims", error);
   return Response.json(claims ?? []);
 }
 
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
       .select("id")
       .single();
     if (agentErr || !created) {
-      return Response.json({ error: "failed to create agent profile" }, { status: 500 });
+      return serverError("POST /api/claims", agentErr ?? "agent insert returned no row", { step: "agent" });
     }
     agentId = created.id;
   }
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error || !claim) {
-    return Response.json({ error: error?.message ?? "failed to create claim" }, { status: 500 });
+    return serverError("POST /api/claims", error ?? "claim insert returned no row", { step: "claim" });
   }
 
   return Response.json(

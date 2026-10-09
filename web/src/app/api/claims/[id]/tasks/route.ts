@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { serverError } from "@/lib/observability/report";
 
 // POST /api/claims/[id]/tasks
 // Body: { title: string, due_at?: string (ISO), note?: string }
@@ -49,7 +50,7 @@ export async function POST(
     .insert({ claim_id: id, title, due_at: dueAt, note, source: "manual" })
     .select("id, key, title, status, due_at, note, source")
     .single();
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) return serverError("/api/claims/[id]/tasks", error, { claimId: id });
 
   await svc.from("claim_events").insert({
     claim_id: id,

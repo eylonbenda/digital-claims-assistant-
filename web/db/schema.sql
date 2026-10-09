@@ -164,6 +164,9 @@ create index outbound_events_cooldown_idx
   on outbound_events (claim_id, task_key, created_at desc);
 
 -- ---------- RLS ----------
+-- Every public table MUST enable RLS — web/scripts/check-rls.mjs enforces this in CI.
+-- agencies: RLS on, no policy (service role only) — migration 009.
+alter table agencies enable row level security;
 alter table agents enable row level security;
 alter table claims enable row level security;
 alter table third_parties enable row level security;
@@ -185,7 +188,9 @@ create policy "agent owns claim" on claims
 
 -- child tables: visible/editable when the parent claim belongs to the agent.
 create or replace function claim_belongs_to_me(cid uuid) returns boolean
-language sql security invoker stable as $$
+language sql security invoker stable
+set search_path = public -- pinned (009): `claims` / `agents` can't be shadowed
+as $$
   select exists (
     select 1 from claims c
     join agents a on a.id = c.agent_id
@@ -218,15 +223,17 @@ create policy "child: outbound_events" on outbound_events for select
 
 -- ---------- grants ----------
 -- PostgREST needs explicit grants even with the service role key.
+-- anon gets NO table/sequence access (migration 009): nothing queries tables without a
+-- session — agents use `authenticated`, claimant routes use `service_role`.
 grant usage on schema public to anon, authenticated, service_role;
-grant all on all tables    in schema public to anon, authenticated, service_role;
-grant all on all sequences in schema public to anon, authenticated, service_role;
+grant all on all tables    in schema public to authenticated, service_role;
+grant all on all sequences in schema public to authenticated, service_role;
 grant all on all routines  in schema public to anon, authenticated, service_role;
 
 alter default privileges in schema public
-  grant all on tables    to anon, authenticated, service_role;
+  grant all on tables    to authenticated, service_role;
 alter default privileges in schema public
-  grant all on sequences to anon, authenticated, service_role;
+  grant all on sequences to authenticated, service_role;
 alter default privileges in schema public
   grant all on routines  to anon, authenticated, service_role;
 

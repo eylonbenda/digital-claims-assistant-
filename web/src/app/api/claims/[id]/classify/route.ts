@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { runEngine } from "@/lib/tasks/runner";
+import { serverError } from "@/lib/observability/report";
 
 const VALID_TYPES = new Set([
   "own_policy",
@@ -44,7 +45,7 @@ export async function PATCH(
     .from("claims")
     .update({ claim_type: claimType })
     .eq("id", id);
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) return serverError("/api/claims/[id]/classify", error, { claimId: id });
 
   await svc.from("claim_events").insert({
     claim_id: id,

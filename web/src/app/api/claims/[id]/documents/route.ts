@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sniffFileType, SNIFF_MIME, SNIFF_EXT } from "@/lib/files/sniff";
 import { runEngine } from "@/lib/tasks/runner";
+import { serverError } from "@/lib/observability/report";
 
 export const runtime = "nodejs";
 
@@ -94,7 +95,7 @@ export async function POST(
     .from(BUCKET)
     .upload(path, bytes, { contentType: mime, upsert: false });
   if (upErr) {
-    return Response.json({ error: `upload failed: ${upErr.message}` }, { status: 500 });
+    return serverError("/api/claims/[id]/documents", upErr, { claimId: id, step: "upload" });
   }
 
   const { data: doc, error: dbErr } = await svc
@@ -104,7 +105,7 @@ export async function POST(
     .single();
   if (dbErr) {
     await svc.storage.from(BUCKET).remove([path]);
-    return Response.json({ error: `could not record document: ${dbErr.message}` }, { status: 500 });
+    return serverError("/api/claims/[id]/documents", dbErr, { claimId: id, step: "insert" });
   }
 
   // Reactive task engine: auto-complete chase tasks this doc satisfies.

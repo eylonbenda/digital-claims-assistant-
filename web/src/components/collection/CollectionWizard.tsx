@@ -29,6 +29,7 @@ import WhenWhereStep from "./steps/WhenWhereStep";
 import DescriptionStep from "./steps/DescriptionStep";
 import DocumentsStep from "./steps/DocumentsStep";
 import SummaryStep from "./steps/SummaryStep";
+import { isAlreadySubmitted } from "@/lib/collection/submit";
 
 export type { State };
 
@@ -311,8 +312,10 @@ export default function CollectionWizard({
         body: JSON.stringify({ token, collected: s }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setSubmitError(json.error ?? "שגיאה בשליחה");
+      // A retry after a lost response (or a double tap) finds the claim already
+      // submitted by the first request — that is success, not an error.
+      if (!res.ok && !isAlreadySubmitted(res.status, json)) {
+        setSubmitError("השליחה לא הצליחה — הפרטים שלך נשמרו במכשיר, אפשר לנסות שוב");
         return;
       }
       clearWizardState(token);

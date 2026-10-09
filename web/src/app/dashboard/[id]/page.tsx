@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { computeChecklist, chaseableLabels, satisfiedDocTypes } from "@/lib/claims/checklist";
 import { classifyFromClaimData } from "@/lib/claims/classify";
-import { getOrCreateAnalysis, type SummaryJson } from "@/lib/claims/analysis-cache";
+import {
+  needsAnalysis,
+  readCachedAnalysis,
+  warmAnalysis,
+  type SummaryJson,
+} from "@/lib/claims/analysis-cache";
 import { toClaimData, type State } from "@/lib/collection/claim-state";
 import { effectiveClaimData, type ClaimSummaryJson } from "@/lib/formfill/effective";
 import { templates } from "@/lib/formfill";
@@ -22,6 +28,10 @@ import { deriveCockpit, type TabKey } from "@/lib/cockpit/derive";
 
 const BUCKET = "claim-docs";
 const SIGNED_TTL = 60 * 60; // 1h — agent viewing session
+
+// Bounds the post-response window a cold-cache warmAnalysis() runs in (after()).
+// Same bound as the dashboard index's brief warm.
+export const maxDuration = 60;
 
 type GeneratedForm = {
   id: string;
@@ -139,11 +149,17 @@ export default async function ClaimDetailPage({
   const tasks: TaskView[] = taskRows ?? [];
   const openTasks = tasks.filter((t) => t.status !== "done");
 
-  // Lazy-cached AI analysis: computes once on first view, then reads from
-  // summary_json.analysis. Supplies the narrative signals (incident kind / inferred
-  // fault) that the structured fields alone can't provide. Best-effort → null.
+  // Cached AI analysis (summary_json.analysis): the narrative signals (incident kind /
+  // inferred fault) the structured fields alone can't provide. Normally warmed at
+  // submit; if it's cold (or stale after an edit) this render goes without it and the
+  // model runs after the response is flushed, so the next view has it. Never awaited
+  // here — this page has no Suspense boundary.
   const summaryJson = claim.summary_json as SummaryJson;
-  const analysis = await getOrCreateAnalysis(claim.id, summaryJson);
+  const analysis = readCachedAnalysis(summaryJson);
+  if (needsAnalysis(summaryJson)) {
+    const claimId = claim.id;
+    after(() => warmAnalysis(claimId));
+  }
 
   // Deterministic classifier, now narrative-aware when analysis is available. This is
   // the proposal + confidence the agent sees before confirming.
