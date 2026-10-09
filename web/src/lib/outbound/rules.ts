@@ -1,4 +1,4 @@
-import { chaseMessage, collectPrivateReportMessage, getTpInsurerMessage } from "@/lib/wa";
+import { chaseMessage, collectPrivateReportMessage, finishWizardMessage, getTpInsurerMessage } from "@/lib/wa";
 
 // Everything the body builders may see. blockingLabels is the LIVE checklist
 // state at render time — bodies are never persisted before send (spec §3).
@@ -58,11 +58,16 @@ export const SEND_RULES: Record<string, SendRule> = {
     (ctx) => collectPrivateReportMessage({ firstName: ctx.firstName, items: ctx.missingDocLabels, uploadUrl: ctx.uploadUrl }),
     (ctx) => ctx.missingDocLabels,
   ),
+  finish_wizard: rule(
+    "finish_wizard", 2,
+    (ctx) => finishWizardMessage({ firstName: ctx.firstName, uploadUrl: ctx.uploadUrl }),
+    () => [],
+  ),
 };
 
 // Highest first — breaks ties when two send rules are due on the same claim
 // and the one-message-per-claim-per-day cap allows only one through.
-export const RULE_PRIORITY = ["chase_missing_docs", "get_tp_insurer", "collect_private_report_docs"];
+export const RULE_PRIORITY = ["finish_wizard", "chase_missing_docs", "get_tp_insurer", "collect_private_report_docs"];
 
 // After this many 'sent' events with no document arriving since, stop
 // proposing and emit a phone-call escalation row instead (spec §5).

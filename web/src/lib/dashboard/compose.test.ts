@@ -101,11 +101,11 @@ describe("composeDashboard — honest fallback lines (findings #1, #2)", () => {
     expect(card.action_line).not.toBe("אין פעולות פתוחות");
   });
 
-  it("pre-submission claim with no queue items → waiting section + PENDING_CLIENT_LINE, even with a null brief", () => {
+  it("pre-submission claim with no queue items → waiting section + pending-client line, even with a null brief", () => {
     const d = compose([cl({ submitted_at: null })], q(), null);
     expect(d.waiting.map((c) => c.claim_id)).toEqual(["c1"]);
     expect(d.attention).toHaveLength(0);
-    expect(d.waiting[0].action_line).toBe("ממתינים ללקוח למילוי הפרטים");
+    expect(d.waiting[0].action_line).toMatch(/^הלקוח עוד לא התחיל למלא/);
   });
 });
 

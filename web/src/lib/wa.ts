@@ -42,6 +42,18 @@ export function waHref(phone: string | null, text: string): string | null {
 const greet = (firstName?: string | null) =>
   firstName ? `שלום ${firstName}, בהמשך לתביעה שלך —` : `שלום, בהמשך לתביעה שלך —`;
 
+// finish_wizard: the claimant got the link but hasn't submitted. The server-side
+// draft resumes on any device, so "what you filled is saved" holds once they started.
+export function finishWizardMessage(opts: { firstName?: string | null; uploadUrl: string }): string {
+  return [
+    greet(opts.firstName),
+    `עוד לא הספקת לסיים למלא את פרטי התאונה. זה לוקח כמה דקות, ואם כבר התחלת — מה שמילאת נשמר.`,
+    ``,
+    `אפשר להמשיך כאן: ${opts.uploadUrl}`,
+    `תודה!`,
+  ].join("\n");
+}
+
 // get_tp_insurer: the answer is a WhatsApp reply (name / photo of the TP's
 // insurance card), so no upload link on purpose.
 export function getTpInsurerMessage(opts: { firstName?: string | null }): string {

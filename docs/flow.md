@@ -113,7 +113,7 @@ created → in_progress → submitted → classified → form_generated → chec
 ---
 
 ## 3. Edge cases (plan ahead)
-- **Client abandons mid-way** → progress is saved both in the browser (`localStorage`, per token) and, from the consent step onward, on the server (`summary_json.draft`), so reopening the link resumes on any device and the answers already given survive even if the client never returns; reminder after X hours (future: job); otherwise `abandoned`.
+- **Client abandons mid-way** → progress is saved both in the browser (`localStorage`, per token) and, from the consent step onward, on the server (`summary_json.draft`), so reopening the link resumes on any device and the answers already given survive even if the client never returns; the dashboard card shows where they stopped and, a day on, a `finish_wizard` task offers the agent a one-tap WhatsApp nudge (agent-approved send, not yet an unattended job); claim status itself is never flipped to `abandoned`.
 - **Unreadable / missing photo** → basic validation (size/format), ask to re-shoot.
 - **No third party** (single-vehicle) → skip step 6; default classification `own_policy`.
 - **Third party involved but unidentified** (hit-and-run — the other car drove off) → the client ticks "אין לי את פרטי הצד השני" (`thirdParty.details_unknown`); the third-party step stops requiring name/plate/insurer but keeps whatever partial detail there is, and the `get_tp_insurer` task still spawns on track confirmation so the agent traces the other side.

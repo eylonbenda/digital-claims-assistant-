@@ -7,6 +7,7 @@ import ClaimsTable from "./ClaimsTable";
 import TodayList from "./TodayList";
 import BriefAutoRefresh from "./BriefAutoRefresh";
 import { composeDashboard } from "@/lib/dashboard/compose";
+import type { DraftLite } from "@/lib/dashboard/copy";
 import { greeting, hebDate } from "@/lib/dashboard/copy";
 import { briefEnabled } from "@/lib/dashboard/flags";
 import { getOrCreateBrief, warmBriefRanking } from "@/lib/brief/brief";
@@ -86,7 +87,7 @@ export default async function DashboardPage() {
   const { data: claims } = await supabase
     .from("claims")
     .select(
-      "id, client_name, client_phone, claim_type, status, urgent, created_at, submitted_at, access_token"
+      "id, client_name, client_phone, claim_type, status, urgent, created_at, submitted_at, access_token, draft:summary_json->draft"
     )
     .order("created_at", { ascending: false });
 
@@ -104,6 +105,8 @@ export default async function DashboardPage() {
     claims: openClaims.map((c) => ({
       id: c.id, client_name: c.client_name, claim_type: c.claim_type,
       status: c.status, submitted_at: c.submitted_at, created_at: c.created_at,
+      // Only the draft is pulled (JSON path select), not the whole summary_json.
+      draft: c.draft as DraftLite,
     })),
     queue, brief,
     openTasks: (taskRows ?? []).map((t) => ({ claim_id: t.claim_id, title: t.title, due_at: t.due_at })),

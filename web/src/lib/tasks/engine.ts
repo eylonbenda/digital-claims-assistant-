@@ -21,6 +21,7 @@ function buildRuleCtx(input: EngineInput): RuleCtx {
     claimType: input.claim.claimType,
     atFaultInsurer: input.claim.atFaultInsurer,
     hasGeneratedForm: input.hasGeneratedForm,
+    submitted: STATUS_ORDER[input.claim.status] >= STATUS_ORDER.submitted,
     docDone: (t) => docDone.get(t) === true,
     milestoneDone: (k) => milestoneDone.get(k) === true,
     blockingMissing: () => checklist.some((i) => i.blocking && !i.done),
@@ -89,6 +90,7 @@ export function advanceTasks(input: EngineInput): EngineResult {
       }
       break;
     case "doc_uploaded":
+    case "claim_created":
       break;
   }
   const statusAdvance =
