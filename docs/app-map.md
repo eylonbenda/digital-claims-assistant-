@@ -32,7 +32,7 @@ The client wizard's own files live in `web/src/components/collection/`: `steps.t
 | Module | Owns |
 |---|---|
 | `formfill/` | canonical claim schema (`types.ts`) → filled insurer PDFs: generic `engine.ts`, all 11 coordinate `templates/`, `effective.ts` (agent edits win over client input), `dates.ts` (ISO → dd/mm/yyyy at the fill boundary), bundled `assets/` |
-| `claims/` | `classify.ts` (deterministic track decision), `checklist.ts` (`computeChecklist` + `chaseableLabels`), `analysis-cache.ts` |
+| `claims/` | `classify.ts` (deterministic track decision), `checklist.ts` (`computeChecklist` + `chaseableLabels`), `analysis-cache.ts` (`readCachedAnalysis`/`needsAnalysis` for render paths — never call the model; `warmAnalysis` fills a cold cache off-render, called from submit and from a cold cockpit view) |
 | `tasks/` | task engine: pure `engine.ts` (`advanceTasks`), declarative `templates.ts` rule table, `runner.ts` (`runEngine`, best-effort) |
 | `brief/` | morning brief: `facts.ts` → `score.ts` (deterministic) → `rank.ts` (AI tier) → `brief.ts` (`getOrCreateBrief`, `{cachedOnly}` for render paths — never blocks on the model; `warmBriefRanking` fills a cold cache off-render) |
 | `outbound/` | outbound queue: `rules.ts` (per-task-key send descriptors + cooldowns + the `auto` flip-to-send seam + a presentation-only `labels()` beside `build()`), pure `queue.ts` (`buildQueue` — lanes, cooldown, one-per-claim-per-day cap, give-up escalation, ordering), `load.ts` (`loadQueue`, the only I/O, best-effort) |
@@ -54,7 +54,7 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | Route | Method | Purpose |
 |---|---|---|
 | `/api/claims` | GET/POST | agent claim list / create |
-| `/api/claims/submit` | POST | client submits the wizard → auto-fills the accident notice. Compare-and-set on the claim's status, so of two racing submits exactly one wins; the other (and a retry) gets `409` with a machine-readable `already_submitted` code the wizard treats as success. `503` in production when Supabase isn't configured — never a fake `{ok:true}` for data that wasn't stored |
+| `/api/claims/submit` | POST | client submits the wizard → auto-fills the accident notice. Compare-and-set on the claim's status, so of two racing submits exactly one wins; the other (and a retry) gets `409` with a machine-readable `already_submitted` code the wizard treats as success. `503` in production when Supabase isn't configured — never a fake `{ok:true}` for data that wasn't stored. After the response it warms the AI analysis cache (`after()` → `warmAnalysis`) so the agent's first cockpit view doesn't wait on the model |
 | `/api/claims/draft` | POST | **client** in-progress wizard state by token → merged into `summary_json.draft` (64 KB cap, `409` once the claim is submitted — compare-and-set on status closes the race with a concurrent submit — `{ok:true, demo:true}` outside production when Supabase isn't configured, `503` in production) |
 | `/api/claims/documents` | POST | **client** upload (magic-byte sniffed); `503` in production when Supabase isn't configured (demo `{ok:true}` only outside production) |
 | `/api/claims/[id]/documents` | POST | **agent** upload with a type tag |
