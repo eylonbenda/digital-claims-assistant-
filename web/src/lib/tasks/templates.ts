@@ -3,6 +3,7 @@ import type { ClaimType, EngineEvent } from "./types";
 // Relative due-date offsets in days. FIELD ASSUMPTIONS (regulatory-clock.md §3),
 // not regulated SLAs — tune with the design partner.
 export const DUE_OFFSETS: Record<string, number> = {
+  finish_wizard: 1,
   chase_missing_docs: 3,
   open_claim_with_insurer: 2,
   chase_appraiser: 3,
@@ -23,6 +24,8 @@ export type RuleCtx = {
   claimType: ClaimType;
   atFaultInsurer: string | null;
   hasGeneratedForm: boolean;
+  // The client has submitted the wizard (status at or past 'submitted').
+  submitted: boolean;
   docDone: (docType: string) => boolean;
   milestoneDone: (key: string) => boolean;
   blockingMissing: () => boolean;
@@ -43,6 +46,17 @@ export type TaskRule = {
 
 export const TASK_RULES: TaskRule[] = [
   // ── all tracks ──────────────────────────────────────────────────────────
+  {
+    // A link that sits unfinished is a repair job quietly lost. Spawned when the
+    // link is created; due a day later, when the outbound queue offers a one-tap
+    // WhatsApp nudge (send rule of the same key). Closes itself on submit.
+    key: "finish_wizard",
+    title: "הלקוח לא סיים למלא את הטופס",
+    dueDays: DUE_OFFSETS.finish_wizard,
+    track: "all",
+    spawnOn: (e) => e.type === "claim_created",
+    completeWhen: (ctx) => ctx.submitted,
+  },
   {
     key: "chase_missing_docs",
     title: "להשלים מסמכים חסרים מהלקוח",

@@ -9,10 +9,11 @@ const CTX = {
 };
 
 describe("SEND_RULES", () => {
-  it("covers exactly the three client-directed task keys", () => {
+  it("covers exactly the four client-directed task keys", () => {
     expect(Object.keys(SEND_RULES).sort()).toEqual([
       "chase_missing_docs",
       "collect_private_report_docs",
+      "finish_wizard",
       "get_tp_insurer",
     ]);
   });

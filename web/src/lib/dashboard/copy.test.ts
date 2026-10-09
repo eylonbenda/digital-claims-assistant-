@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  ALL_DONE_NOTE, PENDING_CLIENT_LINE, TRACK_LABEL, WAITING_NOTE,
-  alsoLine, doActionLine, greeting, hebDate, sendActionLine, unclassifiedLine, waitingLine,
+  ALL_DONE_NOTE, TRACK_LABEL, WAITING_NOTE,
+  alsoLine, doActionLine, greeting, hebDate, pendingClientLine, sendActionLine, unclassifiedLine, waitingLine,
 } from "./copy";
 
 describe("greeting", () => {
@@ -73,7 +73,6 @@ describe("small lines", () => {
     expect(TRACK_LABEL.unknown).toBe("טרם סווג");
     expect(WAITING_NOTE.length).toBeGreaterThan(0);
     expect(ALL_DONE_NOTE).toContain("✅");
-    expect(PENDING_CLIENT_LINE).toBe("ממתינים ללקוח למילוי הפרטים");
   });
 });
 
@@ -84,4 +83,30 @@ describe("alsoLine", () => {
     expect(alsoLine("לוודא דוח שמאי", 0)).toBe("וגם: לוודא דוח שמאי"));
   it("singular day form at 1", () =>
     expect(alsoLine("לוודא דוח שמאי", 1)).toBe("וגם: לוודא דוח שמאי (באיחור יום אחד)"));
+});
+
+describe("pendingClientLine", () => {
+  const now = new Date("2026-10-09T12:00:00Z");
+  it("no draft → not started, aged from link creation", () => {
+    expect(pendingClientLine(null, "2026-10-07T09:00:00Z", now)).toBe("הלקוח עוד לא התחיל למלא · הקישור נוצר לפני 2 ימים");
+    expect(pendingClientLine({}, "2026-10-09T09:00:00Z", now)).toBe("הלקוח עוד לא התחיל למלא · הקישור נוצר היום");
+  });
+  it("draft → furthest step + last activity", () => {
+    expect(
+      pendingClientLine({ max_step_key: "documents", saved_at: "2026-10-08T10:00:00Z" }, "2026-10-01T00:00:00Z", now),
+    ).toBe("הלקוח הגיע עד העלאת המסמכים ולא סיים · פעילות אחרונה אתמול");
+  });
+  it("unknown step key degrades to a generic phrase", () => {
+    expect(
+      pendingClientLine({ max_step_key: "nope", saved_at: "2026-10-09T10:00:00Z" }, "2026-10-01T00:00:00Z", now),
+    ).toBe("הלקוח התחיל למלא ולא סיים · פעילות אחרונה היום");
+  });
+});
+
+describe("sendActionLine — finish_wizard", () => {
+  it("names the unfinished form", () => {
+    expect(
+      sendActionLine({ taskKey: "finish_wizard", docLabels: [], lastSentAt: null }, new Date("2026-10-09T12:00:00Z")),
+    ).toBe("הלקוח לא סיים למלא את הטופס · טרם נשלחה תזכורת");
+  });
 });

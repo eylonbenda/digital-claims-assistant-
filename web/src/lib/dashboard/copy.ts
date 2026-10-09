@@ -50,7 +50,9 @@ export function sendActionLine(
   now: Date,
 ): string {
   const head =
-    opts.taskKey === "get_tp_insurer"
+    opts.taskKey === "finish_wizard"
+      ? "הלקוח לא סיים למלא את הטופס"
+      : opts.taskKey === "get_tp_insurer"
       ? "מחכים לפרטי המבטח של הצד השני מהלקוח"
       : opts.docLabels.length
         ? `מחכים ל${joinHe(opts.docLabels)} מהלקוח`
@@ -88,4 +90,40 @@ export function waitingLine(next: { title: string; due_at: string | null } | nul
 
 export const WAITING_NOTE = "תקין — המערכת תזכיר כשיגיע הזמן לפעול";
 export const ALL_DONE_NOTE = "הכל טופל להיום ✅";
-export const PENDING_CLIENT_LINE = "ממתינים ללקוח למילוי הפרטים";
+// Where an unsubmitted claimant stopped — keyed by the wizard's StepKey
+// (components/collection/steps.ts). The four tap questions read as one stage.
+const STEP_LABEL: Record<string, string> = {
+  intro: "מסך הפתיחה",
+  injuries: "השאלות המהירות",
+  driver_who: "השאלות המהירות",
+  fault: "השאלות המהירות",
+  tp_present: "השאלות המהירות",
+  vehicle: "פרטי הרכב",
+  insured: "פרטי המבוטח",
+  driver_details: "פרטי הנהג",
+  tp_details: "פרטי הצד השני",
+  when_where: "מועד ומקום התאונה",
+  description: "תיאור התאונה",
+  documents: "העלאת המסמכים",
+  summary: "הסיכום והשליחה",
+};
+
+function agoHe(iso: string, now: Date): string {
+  const days = Math.max(0, Math.floor((now.getTime() - new Date(iso).getTime()) / DAY_MS));
+  if (days === 0) return "היום";
+  if (days === 1) return "אתמול";
+  return `לפני ${days} ימים`;
+}
+
+export type DraftLite = { max_step_key?: unknown; saved_at?: unknown } | null | undefined;
+
+// The card line for a claim the client hasn't submitted yet. The server draft is
+// only written after consent, so "no draft" covers both a link never opened and
+// one abandoned on the opening screen.
+export function pendingClientLine(draft: DraftLite, createdAt: string, now: Date): string {
+  const savedAt = typeof draft?.saved_at === "string" ? draft.saved_at : null;
+  if (!savedAt) return `הלקוח עוד לא התחיל למלא · הקישור נוצר ${agoHe(createdAt, now)}`;
+  const step = typeof draft?.max_step_key === "string" ? STEP_LABEL[draft.max_step_key] : undefined;
+  const where = step ? `הגיע עד ${step}` : "התחיל למלא";
+  return `הלקוח ${where} ולא סיים · פעילות אחרונה ${agoHe(savedAt, now)}`;
+}

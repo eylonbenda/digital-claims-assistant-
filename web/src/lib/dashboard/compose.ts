@@ -1,13 +1,15 @@
 import type { Brief, BriefItem } from "@/lib/brief/brief";
 import type { DoItem, OutboundQueue, SendItem } from "@/lib/outbound/queue";
 import { TIER_ORDER, type Tier } from "@/lib/brief/rank";
-import { PENDING_CLIENT_LINE, TRACK_LABEL, alsoLine, doActionLine, sendActionLine, unclassifiedLine, waitingLine } from "./copy";
+import { TRACK_LABEL, alsoLine, doActionLine, pendingClientLine, sendActionLine, unclassifiedLine, waitingLine, type DraftLite } from "./copy";
 
 const DAY_MS = 86_400_000;
 
 export type ComposeClaim = {
   id: string; client_name: string | null; claim_type: string; status: string;
   submitted_at: string | null; created_at: string;
+  // summary_json.draft — where an unsubmitted client stopped (optional; absent → generic line)
+  draft?: DraftLite;
 };
 export type OpenTaskLite = { claim_id: string; title: string; due_at: string | null };
 export type ClaimCard = {
@@ -104,7 +106,7 @@ export function composeDashboard(input: {
     } else if (unclassified) {
       action_line = unclassifiedLine(daysOpen);
     } else if (!c.submitted_at) {
-      action_line = PENDING_CLIENT_LINE;
+      action_line = pendingClientLine(c.draft, c.created_at, now);
     } else {
       action_line = waitingLine(nearestOpen);
     }

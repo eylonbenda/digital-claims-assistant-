@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { serverError } from "@/lib/observability/report";
+import { runEngine } from "@/lib/tasks/runner";
 
 export async function GET() {
   const supabase = await createClient();
@@ -71,6 +72,10 @@ export async function POST(request: Request) {
   if (error || !claim) {
     return serverError("POST /api/claims", error ?? "claim insert returned no row", { step: "claim" });
   }
+
+  // Spawns the finish_wizard task: if the client hasn't submitted a day from now,
+  // the dashboard offers a one-tap WhatsApp nudge. Best-effort (never throws).
+  await runEngine(claim.id, { type: "claim_created" });
 
   return Response.json(
     { id: claim.id, access_token: claim.access_token, link: `/c/${claim.access_token}` },

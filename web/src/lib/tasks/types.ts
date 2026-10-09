@@ -48,6 +48,7 @@ export type TaskSpawn = {
 };
 
 export type EngineEvent =
+  | { type: "claim_created" }
   | { type: "claim_submitted" }
   | { type: "track_confirmed" }
   | { type: "milestone_ticked"; key: string; done: boolean }

@@ -242,3 +242,28 @@ describe("status advance", () => {
     expect(r.statusAdvance).toBeNull();
   });
 });
+
+describe("finish_wizard", () => {
+  it("spawns on claim_created, due in a day", () => {
+    const r = run({ claimType: "unknown", status: "created", event: { type: "claim_created" } });
+    const t = r.spawn.find((s) => s.key === "finish_wizard");
+    expect(t).toBeDefined();
+    expect(new Date(t!.due_at).getTime() - NOW.getTime()).toBe(DAY);
+  });
+  it("completes once the claim is submitted", () => {
+    const r = run({
+      claimType: "unknown", status: "submitted",
+      openTasks: [task({ key: "finish_wizard" })],
+      event: { type: "claim_submitted" },
+    });
+    expect(r.complete).toContain("id-finish_wizard");
+  });
+  it("stays open while the client hasn't submitted", () => {
+    const r = run({
+      claimType: "unknown", status: "in_progress",
+      openTasks: [task({ key: "finish_wizard" })],
+      event: { type: "doc_uploaded", docType: "car_photo" },
+    });
+    expect(r.complete).not.toContain("id-finish_wizard");
+  });
+});
