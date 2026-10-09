@@ -325,6 +325,14 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - Button/label copy also dropped the assumption: "שליחה לסוכן" → "שליחה לטיפול", and the identity step's unsure-coverage option **"לא בטוח/ה — הסוכן ישלים"** → **"לא בטוח/ה — יושלם בהמשך"** (referenced above and in `claim-management.md` — updated to match).
 - Unit-tested: new `web/src/lib/collection/recipient.test.ts` (name-present vs. neutral fallback, blank/whitespace name, trimming, both consent strings verified segment-neutral).
 
+### Done since last sync (2026-09-30, PR #74 — submit integrity: never say "sent" when it wasn't stored)
+- **No migration.** Same `claims` columns; only the write pattern and a new shared lib.
+- **`POST /api/claims/submit` and `POST /api/claims/draft` now compare-and-set** on the claim's status as read, adding `.eq("status", claim.status)` to the update and checking the returned row count. Of two racing submits (double-tap, two tabs, a client retry after a lost response) exactly one flips the claim and runs the submit side-effects; the other — and a stale draft write racing a submit — gets the same `409` a late retry would. New `web/src/lib/collection/submit.ts` centralises this: `SUBMITTED_STATUSES` (was `TERMINAL_STATUSES`/`DRAFT_BLOCKED_STATUSES`, duplicated across both routes), the machine-readable `ALREADY_SUBMITTED` 409 code, `isAlreadySubmitted`, and `parseSubmitBody` (rejects a missing/wrong-typed `token` or non-object `collected`).
+- **The wizard treats that `409` as success**, not an error (`CollectionWizard.tsx`): it clears local state and shows the confirmation screen exactly as a first-time submit would, since the claim is submitted either way. Any other failure now shows "השליחה לא הצליחה — הפרטים שלך נשמרו במכשיר, אפשר לנסות שוב" instead of the raw server error string, and leaves the local copy in place.
+- **A DB write failure at submit is no longer swallowed.** The claim's own `status`/`summary_json` update returns its error to the client (`500`) instead of continuing past it; the form-fill / `third_parties` insert / `claim_events` inserts stay best-effort as before, but each now logs its own failure (`logFailure`) instead of only the form-fill path being wrapped in a `try/catch`.
+- **Demo mode no longer masks a misconfigured production deploy.** `/api/claims/submit`, `/api/claims/draft` and `/api/claims/documents` returned `{ok:true, demo:true}` whenever `NEXT_PUBLIC_SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` were missing, regardless of environment — a client's answers looked sent while nothing was stored. All three now return `503` when that happens with `NODE_ENV === "production"`; the demo fallback still applies outside production so local/no-env dev is unaffected.
+- Unit-tested: new `web/src/lib/collection/submit.test.ts` (`parseSubmitBody` accept/reject cases, `isAlreadySubmitted`).
+
 ## To run the AI path live
 Add `ANTHROPIC_API_KEY` to `web/.env.local`, then:
 ```

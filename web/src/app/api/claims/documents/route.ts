@@ -48,6 +48,11 @@ export async function POST(request: Request) {
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     // Supabase not configured — succeed silently so the wizard works in demo mode (no real upload).
+    // Local only: in a deployed env a fake "ok" would mark a document uploaded that was never stored.
+    if (process.env.NODE_ENV === "production") {
+      console.error("[documents] Supabase env missing in production");
+      return Response.json({ error: "not configured" }, { status: 503 });
+    }
     return Response.json({ ok: true, demo: true });
   }
 
