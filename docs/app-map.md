@@ -10,7 +10,7 @@
 2. Copy `web/.env.example` → `web/.env.local` and fill the Supabase keys + `ANTHROPIC_API_KEY`.
 3. From `web/`: `npm run dev`.
 
-Other scripts: `npm run build` · `npm run lint` · `npm run test` (Vitest, `web/vitest.config.ts`) · `npm run brand` · `npm run brand:wordmark` · `npm run test:brand` (brand assets — see §5).
+Other scripts: `npm run build` · `npm run lint` · `npm run test` (Vitest, `web/vitest.config.ts`) · `npm run brand` · `npm run brand:wordmark` · `npm run test:brand` (brand assets — see §5) · `npm run check:rls` / `npm run test:rls` (`web/scripts/check-rls.mjs` — fails on any `public` table missing `enable row level security`; see [architecture.md](architecture.md#5-security--privacy-from-day-one)).
 Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod checklist live in [status.md](status.md).
 
 ---
@@ -54,9 +54,9 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | Route | Method | Purpose |
 |---|---|---|
 | `/api/claims` | GET/POST | agent claim list / create |
-| `/api/claims/submit` | POST | client submits the wizard → auto-fills the accident notice, then warms the AI analysis cache off-render (`after()`) so the agent's first cockpit view doesn't wait on the model |
-| `/api/claims/draft` | POST | **client** in-progress wizard state by token → merged into `summary_json.draft` (64 KB cap, `409` once the claim is submitted, `{ok:true, demo:true}` when Supabase isn't configured) |
-| `/api/claims/documents` | POST | **client** upload (magic-byte sniffed) |
+| `/api/claims/submit` | POST | client submits the wizard → auto-fills the accident notice. Compare-and-set on the claim's status, so of two racing submits exactly one wins; the other (and a retry) gets `409` with a machine-readable `already_submitted` code the wizard treats as success. `503` in production when Supabase isn't configured — never a fake `{ok:true}` for data that wasn't stored. After the response it warms the AI analysis cache (`after()` → `warmAnalysis`) so the agent's first cockpit view doesn't wait on the model |
+| `/api/claims/draft` | POST | **client** in-progress wizard state by token → merged into `summary_json.draft` (64 KB cap, `409` once the claim is submitted — compare-and-set on status closes the race with a concurrent submit — `{ok:true, demo:true}` outside production when Supabase isn't configured, `503` in production) |
+| `/api/claims/documents` | POST | **client** upload (magic-byte sniffed); `503` in production when Supabase isn't configured (demo `{ok:true}` only outside production) |
 | `/api/claims/[id]/documents` | POST | **agent** upload with a type tag |
 | `/api/claims/[id]/classify` | PATCH | agent confirms the track |
 | `/api/claims/[id]/checklist` | PATCH | tick a milestone |
@@ -64,8 +64,6 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | `/api/claims/[id]/notes` | POST | append to the agent scratchpad |
 | `/api/claims/[id]/form-data` | PATCH | agent edits the canonical form fields |
 | `/api/claims/[id]/form/[insurer]` | GET | on-demand fill for one insurer |
-| `/api/forms/[insurer]` | POST | fill a PDF from a canonical claim body |
-| `/api/analyze` | POST | Claude analysis — **503 without `ANTHROPIC_API_KEY`**. Stateless; **no in-app caller** since the wizard's AI panel was removed — the agent page reads the cache (`readCachedAnalysis`) and warms it off-render (`warmAnalysis`) instead |
 | `/api/vehicle/[plate]` | GET | **client** plate → make/model/year from the Ministry of Transport registry (server-side proxy, per-instance memo, `200 {vehicle:null}` on a miss) |
 | `/api/reports/funnel` | GET | **agent** wizard funnel (`?days=N`, default 90, max 365) — links sent, `completion_rate` (of all links) vs `completion_rate_of_started` (excludes never-opened links — the wizard-only measure), where abandoned sessions stopped, doc-deferral counts; RLS-scoped, reads existing `claims` rows only, no new table |
 | `/api/brief/refresh` | POST | re-run the morning-brief ranking |
@@ -84,5 +82,5 @@ The mutation routes (`submit`, `classify`, `checklist`, `documents`) each call `
 - QA a fill locally with `web/scripts/fill.ts` (uses `formfill/sample-claim.ts`).
 - Env override: `CLAIMS_AI_MODEL` swaps the analysis model tier.
 - **Brand assets** live in `web/public/brand/`; the **SVG masters are the source of truth**. `npm run brand` (`web/scripts/build-brand-assets.mjs`) rasterizes every PNG from them and writes the multi-size `web/src/app/favicon.ico` (16/32/48, PNG-in-ICO) — **never hand-edit a generated PNG**, re-run the script. `npm run brand:wordmark` (`scripts/gen-wordmark.mjs`) regenerates the outlined wordmark/lockup SVGs (text is outlined so rendering needs no font). Rasterizing uses **`sharp` 0.34.5**, which resolves as an *optional transitive* dep of Next — it is not declared in `web/package.json`.
-- `npm run test:brand` runs `node --test scripts/__tests__/*.test.mjs` (asserts master-SVG invariants + rendered PNG sizes) — a **separate runner from Vitest**, so `npm run test` does not cover it.
+- `npm run test:brand` runs `node --test scripts/__tests__/brand-assets.test.mjs` (asserts master-SVG invariants + rendered PNG sizes) — a **separate runner from Vitest**, so `npm run test` does not cover it. `npm run test:rls` runs the sibling `scripts/__tests__/check-rls.test.mjs` the same way (own script, not a glob, since both now live under `scripts/__tests__/`).
 - Favicon + apple-touch icons are declared in `metadata.icons` (`web/src/app/layout.tsx`); the OG card (`/brand/og-image.png`, 1200×630) in the landing page's `metadata.openGraph` (`web/src/app/page.tsx`), whose header renders the `/brand/logo.svg` lockup.
