@@ -64,8 +64,6 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | `/api/claims/[id]/notes` | POST | append to the agent scratchpad |
 | `/api/claims/[id]/form-data` | PATCH | agent edits the canonical form fields |
 | `/api/claims/[id]/form/[insurer]` | GET | on-demand fill for one insurer |
-| `/api/forms/[insurer]` | POST | fill a PDF from a canonical claim body |
-| `/api/analyze` | POST | Claude analysis — **503 without `ANTHROPIC_API_KEY`**. Stateless; **no in-app caller** since the wizard's AI panel was removed — the agent page uses `getOrCreateAnalysis` server-side |
 | `/api/vehicle/[plate]` | GET | **client** plate → make/model/year from the Ministry of Transport registry (server-side proxy, per-instance memo, `200 {vehicle:null}` on a miss) |
 | `/api/reports/funnel` | GET | **agent** wizard funnel (`?days=N`, default 90, max 365) — links sent, `completion_rate` (of all links) vs `completion_rate_of_started` (excludes never-opened links — the wizard-only measure), where abandoned sessions stopped, doc-deferral counts; RLS-scoped, reads existing `claims` rows only, no new table |
 | `/api/brief/refresh` | POST | re-run the morning-brief ranking |
