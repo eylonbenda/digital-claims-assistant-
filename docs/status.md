@@ -349,6 +349,19 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **`migration-guard`** (`.github/scripts/migration-guard.cjs`) gained a check: an added migration that doesn't end with its own `insert into public.schema_migrations(version) values ('NNN') on conflict do nothing;` row is blocked, even when the `migration-applied-prod` label is set. Unit-tested (`web/scripts/__tests__/migration-guard.test.mjs`, run via new `npm run test:scripts`).
 - `npm run test:brand` narrowed to `brand-assets.test.mjs` only (was `*.test.mjs`, which would have also picked up the new `migration-guard.test.mjs`).
 
+### Done since last sync (2026-10-09, PR #80 — date every milestone tick)
+- **No migration.** Uses the existing `claim_events` table with a new `type`.
+- **`checklist_state` only ever held booleans — a tick had no "when".** `PATCH /api/claims/[id]/checklist` now also inserts a `claim_events` row (`type: "milestone_ticked"`, `payload_json: { key, done }`) on every *real* change (compares against the current value first, so a repeat click of an already-set item doesn't re-date it). Best-effort: a failed insert is reported (`reportError`) but doesn't fail the request.
+- New pure `web/src/lib/claims/milestone-dates.ts` (`milestoneDates`) folds a claim's `milestone_ticked` events (sorted by `created_at`, order-independent) into `key → ISO date of the tick currently in effect` — an un-tick clears the key, a later re-tick re-dates it. Not wired into any route or UI yet; ticks made before 2026-10-09 have no event and so no date.
+- Unit-tested: new `web/src/lib/claims/milestone-dates.test.ts`.
+
+### Done since last sync (2026-10-09, PR #81 — stalled claimants: dashboard stall line + finish_wizard nudge)
+- **No migration.** Rides the existing `summary_json.draft` (`max_step_key`/`saved_at`) that the wizard-funnel work (PR #62) already writes; only the task engine, outbound rules and dashboard copy change.
+- **The static "ממתינים ללקוח למילוי הפרטים" line is gone.** `pendingClientLine()` (`dashboard/copy.ts`) reads the claim's `summary_json.draft` (now also selected by the dashboard query, as `draft:summary_json->draft`) and reports either "הלקוח עוד לא התחיל למלא · הקישור נוצר X" (no draft) or "הלקוח הגיע עד <שם השלב> ולא סיים · פעילות אחרונה X" (draft exists), via a `STEP_LABEL` map keyed on the wizard's `StepKey`.
+- **New `finish_wizard` task**, spawned on a new `claim_created` engine event fired from `POST /api/claims` right after insert (best-effort, same pattern as the other `runEngine` call sites), due 1 day later, closed once the claim's status reaches `submitted`.
+- **New `finish_wizard` send rule** (`outbound/rules.ts`, 2-day cooldown, highest `RULE_PRIORITY`) composes a one-tap WhatsApp nudge (`finishWizardMessage` in `wa.ts`) reusing the claimant's own upload link — so the outbound queue's "לשלוח היום" lane now has four client-directed keys, not three.
+- Closes improvement-log 0930-07.
+
 ### Done since last sync (2026-10-09, PR #82 — new submissions and late uploads rise to the top, with a badge)
 - **No migration.** `claim_documents` already existed; `page.tsx` now also reads it (`claim_id, uploaded_at`, newest per claim) to feed the dashboard composition.
 - **The flat list was ordered by link-created date, so a claim that just got submitted or just got a late document stayed buried under older-but-untouched links.** `compose.ts` gained `activity_at` per card (latest of `created_at` / `submitted_at` / `last_upload_at`) and the `cards` list now sorts on it instead of `created_at`. A card is also marked `fresh: "submitted" | "upload" | null` when a submission landed in the last day, or a document arrived after submit in the last day; `TodayList.tsx` renders that as a "חדש"/"מסמך חדש" badge next to the track label.
