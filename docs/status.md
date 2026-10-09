@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-09-30**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-10-09**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -349,7 +349,12 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **`migration-guard`** (`.github/scripts/migration-guard.cjs`) gained a check: an added migration that doesn't end with its own `insert into public.schema_migrations(version) values ('NNN') on conflict do nothing;` row is blocked, even when the `migration-applied-prod` label is set. Unit-tested (`web/scripts/__tests__/migration-guard.test.mjs`, run via new `npm run test:scripts`).
 - `npm run test:brand` narrowed to `brand-assets.test.mjs` only (was `*.test.mjs`, which would have also picked up the new `migration-guard.test.mjs`).
 
-## To run the AI path live
+### Done since last sync (2026-10-09, PR #81 — stalled claimants: dashboard stall line + finish_wizard nudge)
+- **No migration.** Rides the existing `summary_json.draft` (`max_step_key`/`saved_at`) that the wizard-funnel work (PR #62) already writes; only the task engine, outbound rules and dashboard copy change.
+- **The static "ממתינים ללקוח למילוי הפרטים" line is gone.** `pendingClientLine()` (`dashboard/copy.ts`) reads the claim's `summary_json.draft` (now also selected by the dashboard query, as `draft:summary_json->draft`) and reports either "הלקוח עוד לא התחיל למלא · הקישור נוצר X" (no draft) or "הלקוח הגיע עד <שם השלב> ולא סיים · פעילות אחרונה X" (draft exists), via a `STEP_LABEL` map keyed on the wizard's `StepKey`.
+- **New `finish_wizard` task**, spawned on a new `claim_created` engine event fired from `POST /api/claims` right after insert (best-effort, same pattern as the other `runEngine` call sites), due 1 day later, closed once the claim's status reaches `submitted`.
+- **New `finish_wizard` send rule** (`outbound/rules.ts`, 2-day cooldown, highest `RULE_PRIORITY`) composes a one-tap WhatsApp nudge (`finishWizardMessage` in `wa.ts`) reusing the claimant's own upload link — so the outbound queue's "לשלוח היום" lane now has four client-directed keys, not three.
+- Closes improvement-log 0930-07.
 Add `ANTHROPIC_API_KEY` to `web/.env.local`, then:
 ```
 cd web ; npm run dev
