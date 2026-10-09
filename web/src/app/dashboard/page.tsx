@@ -10,6 +10,7 @@ import { composeDashboard } from "@/lib/dashboard/compose";
 import RefreshOnFocus from "./RefreshOnFocus";
 import type { DraftLite } from "@/lib/dashboard/copy";
 import { greeting, hebDate } from "@/lib/dashboard/copy";
+import { parsePage } from "@/lib/dashboard/paginate";
 import { briefEnabled } from "@/lib/dashboard/flags";
 import { getOrCreateBrief, warmBriefRanking } from "@/lib/brief/brief";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -23,7 +24,12 @@ import type { OutboundQueue as OutboundQueueType } from "@/lib/outbound/queue";
 // enabled; with it off nothing runs after the response.
 export const maxDuration = 60;
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ p?: string | string[]; tp?: string | string[] }>;
+}) {
+  const { p, tp } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -152,9 +158,10 @@ export default async function DashboardPage() {
           name={user.email?.split("@")[0] ?? null}
           claimsCount={(claims ?? []).length}
           showBrief={showBrief}
+          initialPage={parsePage(p)}
         />
 
-        <ClaimsTable claims={claims ?? []} />
+        <ClaimsTable claims={claims ?? []} initialPage={parsePage(tp)} />
       </main>
     </div>
   );
