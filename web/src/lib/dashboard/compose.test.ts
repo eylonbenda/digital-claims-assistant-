@@ -169,7 +169,7 @@ describe("composeDashboard — card anatomy", () => {
   });
 
   it("unclassified with no queue items → classification prompt", () => {
-    const d = compose([cl({ claim_type: "unknown", created_at: daysFromNow(-42) })], q(), null);
+    const d = compose([cl({ claim_type: "unknown", created_at: daysFromNow(-50), submitted_at: daysFromNow(-42) })], q(), null);
     expect(d.attention[0].action_line).toBe("התיק מחכה לסיווג מסלול כבר 42 יום");
   });
 
@@ -240,5 +240,44 @@ describe("composeDashboard — intake-first flat list", () => {
     const c = cl({ id: "c1", created_at: daysFromNow(-1) });
     const d = compose([c], q(), briefWith([{ claim_id: "c1", tier: "act_now", score: 99 }]));
     expect(d.cards[0].needs_action).toBe(false);
+  });
+});
+
+describe("composeDashboard — activity (0930-08)", () => {
+  it("orders the flat list by latest activity, not link creation", () => {
+    const d = compose(
+      [
+        cl({ id: "old-link-just-submitted", created_at: daysFromNow(-7), submitted_at: daysFromNow(-0.1) }),
+        cl({ id: "new-empty-link", created_at: daysFromNow(-1), submitted_at: null }),
+        cl({ id: "late-upload", created_at: daysFromNow(-10), submitted_at: daysFromNow(-8), last_upload_at: daysFromNow(-0.05) }),
+      ],
+      q(),
+      null,
+    );
+    expect(d.cards.map((c) => c.claim_id)).toEqual(["late-upload", "old-link-just-submitted", "new-empty-link"]);
+  });
+
+  it("flags a fresh submission, and a document that arrived after submit", () => {
+    const d = compose(
+      [
+        cl({ id: "s", submitted_at: daysFromNow(-0.2) }),
+        cl({ id: "u", submitted_at: daysFromNow(-5), last_upload_at: daysFromNow(-0.1) }),
+        cl({ id: "wizard-upload", submitted_at: daysFromNow(-0.5), last_upload_at: daysFromNow(-0.6) }),
+        cl({ id: "stale", submitted_at: daysFromNow(-5), last_upload_at: daysFromNow(-3) }),
+      ],
+      q(),
+      null,
+    );
+    const fresh = Object.fromEntries(d.cards.map((c) => [c.claim_id, c.fresh]));
+    expect(fresh).toEqual({ s: "submitted", u: "upload", "wizard-upload": "submitted", stale: null });
+  });
+
+  it("counts the classification wait from submission", () => {
+    const d = compose(
+      [cl({ claim_type: "unknown", created_at: daysFromNow(-5), submitted_at: daysFromNow(-0.1) })],
+      q(),
+      null,
+    );
+    expect(d.cards[0].action_line).toBe("התיק מחכה לסיווג מסלול כבר 0 יום");
   });
 });

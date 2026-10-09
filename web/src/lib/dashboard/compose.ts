@@ -4,12 +4,18 @@ import { TIER_ORDER, type Tier } from "@/lib/brief/rank";
 import { TRACK_LABEL, alsoLine, doActionLine, pendingClientLine, sendActionLine, unclassifiedLine, waitingLine, type DraftLite } from "./copy";
 
 const DAY_MS = 86_400_000;
+const FRESH_MS = DAY_MS;
+
+const latest = (...isos: (string | null | undefined)[]): string =>
+  isos.filter((x): x is string => !!x).reduce((a, b) => (a > b ? a : b));
 
 export type ComposeClaim = {
   id: string; client_name: string | null; claim_type: string; status: string;
   submitted_at: string | null; created_at: string;
   // summary_json.draft — where an unsubmitted client stopped (optional; absent → generic line)
   draft?: DraftLite;
+  // newest claim_documents.uploaded_at — drives activity ordering + the "new document" badge
+  last_upload_at?: string | null;
 };
 export type OpenTaskLite = { claim_id: string; title: string; due_at: string | null };
 export type ClaimCard = {
@@ -18,6 +24,11 @@ export type ClaimCard = {
   send: SendItem | null;
   overdue_days: number;
   created_at: string;
+  // Latest of link created / client submitted / last upload. The flat list sorts on
+  // this, so a claim that just came in (or just got a document) rises to the top.
+  activity_at: string;
+  // Something arrived in the last FRESH_MS: a submission, or a document after submit.
+  fresh: "submitted" | "upload" | null;
   // Derived from queue/task/classification state only — deliberately not from the
   // brief. The intake-first list must order and colour itself identically whether
   // or not the AI brief is enabled.
@@ -90,6 +101,17 @@ export function composeDashboard(input: {
     // else the most-overdue do-task, else the classification prompt, else the
     // waiting/ok line. Whatever lost the primary slot becomes one "וגם:" line.
     const daysOpen = Math.max(0, Math.floor((now.getTime() - new Date(c.created_at).getTime()) / DAY_MS));
+    // Waiting-for-classification counts from submission, not from link creation —
+    // a claim submitted a minute ago must not read "מחכה לסיווג כבר 5 יום".
+    const daysSinceSubmit = c.submitted_at
+      ? Math.max(0, Math.floor((now.getTime() - new Date(c.submitted_at).getTime()) / DAY_MS))
+      : daysOpen;
+    const isRecent = (iso: string | null | undefined) => !!iso && now.getTime() - new Date(iso).getTime() < FRESH_MS;
+    const fresh: ClaimCard["fresh"] = isRecent(c.submitted_at)
+      ? "submitted"
+      : c.submitted_at && c.last_upload_at && c.last_upload_at > c.submitted_at && isRecent(c.last_upload_at)
+        ? "upload"
+        : null;
     const nearestOpen = openBy.get(c.id)?.[0] ?? null;
 
     let action_line: string;
@@ -104,7 +126,7 @@ export function composeDashboard(input: {
       action_line = dos[0].escalation ? dos[0].title : doActionLine(dos[0].title, dos[0].overdue_days);
       also = dos[1] ?? null;
     } else if (unclassified) {
-      action_line = unclassifiedLine(daysOpen);
+      action_line = unclassifiedLine(daysSinceSubmit);
     } else if (!c.submitted_at) {
       action_line = pendingClientLine(c.draft, c.created_at, now);
     } else {
@@ -114,6 +136,8 @@ export function composeDashboard(input: {
     const card: ClaimCard = {
       claim_id: c.id, client_name: c.client_name,
       created_at: c.created_at,
+      activity_at: latest(c.created_at, c.submitted_at, c.last_upload_at),
+      fresh,
       needs_action: !!send || dos.length > 0 || unclassified,
       track_label: TRACK_LABEL[c.claim_type] ?? c.claim_type,
       action_line,
@@ -154,11 +178,12 @@ export function composeDashboard(input: {
   ok.sort((a, b) => (a.client_name ?? "").localeCompare(b.client_name ?? "", "he"));
 
   // Pilot feedback (2026-09-13): the operator's day is intake → form → send to the
-  // insurer, and she asked for the most recently opened claim first. Sorted here
-  // rather than leaning on the caller's query order, so the guarantee belongs to
-  // the compose layer and the unit tests can hold it.
-  const cards = [...attention, ...waiting, ...ok].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  // insurer, and she asked for the newest claim first. "Newest" is by latest
+  // activity (improvement log 0930-08): a link sent last week whose client submitted
+  // today belongs above today's still-empty links. Sorted here rather than leaning on
+  // the caller's query order, so the guarantee belongs to the compose layer.
+  const cards = [...attention, ...waiting, ...ok].sort((a, b) =>
+    b.activity_at.localeCompare(a.activity_at),
   );
 
   return { cards, attention, waiting, ok };

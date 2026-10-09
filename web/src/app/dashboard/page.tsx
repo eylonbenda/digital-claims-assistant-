@@ -7,6 +7,7 @@ import ClaimsTable from "./ClaimsTable";
 import TodayList from "./TodayList";
 import BriefAutoRefresh from "./BriefAutoRefresh";
 import { composeDashboard } from "@/lib/dashboard/compose";
+import RefreshOnFocus from "./RefreshOnFocus";
 import type { DraftLite } from "@/lib/dashboard/copy";
 import { greeting, hebDate } from "@/lib/dashboard/copy";
 import { briefEnabled } from "@/lib/dashboard/flags";
@@ -99,6 +100,15 @@ export default async function DashboardPage() {
     .neq("status", "done")
     .order("due_at", { ascending: true, nullsFirst: false });
 
+  // Newest upload per claim (RLS-scoped) — orders the list by activity and marks a
+  // document that arrived after submit.
+  const { data: docRows } = await supabase
+    .from("claim_documents")
+    .select("claim_id, uploaded_at")
+    .order("uploaded_at", { ascending: false });
+  const lastUploadBy = new Map<string, string>();
+  for (const d of docRows ?? []) if (!lastUploadBy.has(d.claim_id)) lastUploadBy.set(d.claim_id, d.uploaded_at);
+
   const now = new Date();
   const openClaims = (claims ?? []).filter((c) => c.status !== "closed" && c.status !== "abandoned");
   const list = composeDashboard({
@@ -107,6 +117,7 @@ export default async function DashboardPage() {
       status: c.status, submitted_at: c.submitted_at, created_at: c.created_at,
       // Only the draft is pulled (JSON path select), not the whole summary_json.
       draft: c.draft as DraftLite,
+      last_upload_at: lastUploadBy.get(c.id) ?? null,
     })),
     queue, brief,
     openTasks: (taskRows ?? []).map((t) => ({ claim_id: t.claim_id, title: t.title, due_at: t.due_at })),
@@ -126,6 +137,7 @@ export default async function DashboardPage() {
       </header>
 
       {showBrief && awaitingRanking && <BriefAutoRefresh />}
+      <RefreshOnFocus />
 
       <main className="mx-auto max-w-5xl space-y-6 p-6">
         <div className="flex items-center justify-between">
