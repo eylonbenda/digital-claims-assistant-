@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-09-30**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-10-09**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -348,6 +348,12 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
 - **New `post-deploy-health` workflow** (`.github/workflows/post-deploy-health.yml`, on Vercel's `deployment_status`) curls `/api/health` after every deploy: fails the run on Production, only warns on Preview.
 - **`migration-guard`** (`.github/scripts/migration-guard.cjs`) gained a check: an added migration that doesn't end with its own `insert into public.schema_migrations(version) values ('NNN') on conflict do nothing;` row is blocked, even when the `migration-applied-prod` label is set. Unit-tested (`web/scripts/__tests__/migration-guard.test.mjs`, run via new `npm run test:scripts`).
 - `npm run test:brand` narrowed to `brand-assets.test.mjs` only (was `*.test.mjs`, which would have also picked up the new `migration-guard.test.mjs`).
+
+### Done since last sync (2026-10-09, PR #80 — date every milestone tick)
+- **No migration.** Uses the existing `claim_events` table with a new `type`.
+- **`checklist_state` only ever held booleans — a tick had no "when".** `PATCH /api/claims/[id]/checklist` now also inserts a `claim_events` row (`type: "milestone_ticked"`, `payload_json: { key, done }`) on every *real* change (compares against the current value first, so a repeat click of an already-set item doesn't re-date it). Best-effort: a failed insert is reported (`reportError`) but doesn't fail the request.
+- New pure `web/src/lib/claims/milestone-dates.ts` (`milestoneDates`) folds a claim's `milestone_ticked` events (sorted by `created_at`, order-independent) into `key → ISO date of the tick currently in effect` — an un-tick clears the key, a later re-tick re-dates it. Not wired into any route or UI yet; ticks made before 2026-10-09 have no event and so no date.
+- Unit-tested: new `web/src/lib/claims/milestone-dates.test.ts`.
 
 ## To run the AI path live
 Add `ANTHROPIC_API_KEY` to `web/.env.local`, then:

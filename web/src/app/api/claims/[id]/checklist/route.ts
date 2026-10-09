@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { runEngine } from "@/lib/tasks/runner";
-import { serverError } from "@/lib/observability/report";
+import { reportError, serverError } from "@/lib/observability/report";
+import { MILESTONE_EVENT } from "@/lib/claims/milestone-dates";
 
 // PATCH /api/claims/[id]/checklist
 // Body: { key: string, done: boolean }
@@ -35,6 +36,7 @@ export async function PATCH(
   if (!claim) return Response.json({ error: "not found" }, { status: 404 });
 
   const current = (claim.checklist_state as Record<string, boolean> | null) ?? {};
+  const changed = !!current[body.key] !== body.done;
   const updated = { ...current, [body.key]: body.done };
 
   const svc = createServiceClient();
@@ -44,6 +46,20 @@ export async function PATCH(
     .eq("id", id);
   if (error) {
     return serverError("/api/claims/[id]/checklist", error, { claimId: id });
+  }
+
+  // checklist_state keeps only booleans; the *when* goes to claim_events so the owner
+  // report can measure car-in → submitted → paid (see lib/claims/milestone-dates.ts).
+  // Only on a real change, so a double click doesn't re-date the milestone.
+  if (changed) {
+    const { error: evErr } = await svc.from("claim_events").insert({
+      claim_id: id,
+      type: MILESTONE_EVENT,
+      payload_json: { key: body.key, done: body.done },
+    });
+    if (evErr) {
+      await reportError("/api/claims/[id]/checklist", evErr, { claimId: id, step: "milestone event" });
+    }
   }
 
   // Status transitions + task spawn/complete now live in the task engine
