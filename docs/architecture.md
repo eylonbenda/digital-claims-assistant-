@@ -106,7 +106,8 @@ claim_notes     (id, claim_id → claims, body, created_at)
                  --   POST /api/claims/[id]/notes appends, shown on /dashboard/[id]
 claim_events    (id, claim_id → claims, type, payload_json, created_at)
                  -- audit log: consent_given, step_completed,
-                 --   classified, form_generated, status_changed ...
+                 --   classified, form_generated, status_changed,
+                 --   milestone_ticked (checklist milestone date — lib/claims/milestone-dates.ts) ...
 agent_briefs    (agent_id → agents, brief_date, payload_json, created_at)
                  -- cached morning-brief AI *ranking* only (tier/reason/flags per claim),
                  --   one row per agent per UTC day (migration 007). The action fields
