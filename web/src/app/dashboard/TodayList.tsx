@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import type { ClaimCard, DashboardList } from "@/lib/dashboard/compose";
 import { ALL_DONE_NOTE, WAITING_NOTE } from "@/lib/dashboard/copy";
 import type { SendItem } from "@/lib/outbound/queue";
+import { paginate } from "@/lib/dashboard/paginate";
+import Pager, { useUrlPage } from "./Pager";
+
+const CARDS_PER_PAGE = 20;
 
 function postEvent(item: SendItem, kind: "sent" | "skipped") {
   return fetch("/api/outbound/events", {
@@ -108,7 +112,7 @@ function Card({ card, tone }: { card: ClaimCard; tone: "red" | "amber" | "plain"
 }
 
 export default function TodayList({
-  list, greeting, dateLabel, claimsCount, name, showBrief = false,
+  list, greeting, dateLabel, claimsCount, name, showBrief = false, initialPage = 1,
 }: {
   list: DashboardList;
   greeting: string;
@@ -116,8 +120,11 @@ export default function TodayList({
   claimsCount: number;
   name?: string | null;
   showBrief?: boolean;
+  initialPage?: number;
 }) {
   const { cards, attention, waiting, ok } = list;
+  const [page, setPage] = useUrlPage("p", initialPage);
+  const paged = paginate(cards, page, CARDS_PER_PAGE);
 
   // Intake-first (the default since 2026-09-27): one flat list, newest claim first.
   // Pilot feedback from the operator — her day is intake → form → send to the
@@ -126,7 +133,7 @@ export default function TodayList({
   // driving the page structure.
   if (!showBrief) {
     return (
-      <section dir="rtl">
+      <section dir="rtl" id="today-list">
         <div className="mb-3">
           <h2 className="text-lg font-bold text-zinc-900">
             {greeting}{name ? `, ${name}` : ""} 👋{" "}
@@ -147,7 +154,7 @@ export default function TodayList({
               {cards.length} תיקים פתוחים · לפי פעילות אחרונה
             </p>
             <ul className="space-y-2">
-              {cards.map((c) => (
+              {paged.items.map((c) => (
                 <Card
                   key={c.claim_id}
                   card={c}
@@ -155,6 +162,7 @@ export default function TodayList({
                 />
               ))}
             </ul>
+            <Pager {...paged} onPage={(n) => setPage(n, "today-list")} />
           </>
         )}
       </section>

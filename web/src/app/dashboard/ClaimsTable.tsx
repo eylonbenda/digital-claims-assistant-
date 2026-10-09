@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { TRACK_LABEL } from "@/lib/dashboard/copy";
+import { paginate } from "@/lib/dashboard/paginate";
+import Pager, { useUrlPage } from "./Pager";
+
+const ROWS_PER_PAGE = 25;
 
 interface Claim {
   id: string;
@@ -36,15 +40,17 @@ function CopyLinkButton({ token }: { token: string }) {
   );
 }
 
-export default function ClaimsTable({ claims }: { claims: Claim[] }) {
+export default function ClaimsTable({ claims, initialPage = 1 }: { claims: Claim[]; initialPage?: number }) {
   const [query, setQuery] = useState("");
   const [showClosed, setShowClosed] = useState(false);
+  const [page, setPage] = useUrlPage("tp", initialPage);
   const rows = claims.filter((c) => {
     if (!showClosed && (c.status === "closed" || c.status === "abandoned")) return false;
     if (!query) return true;
     const q = query.trim();
     return (c.client_name ?? "").includes(q) || (c.client_phone ?? "").includes(q);
   });
+  const paged = paginate(rows, page, ROWS_PER_PAGE);
 
   if (claims.length === 0) {
     return (
@@ -55,18 +61,18 @@ export default function ClaimsTable({ claims }: { claims: Claim[] }) {
   }
 
   return (
-    <div>
+    <div id="claims-table">
       <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2">
         <span className="text-sm font-bold text-zinc-600">כל התיקים ({rows.length})</span>
         <span className="flex items-center gap-2">
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             placeholder="חיפוש לקוח…"
             className="rounded-lg border border-zinc-300 px-2 py-1 text-xs"
           />
           <label className="flex items-center gap-1 text-xs text-zinc-500">
-            <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} />
+            <input type="checkbox" checked={showClosed} onChange={(e) => { setShowClosed(e.target.checked); setPage(1); }} />
             כולל סגורים
           </label>
         </span>
@@ -85,7 +91,7 @@ export default function ClaimsTable({ claims }: { claims: Claim[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100 bg-white">
-            {rows.map((c) => {
+            {paged.items.map((c) => {
               const closed = c.status === "closed" || c.status === "abandoned";
               return (
                 <tr key={c.id} className="hover:bg-zinc-50">
@@ -116,6 +122,7 @@ export default function ClaimsTable({ claims }: { claims: Claim[] }) {
         </table>
         )}
       </div>
+      <Pager {...paged} onPage={(n) => setPage(n, "claims-table")} />
     </div>
   );
 }
