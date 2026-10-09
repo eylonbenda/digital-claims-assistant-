@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { runEngine } from "@/lib/tasks/runner";
+import { serverError } from "@/lib/observability/report";
 
 // PATCH /api/claims/[id]/checklist
 // Body: { key: string, done: boolean }
@@ -42,7 +43,7 @@ export async function PATCH(
     .update({ checklist_state: updated })
     .eq("id", id);
   if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return serverError("/api/claims/[id]/checklist", error, { claimId: id });
   }
 
   // Status transitions + task spawn/complete now live in the task engine

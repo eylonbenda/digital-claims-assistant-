@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { summarizeFunnel, type FunnelRow } from "@/lib/collection/funnel";
+import { serverError } from "@/lib/observability/report";
 
 // GET /api/reports/funnel?days=90
 //
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
     .gte("created_at", since)
     .order("created_at", { ascending: false });
 
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) return serverError("/api/reports/funnel", error);
 
   return Response.json({
     window_days: days,

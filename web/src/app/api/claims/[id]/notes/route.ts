@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { serverError } from "@/lib/observability/report";
 
 // POST /api/claims/[id]/notes
 // Body: { body: string }
@@ -40,7 +41,7 @@ export async function POST(
     .select("id, body, created_at")
     .single();
   if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return serverError("/api/claims/[id]/notes", error, { claimId: id });
   }
 
   return Response.json({ note });

@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { analyzeClaim, type ClaimAnalysis } from "@/lib/ai/analyze";
 import { toClaimData, type State } from "@/lib/collection/claim-state";
 import type { ClaimData } from "@/lib/formfill/types";
+import { reportError } from "@/lib/observability/report";
 
 export type SummaryJson = {
   collected?: State;
@@ -91,9 +92,6 @@ async function warm(claimId: string): Promise<void> {
       .eq("id", claimId);
     if (error) throw new Error(`write analysis: ${error.message}`);
   } catch (e) {
-    console.error("[analysis] warm failed", {
-      claimId,
-      error: e instanceof Error ? e.message : String(e),
-    });
+    await reportError("analysis warm", e, { claimId });
   }
 }

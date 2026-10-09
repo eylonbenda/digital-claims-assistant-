@@ -22,7 +22,7 @@ Two **separate Supabase projects**, mapped to Vercel env **scopes** on one Verce
 | **Preview** | dev/sandbox project | any branch push / PR → preview deploy |
 | **Development** | dev/sandbox project | `vercel env pull`; local `npm run dev` actually reads `web/.env.local` (dev keys) |
 
-Env vars per scope: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (prod vs dev values); `ANTHROPIC_API_KEY` same across scopes. **Never put prod keys in `web/.env.local`.** `NEXT_PUBLIC_SUPABASE_URL` = bare project origin `https://<ref>.supabase.co` — no `/rest/v1/` suffix.
+Env vars per scope: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (prod vs dev values); `ANTHROPIC_API_KEY` same across scopes; optional `ALERT_WEBHOOK_URL` (Production only — server errors are pushed there, see `web/src/lib/observability/report.ts`; without it they are only in the Vercel logs). **Never put prod keys in `web/.env.local`.** `NEXT_PUBLIC_SUPABASE_URL` = bare project origin `https://<ref>.supabase.co` — no `/rest/v1/` suffix.
 
 ### Promoting a change to prod — checklist
 Vercel deploys **code**, not **schema**. There is no auto-migration. So:

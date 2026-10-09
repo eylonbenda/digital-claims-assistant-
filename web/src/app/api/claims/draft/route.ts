@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { stepIndex } from "@/components/collection/steps";
 import { SUBMITTED_STATUSES } from "@/lib/collection/submit";
+import { serverError } from "@/lib/observability/report";
 
 export const runtime = "nodejs"; // needs the service client
 
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
     .eq("status", claim.status)
     .select("id");
   if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return serverError("/api/claims/draft", error, { claimId: claim.id });
   }
   if (!written?.length) {
     return Response.json({ error: "claim already submitted" }, { status: 409 });
