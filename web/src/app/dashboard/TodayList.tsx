@@ -77,6 +77,11 @@ function Card({ card, tone }: { card: ClaimCard; tone: "red" | "amber" | "plain"
             {card.client_name ?? "ללא שם"}
           </Link>{" "}
           <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600">{card.track_label}</span>
+          {card.fresh && (
+            <span className="ms-1 rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800">
+              {card.fresh === "submitted" ? "חדש" : "מסמך חדש"}
+            </span>
+          )}
           <p className={`text-sm ${lineColor}`}>{card.action_line}</p>
           {card.ai_line && <p className="text-xs text-zinc-400">{card.ai_line}</p>}
           {card.also_line && <p className="text-xs text-amber-800">{card.also_line}</p>}
@@ -139,7 +144,7 @@ export default function TodayList({
         ) : (
           <>
             <p className="mb-2 text-sm text-zinc-500">
-              {cards.length} תיקים פתוחים · החדש ביותר למעלה
+              {cards.length} תיקים פתוחים · לפי פעילות אחרונה
             </p>
             <ul className="space-y-2">
               {cards.map((c) => (
