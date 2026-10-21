@@ -11,6 +11,9 @@ export function effectiveHandling(
   claimType: ClaimType,
 ): HandlingStatus | null {
   if (isHandlingStatus(handlingStatus)) return handlingStatus;
+  // payment_received beats the sent milestone: a legacy claim hand-ticked as
+  // paid must not resurface as "נשלחה" in the new surfaces.
+  if (checklistState?.payment_received) return "paid";
   const milestone = sentMilestoneFor(claimType);
   if (milestone && checklistState?.[milestone]) return "sent";
   return null;

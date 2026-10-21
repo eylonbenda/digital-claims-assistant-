@@ -51,11 +51,22 @@ export function composeSubmission(input: {
   const attachments: { label: string; storagePath: string }[] = [];
   const form = forms[0];
   if (form) attachments.push({ label: "טופס הודעה על תאונה", storagePath: form.storage_path });
-  const byType = new Map(docs.map((d) => [d.type, d.storage_path]));
+  // Every file of a mandatory type is listed — the פקידה attaches from this
+  // list, so collapsing multi-file types (damage photos, both licence sides)
+  // would send an incomplete packet that looks complete.
+  const byType = new Map<string, string[]>();
+  for (const d of docs) {
+    const list = byType.get(d.type) ?? [];
+    list.push(d.storage_path);
+    byType.set(d.type, list);
+  }
   for (const item of checklist) {
     if (item.kind !== "doc" || !item.mandatory || !item.docType || !item.done) continue;
-    const path = byType.get(item.docType);
-    if (path) attachments.push({ label: item.label, storagePath: path });
+    const paths = byType.get(item.docType) ?? [];
+    paths.forEach((path, i) => {
+      const label = paths.length > 1 ? `${item.label} (${i + 1}/${paths.length})` : item.label;
+      attachments.push({ label, storagePath: path });
+    });
   }
 
   return {

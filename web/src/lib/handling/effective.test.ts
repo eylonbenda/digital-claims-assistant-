@@ -41,3 +41,15 @@ describe("effectiveHandling", () => {
     ).toBe("sent");
   });
 });
+
+describe("effectiveHandling — legacy paid derivation", () => {
+  test("a hand-ticked payment_received derives 'paid', beating the sent milestone", () => {
+    expect(
+      effectiveHandling(
+        null,
+        { submitted_to_tp_insurer: true, payment_received: true },
+        "third_party_report",
+      ),
+    ).toBe("paid");
+  });
+});

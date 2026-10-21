@@ -123,3 +123,31 @@ describe("planHandlingUpdate — close", () => {
     expect("error" in r).toBe(true);
   });
 });
+
+describe("planHandlingUpdate — review fixes", () => {
+  test("to:'sent' on a never-sent claim is refused (confirm route owns that move)", () => {
+    const current = { ...base().current, handling_status: null, checklist_state: {} };
+    const r = planHandlingUpdate({ ...base({ current }), to: "sent" });
+    expect("error" in r).toBe(true);
+  });
+
+  test("revert on a sent claim clears the column and unticks the milestone", () => {
+    const r = planHandlingUpdate({ ...base(), revert: true });
+    if ("error" in r) throw new Error(r.error);
+    expect(r.update.handling_status).toBeNull();
+    expect(r.milestoneUntick).toBe("submitted_to_tp_insurer");
+    expect(r.event.type).toBe("handling_reverted");
+  });
+
+  test("revert on a legacy sent claim (null column, ticked milestone) works too", () => {
+    const current = { ...base().current, handling_status: null };
+    const r = planHandlingUpdate({ ...base({ current }), revert: true });
+    expect("error" in r).toBe(false);
+  });
+
+  test("revert is refused once past sent", () => {
+    const current = { ...base().current, handling_status: "docs_requested" };
+    const r = planHandlingUpdate({ ...base({ current }), revert: true });
+    expect("error" in r).toBe(true);
+  });
+});

@@ -1,5 +1,5 @@
 import type { ClaimType, ClaimStatus } from "@/lib/tasks/types";
-import { canTransition, requirementFor } from "./transitions";
+import { canTransition, requirementFor, sentMilestoneFor } from "./transitions";
 import { effectiveHandling } from "./effective";
 import { isHandlingStatus, type HandlingStatus } from "./types";
 import { REQUIREMENT_ERROR } from "./copy";
@@ -17,6 +17,8 @@ export type ClosureReason = (typeof CLOSURE_REASONS)[number];
 export type HandlingInput = {
   to?: HandlingStatus;
   close?: { reason: ClosureReason; note?: string };
+  // Correction path: undo a mistaken "sent" (only while still at sent).
+  revert?: boolean;
   note?: string;
   lawyer?: Lawyer;
   current: {
@@ -30,10 +32,11 @@ export type HandlingInput = {
 };
 
 export type HandlingPlan = {
-  update: Record<string, string>;
+  update: Record<string, string | null>;
   summaryPatch?: Record<string, unknown>;
   event: { type: string; payload: Record<string, unknown> };
   milestoneTick?: string;
+  milestoneUntick?: string;
 };
 
 // Pure planner behind PATCH /api/claims/[id]/handling. The route is I/O glue.
@@ -52,9 +55,25 @@ export function planHandlingUpdate(input: HandlingInput): { error: string } | Ha
     };
   }
 
+  const from = effectiveHandling(current.handling_status, current.checklist_state, current.claim_type);
+
+  if (input.revert) {
+    if (from !== "sent") return { error: "ניתן לבטל שליחה רק כל עוד הסטטוס הוא נשלחה" };
+    const milestone = sentMilestoneFor(current.claim_type);
+    return {
+      update: { handling_status: null, handling_status_changed_at: now.toISOString() },
+      event: { type: "handling_reverted", payload: { from: "sent" } },
+      ...(milestone ? { milestoneUntick: milestone } : {}),
+    };
+  }
+
   if (!isHandlingStatus(input.to)) return { error: "סטטוס יעד לא מוכר" };
   const to = input.to;
-  const from = effectiveHandling(current.handling_status, current.checklist_state, current.claim_type);
+  // "sent" is only ever set by the confirm route (which also ticks the
+  // milestone + logs the submission event); setting it here would wedge the claim.
+  if (to === "sent" && from === null) {
+    return { error: "סימון כנשלחה נעשה דרך מסך השליחה" };
+  }
   if (!canTransition(from, to)) {
     return { error: `מעבר לא חוקי: ${from ?? "טרם נשלחה"} → ${to}` };
   }

@@ -21,8 +21,14 @@ export async function PATCH(
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   const body = await request.json().catch(() => null);
-  if (!body || (typeof body.to !== "string" && typeof body.close !== "object")) {
-    return Response.json({ error: "to (string) or close (object) required" }, { status: 400 });
+  if (
+    !body ||
+    (typeof body.to !== "string" && typeof body.close !== "object" && body.revert !== true)
+  ) {
+    return Response.json(
+      { error: "to (string), close (object) or revert (true) required" },
+      { status: 400 },
+    );
   }
 
   // RLS probe: auth-scoped select returns null if the agent doesn't own this claim.
@@ -42,6 +48,7 @@ export async function PATCH(
   const plan = planHandlingUpdate({
     to: body.to,
     close: body.close,
+    revert: body.revert === true,
     note: typeof body.note === "string" ? body.note : undefined,
     lawyer: body.lawyer,
     current: {
@@ -64,9 +71,13 @@ export async function PATCH(
       handling: { ...prevHandling, ...(plan.summaryPatch.handling as Record<string, unknown>) },
     };
   }
-  if (plan.milestoneTick) {
+  if (plan.milestoneTick || plan.milestoneUntick) {
     const state = (claim.checklist_state as Record<string, boolean> | null) ?? {};
-    update.checklist_state = { ...state, [plan.milestoneTick]: true };
+    update.checklist_state = {
+      ...state,
+      ...(plan.milestoneTick ? { [plan.milestoneTick]: true } : {}),
+      ...(plan.milestoneUntick ? { [plan.milestoneUntick]: false } : {}),
+    };
   }
 
   // Compare-and-set on the handling status we validated against (Review-Focus 1):
@@ -93,12 +104,13 @@ export async function PATCH(
 
   let status: string = claim.status as string;
   if (plan.update.status === "closed") status = "closed";
-  if (plan.milestoneTick) {
-    const engine = await runEngine(id, {
-      type: "milestone_ticked",
-      key: plan.milestoneTick,
-      done: true,
-    });
+  const milestoneEvent = plan.milestoneTick
+    ? { key: plan.milestoneTick, done: true }
+    : plan.milestoneUntick
+      ? { key: plan.milestoneUntick, done: false }
+      : null;
+  if (milestoneEvent) {
+    const engine = await runEngine(id, { type: "milestone_ticked", ...milestoneEvent });
     if (engine) status = engine.status;
   }
 

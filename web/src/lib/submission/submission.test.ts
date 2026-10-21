@@ -125,3 +125,21 @@ describe("composeSubmission", () => {
     expect(r.body).toContain("- חשבונית מוסך");
   });
 });
+
+describe("composeSubmission — multi-file doc types", () => {
+  test("every uploaded file of a mandatory type is listed, numbered", () => {
+    const checklist2: ComputedItem[] = [
+      doc("car_photo", "תמונות נזק", "car_photo"),
+    ];
+    const docs2 = [
+      { type: "car_photo", storage_path: "c/1/p1.jpg" },
+      { type: "car_photo", storage_path: "c/1/p2.jpg" },
+    ];
+    const r = composeSubmission({ claim: CLAIM, checklist: checklist2, docs: docs2, forms: [] });
+    if (!r) throw new Error("expected submission");
+    expect(r.attachments).toEqual([
+      { label: "תמונות נזק (1/2)", storagePath: "c/1/p1.jpg" },
+      { label: "תמונות נזק (2/2)", storagePath: "c/1/p2.jpg" },
+    ]);
+  });
+});

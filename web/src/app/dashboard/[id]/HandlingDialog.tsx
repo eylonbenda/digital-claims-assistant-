@@ -34,7 +34,7 @@ type Props = {
 export default function HandlingDialog({ claimId, effective, onClose }: Props) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [target, setTarget] = useState<HandlingStatus | "close" | null>(null);
+  const [target, setTarget] = useState<HandlingStatus | "close" | "revert" | null>(null);
   const [note, setNote] = useState("");
   const [closeReason, setCloseReason] = useState("for_information");
   const [lawyerName, setLawyerName] = useState("");
@@ -44,13 +44,13 @@ export default function HandlingDialog({ claimId, effective, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const targets = HANDLING_STATUSES.filter((s) => canTransition(effective, s));
-  const req = target && target !== "close" ? requirementFor(target) : {};
+  const req = target && target !== "close" && target !== "revert" ? requirementFor(target) : {};
 
   async function submit() {
     setBusy(true);
     setError(null);
     try {
-      if (target !== "close" && req.evidenceDoc) {
+      if (target !== "close" && target !== "revert" && req.evidenceDoc) {
         const file = fileRef.current?.files?.[0];
         if (!file) {
           setError(`יש לצרף ${EVIDENCE_LABEL[req.evidenceDoc]}`);
@@ -70,7 +70,9 @@ export default function HandlingDialog({ claimId, effective, onClose }: Props) {
       }
 
       const body =
-        target === "close"
+        target === "revert"
+          ? { revert: true }
+          : target === "close"
           ? { close: { reason: closeReason, ...(note.trim() ? { note: note.trim() } : {}) } }
           : {
               to: target,
@@ -137,6 +139,19 @@ export default function HandlingDialog({ claimId, effective, onClose }: Props) {
               {HANDLING_LABEL[s]}
             </button>
           ))}
+          {effective === "sent" && (
+            <button
+              type="button"
+              onClick={() => { setTarget("revert"); setError(null); }}
+              className={`rounded-full px-3 py-1.5 text-sm ring-1 ring-inset ${
+                target === "revert"
+                  ? "bg-amber-600 text-white ring-amber-600"
+                  : "bg-white text-amber-700 ring-amber-300 hover:bg-amber-50"
+              }`}
+            >
+              ביטול שליחה (סומן בטעות)
+            </button>
+          )}
           <button
             type="button"
             onClick={() => { setTarget("close"); setError(null); }}
@@ -155,7 +170,13 @@ export default function HandlingDialog({ claimId, effective, onClose }: Props) {
             <label className="mb-1 block text-xs font-medium text-zinc-500">
               {EVIDENCE_LABEL[req.evidenceDoc]} (חובה)
             </label>
-            <input ref={fileRef} type="file" accept=".jpg,.jpeg,.png,.heic,.pdf" className="w-full text-sm" />
+            <input
+              key={req.evidenceDoc}
+              ref={fileRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.heic,.pdf"
+              className="w-full text-sm"
+            />
           </div>
         )}
 
@@ -176,7 +197,7 @@ export default function HandlingDialog({ claimId, effective, onClose }: Props) {
           </div>
         )}
 
-        {target && (target === "close" || req.note || true) && (
+        {target && target !== "revert" && (
           <div className="mb-3">
             <label htmlFor="handling-note" className="mb-1 block text-xs font-medium text-zinc-500">
               {target === "docs_requested"
@@ -195,7 +216,7 @@ export default function HandlingDialog({ claimId, effective, onClose }: Props) {
           </div>
         )}
 
-        {target && target !== "close" && req.lawyer && (
+        {target && target !== "close" && target !== "revert" && req.lawyer && (
           <div className="mb-3 space-y-2">
             <input
               value={lawyerName}

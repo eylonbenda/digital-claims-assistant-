@@ -148,7 +148,7 @@ export default async function ClaimDetailPage({
       .eq("claim_id", id)
       .order("due_at", { ascending: true }),
     supabase.from("third_parties").select("plate, insurer").eq("claim_id", id),
-    supabase.from("agents").select("name").eq("id", user.id).maybeSingle(),
+    supabase.from("agents").select("name").eq("auth_user_id", user.id).maybeSingle(),
   ]);
   const notes: NoteView[] = noteRows ?? [];
   const tasks: TaskView[] = taskRows ?? [];
@@ -360,7 +360,11 @@ export default async function ClaimDetailPage({
       insurerLabel: claim.policy_insurer ? INSURER_LABEL[claim.policy_insurer] ?? claim.policy_insurer : null,
       docsCount: docs.length,
       handlingEffective,
-      submissionReady: !!submissionView && blockingMissing.length === 0,
+      // Milestones are excluded: on the settlement track route_approved is a
+      // blocking milestone that can only be ticked AFTER the approval request
+      // goes out, so counting it would make the prepare action unreachable.
+      submissionReady:
+        !!submissionView && blockingMissing.filter((b) => b.kind !== "milestone").length === 0,
       handlingOverdue:
         tasks.some(
           (t) =>

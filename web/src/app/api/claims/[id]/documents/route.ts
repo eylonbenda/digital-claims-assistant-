@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { sniffFileType, SNIFF_MIME, SNIFF_EXT } from "@/lib/files/sniff";
 import { runEngine } from "@/lib/tasks/runner";
 import { serverError } from "@/lib/observability/report";
+import { AGENT_DOC_TYPES } from "@/lib/claims/agent-doc-types";
 
 export const runtime = "nodejs";
 
@@ -10,30 +11,8 @@ const BUCKET = "claim-docs";
 const MAX_BYTES = 20 * 1024 * 1024; // 20MB — agents upload multi-page PDFs
 
 // Types agents can upload post-intake (wider than the claimant-facing set).
-const AGENT_TYPES = new Set([
-  "appraiser_report",
-  "garage_invoice",
-  "repair_receipt",
-  "assessor_fee_invoice",
-  "assessor_fee_receipt",
-  "no_claim_confirmation",
-  "loss_confirmation",
-  "bank_details",
-  "demand_form",
-  "police_report",
-  "insurance_history",
-  "lien_release",
-  "info_consent",
-  "power_of_attorney",
-  "vat_offset_confirmation",
-  "keys",
-  "id_card",
-  "third_party_doc",
-  "car_photo",
-  "drivers_license",
-  "vehicle_reg",
-  "other",
-]);
+// Shared with the upload UI + asserted to cover the handling evidence gates.
+const AGENT_TYPES = AGENT_DOC_TYPES;
 
 // POST /api/claims/[id]/documents  (agent-authenticated, session-gated)
 // FormData: { type: string, file: File }
