@@ -359,6 +359,17 @@ export default async function ClaimDetailPage({
       nextMilestone: nextMilestone ? { key: nextMilestone.key, label: nextMilestone.label } : null,
       insurerLabel: claim.policy_insurer ? INSURER_LABEL[claim.policy_insurer] ?? claim.policy_insurer : null,
       docsCount: docs.length,
+      handlingEffective,
+      submissionReady: !!submissionView && blockingMissing.length === 0,
+      handlingOverdue:
+        tasks.some(
+          (t) =>
+            t.status !== "done" &&
+            t.key?.startsWith("follow_up") &&
+            t.due_at &&
+            new Date(t.due_at).getTime() <= now,
+        ) ||
+        (!!handlingChangedAt && now - new Date(handlingChangedAt).getTime() >= 14 * 86_400_000),
     },
     new Date(now),
   );

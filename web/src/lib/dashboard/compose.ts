@@ -1,7 +1,7 @@
 import type { Brief, BriefItem } from "@/lib/brief/brief";
 import type { DoItem, OutboundQueue, SendItem } from "@/lib/outbound/queue";
 import { TIER_ORDER, type Tier } from "@/lib/brief/rank";
-import { TRACK_LABEL, alsoLine, doActionLine, pendingClientLine, sendActionLine, unclassifiedLine, waitingLine, type DraftLite } from "./copy";
+import { TRACK_LABEL, alsoLine, doActionLine, handlingLine, pendingClientLine, sendActionLine, unclassifiedLine, waitingLine, type DraftLite } from "./copy";
 
 const DAY_MS = 86_400_000;
 const FRESH_MS = DAY_MS;
@@ -16,6 +16,10 @@ export type ComposeClaim = {
   draft?: DraftLite;
   // newest claim_documents.uploaded_at — drives activity ordering + the "new document" badge
   last_upload_at?: string | null;
+  // Post-send handling lifecycle (computed by the caller via effectiveHandling).
+  handling_effective?: string | null;
+  handling_insurer_label?: string | null;
+  handling_days?: number;
 };
 export type OpenTaskLite = { claim_id: string; title: string; due_at: string | null };
 export type ClaimCard = {
@@ -129,6 +133,12 @@ export function composeDashboard(input: {
       action_line = unclassifiedLine(daysSinceSubmit);
     } else if (!c.submitted_at) {
       action_line = pendingClientLine(c.draft, c.created_at, now);
+    } else if (c.handling_effective) {
+      action_line = handlingLine(
+        c.handling_effective,
+        c.handling_insurer_label ?? null,
+        c.handling_days ?? 0,
+      );
     } else {
       action_line = waitingLine(nearestOpen);
     }

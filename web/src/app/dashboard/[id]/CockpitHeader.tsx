@@ -138,6 +138,13 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
             >
               {busy ? "מעדכן…" : `סמן: ${na.milestoneLabel}`}
             </button>
+          ) : na.kind === "update_handling" ? (
+            <button
+              type="button" onClick={() => setHandlingOpen(true)}
+              className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+            >
+              עדכון סטטוס
+            </button>
           ) : na.kind !== "none" ? (
             <button
               type="button" onClick={() => p.onNavigate(na.targetTab)}
