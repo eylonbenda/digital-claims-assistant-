@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { chaseMessage, waHref } from "@/lib/wa";
 import type { NextAction, TabKey } from "@/lib/cockpit/derive";
+import type { HandlingStatus } from "@/lib/handling/types";
+import { HANDLING_LABEL } from "@/lib/handling/copy";
+import HandlingDialog from "./HandlingDialog";
 
 export type CockpitHeaderProps = {
   claimId: string;
@@ -18,6 +21,10 @@ export type CockpitHeaderProps = {
   nextAction: NextAction;
   chaseLabels: string[];
   uploadUrl: string;
+  // Post-send handling: effective status (column or legacy milestone) + days in it.
+  handlingEffective: HandlingStatus | null;
+  handlingDays: number | null;
+  claimClosed: boolean;
   onNavigate: (tab: TabKey) => void;
 };
 
@@ -28,6 +35,7 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [handlingOpen, setHandlingOpen] = useState(false);
 
   const chaseBody = chaseMessage({
     firstName: p.clientName?.split(" ")[0] ?? null,
@@ -75,6 +83,21 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
             <span className={`rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset ${p.statusBadgeClass}`}>
               {p.statusLabel}
             </span>
+            {p.handlingEffective && (
+              <span className="rounded-full bg-teal-100 px-3 py-1 text-sm font-medium text-teal-800 ring-1 ring-inset ring-teal-200">
+                {HANDLING_LABEL[p.handlingEffective]}
+                {p.handlingDays !== null && p.handlingDays > 0 && ` · ${p.handlingDays} ימים`}
+              </span>
+            )}
+            {p.handlingEffective && !p.claimClosed && (
+              <button
+                type="button"
+                onClick={() => setHandlingOpen(true)}
+                className="rounded-full px-2.5 py-1 text-xs font-medium text-teal-700 ring-1 ring-inset ring-teal-300 hover:bg-teal-50"
+              >
+                עדכון סטטוס
+              </button>
+            )}
           </div>
           {p.clientPhone && <p className="mt-1 text-sm text-zinc-500" dir="ltr">{p.clientPhone}</p>}
         </div>
@@ -125,6 +148,14 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
           ) : null}
         </div>
       </div>
+
+      {handlingOpen && (
+        <HandlingDialog
+          claimId={p.claimId}
+          effective={p.handlingEffective}
+          onClose={() => setHandlingOpen(false)}
+        />
+      )}
     </section>
   );
 }

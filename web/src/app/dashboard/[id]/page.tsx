@@ -305,6 +305,9 @@ export default async function ClaimDetailPage({
 
   // ── Prepare-and-confirm submission (spec: 2026-10-21-claim-handling) ──────
   const tp = (tpRows ?? [])[0] ?? null;
+  const handlingChangedAt = (claim as Record<string, unknown>).handling_status_changed_at as
+    | string
+    | null;
   const handlingEffective = effectiveHandling(
     (claim as Record<string, unknown>).handling_status as string | null,
     checklistState,
@@ -386,6 +389,13 @@ export default async function ClaimDetailPage({
             nextAction,
             chaseLabels,
             uploadUrl: `${origin}/c/${claim.access_token}`,
+            handlingEffective,
+            handlingDays: handlingChangedAt
+              ? Math.max(0, Math.floor((now - new Date(handlingChangedAt).getTime()) / 86_400_000))
+              : handlingEffective
+                ? daysSinceActivity
+                : null,
+            claimClosed: claim.status === "closed",
           }}
           badges={badges}
           initialTab={initialTab}
