@@ -59,7 +59,7 @@ Pending validation / product decision before committing to MVP scope.
 created → in_progress → submitted → classified (route; may be unknown)
         → form_generated → checklist_active → (handed to agent / closed)
 ```
-Active handling states (`claim_opened`, `in_handling`, `pending_*`, the granular `WAITING_FOR_*` statuses) → phase 2.
+That sketch of active handling states (`claim_opened`, `in_handling`, `pending_*`, the granular `WAITING_FOR_*` statuses) was superseded 2026-10-21 by the implemented post-send `handling_status` dimension — see [flow.md](flow.md).
 
 ---
 

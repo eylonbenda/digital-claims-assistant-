@@ -3,6 +3,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { runEngine } from "@/lib/tasks/runner";
 import { reportError, serverError } from "@/lib/observability/report";
 import { MILESTONE_EVENT } from "@/lib/claims/milestone-dates";
+import { isSystemMilestone } from "@/lib/handling/transitions";
+import { SYSTEM_MILESTONE_HINT } from "@/lib/handling/copy";
 
 // PATCH /api/claims/[id]/checklist
 // Body: { key: string, done: boolean }
@@ -25,6 +27,12 @@ export async function PATCH(
       { error: "key (string) and done (boolean) required" },
       { status: 400 },
     );
+  }
+
+  // System milestones are ticked by the submission confirm / handling routes;
+  // a manual tick here would bypass the evidence gates (spec anti-goal).
+  if (isSystemMilestone(body.key)) {
+    return Response.json({ error: SYSTEM_MILESTONE_HINT }, { status: 403 });
   }
 
   // RLS verification: auth-scoped select returns null if agent doesn't own this claim.

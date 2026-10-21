@@ -28,3 +28,7 @@ export function milestoneLine(label: string): string {
 }
 
 export const NO_ACTION_LINE = "אין פעולות פתוחות — התיק במעקב";
+
+export const PREPARE_SUBMISSION_LINE = "התיק מוכן — להכין שליחה למבטחת";
+
+export const UPDATE_HANDLING_LINE = "לעדכן סטטוס מול המבטחת";

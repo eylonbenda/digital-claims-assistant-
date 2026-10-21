@@ -21,7 +21,10 @@ create type doc_type as enum (
   'vat_offset_confirmation', -- אישור רו"ח — עסקי
   'keys',                    -- מפתחות (גניבה)
   'assessor_fee_invoice',    -- חשבון שכ"ט שמאי
-  'assessor_fee_receipt'     -- קבלה שכ"ט שמאי
+  'assessor_fee_receipt',    -- קבלה שכ"ט שמאי
+  -- added by migration 011; evidence docs gating handling-status transitions
+  'payment_notice',          -- הודעת תשלום
+  'rejection_letter'         -- מכתב דחייה
 );
 create type task_track as enum ('own_policy', 'third_party_report', 'third_party_settlement');
 create type task_status as enum ('todo', 'in_progress', 'blocked', 'done');
@@ -63,6 +66,14 @@ create table claims (
   business_use         boolean not null default false,
   policy_activated     boolean not null default false,
   garage_network_rider boolean not null default false,
+  -- Post-send handling lifecycle (migration 011). null = not yet sent to the insurer.
+  handling_status text check (
+    handling_status is null or handling_status in (
+      'sent', 'docs_requested', 'approved_awaiting_payment',
+      'partial_paid', 'paid', 'rejected', 'appeal', 'legal'
+    )
+  ),
+  handling_status_changed_at timestamptz,
   created_at timestamptz not null default now(),
   submitted_at timestamptz,
   closed_at timestamptz
