@@ -151,3 +151,19 @@ describe("planHandlingUpdate — review fixes", () => {
     expect("error" in r).toBe(true);
   });
 });
+
+describe("planHandlingUpdate — revert cleanup", () => {
+  test("revert asks the route to complete open follow-up tasks", () => {
+    const r = planHandlingUpdate({ ...base(), revert: true });
+    if ("error" in r) throw new Error(r.error);
+    expect(r.completeFollowUps).toBe(true);
+  });
+  test("ordinary transitions do not", () => {
+    const r = planHandlingUpdate({
+      ...base({ docs: [{ type: "payment_notice" }] }),
+      to: "partial_paid",
+    });
+    if ("error" in r) throw new Error(r.error);
+    expect(r.completeFollowUps).toBeUndefined();
+  });
+});

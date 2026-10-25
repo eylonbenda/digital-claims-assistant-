@@ -102,6 +102,17 @@ export async function PATCH(
     payload_json: plan.event.payload,
   });
 
+  // A reverted send leaves its follow-up task moot — close open ones so the
+  // dashboard doesn't chase an insurer that never received the claim.
+  if (plan.completeFollowUps) {
+    await svc
+      .from("tasks")
+      .update({ status: "done", completed_at: new Date().toISOString() })
+      .eq("claim_id", id)
+      .neq("status", "done")
+      .like("key", "follow\\_up\\_%");
+  }
+
   let status: string = claim.status as string;
   if (plan.update.status === "closed") status = "closed";
   const milestoneEvent = plan.milestoneTick
@@ -116,7 +127,8 @@ export async function PATCH(
 
   return Response.json({
     ok: true,
-    handling_status: plan.update.handling_status ?? claim.handling_status,
+    handling_status:
+      "handling_status" in plan.update ? plan.update.handling_status : claim.handling_status,
     status,
   });
 }

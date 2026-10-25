@@ -37,6 +37,8 @@ export type HandlingPlan = {
   event: { type: string; payload: Record<string, unknown> };
   milestoneTick?: string;
   milestoneUntick?: string;
+  // Revert only: the confirm's follow_up_* task is now moot — close it.
+  completeFollowUps?: boolean;
 };
 
 // Pure planner behind PATCH /api/claims/[id]/handling. The route is I/O glue.
@@ -64,6 +66,7 @@ export function planHandlingUpdate(input: HandlingInput): { error: string } | Ha
       update: { handling_status: null, handling_status_changed_at: now.toISOString() },
       event: { type: "handling_reverted", payload: { from: "sent" } },
       ...(milestone ? { milestoneUntick: milestone } : {}),
+      completeFollowUps: true,
     };
   }
 
