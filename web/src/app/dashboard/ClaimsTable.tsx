@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { TRACK_LABEL } from "@/lib/dashboard/copy";
+import { effectiveHandling } from "@/lib/handling/effective";
+import { HANDLING_LABEL } from "@/lib/handling/copy";
+import type { ClaimType } from "@/lib/tasks/types";
 import { paginate } from "@/lib/dashboard/paginate";
 import Pager, { useUrlPage } from "./Pager";
 
@@ -18,6 +21,8 @@ interface Claim {
   created_at: string;
   submitted_at: string | null;
   access_token: string;
+  handling_status?: string | null;
+  checklist_state?: Record<string, boolean> | null;
 }
 
 function CopyLinkButton({ token }: { token: string }) {
@@ -86,6 +91,7 @@ export default function ClaimsTable({ claims, initialPage = 1 }: { claims: Claim
             <tr>
               <th className="px-4 py-3 text-right font-medium">לקוח</th>
               <th className="px-4 py-3 text-right font-medium">סוג</th>
+              <th className="px-4 py-3 text-right font-medium">מול המבטחת</th>
               <th className="px-4 py-3 text-right font-medium">תאריך</th>
               <th className="px-4 py-3 text-right font-medium">קישור</th>
             </tr>
@@ -108,6 +114,16 @@ export default function ClaimsTable({ claims, initialPage = 1 }: { claims: Claim
                   </td>
                   <td className="px-4 py-3 text-zinc-600">
                     {TRACK_LABEL[c.claim_type] ?? c.claim_type}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-600">
+                    {(() => {
+                      const h = effectiveHandling(
+                        c.handling_status ?? null,
+                        c.checklist_state ?? null,
+                        c.claim_type as ClaimType,
+                      );
+                      return h ? HANDLING_LABEL[h] : "—";
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-zinc-500">
                     {new Date(c.submitted_at ?? c.created_at).toLocaleDateString("he-IL")}

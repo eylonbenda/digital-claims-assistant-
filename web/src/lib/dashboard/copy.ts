@@ -127,3 +127,36 @@ export function pendingClientLine(draft: DraftLite, createdAt: string, now: Date
   const where = step ? `הגיע עד ${step}` : "התחיל למלא";
   return `הלקוח ${where} ולא סיים · פעילות אחרונה ${agoHe(savedAt, now)}`;
 }
+
+// The card line for a claim in the post-send handling lifecycle (spec
+// 2026-10-21-claim-handling §4). Days only decorate the waiting states.
+export function handlingLine(
+  effective: string,
+  insurerLabel: string | null,
+  days: number,
+): string {
+  switch (effective) {
+    case "sent": {
+      const base = insurerLabel ? `נשלחה ל${insurerLabel}` : "נשלחה למבטחת";
+      return days > 0 ? `${base} · ממתינים ${days} ימים` : base;
+    }
+    case "docs_requested":
+      return "המבטחת ביקשה השלמות";
+    case "approved_awaiting_payment": {
+      const base = "אושרה — ממתין לתשלום";
+      return days > 0 ? `${base} · ${days} ימים` : base;
+    }
+    case "partial_paid":
+      return "תשלום חלקי — ממתינים ליתרה";
+    case "paid":
+      return "שולמה";
+    case "rejected":
+      return "נדחתה — לטפל בערעור";
+    case "appeal":
+      return "ערעור בטיפול";
+    case "legal":
+      return "בטיפול משפטי";
+    default:
+      return "בטיפול מול המבטחת";
+  }
+}

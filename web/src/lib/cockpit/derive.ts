@@ -1,8 +1,11 @@
 // Pure cockpit derivation: (already-loaded page data) → one next action + tab badges.
 // No I/O, no clock reads — the caller passes `now` (spec §5).
 import type { ItemKind } from "@/lib/claims/checklist";
+import type { HandlingStatus } from "@/lib/handling/types";
+import { isSystemMilestone } from "@/lib/handling/transitions";
 import {
   CLASSIFY_LINE, FILL_FORM_LINE, NO_ACTION_LINE,
+  PREPARE_SUBMISSION_LINE, UPDATE_HANDLING_LINE,
   chaseLine, formFieldsLine, formReadyLine, milestoneLine, taskLine,
 } from "./copy";
 
@@ -21,6 +24,11 @@ export type CockpitInput = {
   nextMilestone: { key: string; label: string } | null;
   insurerLabel: string | null;
   docsCount: number;
+  // Post-send handling (spec 2026-10-21-claim-handling §4). Optional so older
+  // call sites behave as before (no handling, not submittable).
+  handlingEffective?: HandlingStatus | null;
+  submissionReady?: boolean; // checklist-submittable ∧ unsent ∧ track known
+  handlingOverdue?: boolean; // follow-up task due/overdue (14d fallback)
 };
 
 export type NextAction =
@@ -31,6 +39,8 @@ export type NextAction =
   | { kind: "form_fill"; line: string; targetTab: "form" }
   | { kind: "form_ready"; line: string; targetTab: "form" }
   | { kind: "milestone"; line: string; targetTab: "work"; milestoneKey: string; milestoneLabel: string }
+  | { kind: "prepare_submission"; line: string; targetTab: "work" }
+  | { kind: "update_handling"; line: string; targetTab: "work" }
   | { kind: "none"; line: string; targetTab: "overview" };
 
 export type Badges = { overview: boolean; work: number; form: number; files: number };
@@ -66,11 +76,24 @@ export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: Nex
     nextAction = { kind: "classify", line: CLASSIFY_LINE, targetTab: "overview" };
   } else if (input.chaseLabels.length > 0) {
     nextAction = { kind: "chase", line: chaseLine(input.chaseLabels), targetTab: "work" };
+  } else if (input.submissionReady && !input.handlingEffective) {
+    nextAction = { kind: "prepare_submission", line: PREPARE_SUBMISSION_LINE, targetTab: "work" };
+  } else if (
+    (input.handlingEffective === "sent" || input.handlingEffective === "docs_requested") &&
+    input.handlingOverdue
+  ) {
+    nextAction = { kind: "update_handling", line: UPDATE_HANDLING_LINE, targetTab: "work" };
   } else if (task) {
     nextAction = { kind: "task", line: taskLine(task.title, task.overdueDays), targetTab: "work" };
   } else if (input.missingFieldCount > 0) {
     nextAction = { kind: "form_fields", line: formFieldsLine(input.missingFieldCount), targetTab: "form" };
-  } else if (input.hasGeneratedForm && input.nextMilestone) {
+  } else if (
+    input.hasGeneratedForm &&
+    input.nextMilestone &&
+    // System milestones are no longer manually tickable — their actions are the
+    // prepare/handling entries above.
+    !isSystemMilestone(input.nextMilestone.key)
+  ) {
     nextAction = {
       kind: "milestone", line: milestoneLine(input.nextMilestone.label), targetTab: "work",
       milestoneKey: input.nextMilestone.key, milestoneLabel: input.nextMilestone.label,

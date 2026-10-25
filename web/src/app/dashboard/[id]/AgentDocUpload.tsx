@@ -7,6 +7,8 @@ const DOC_OPTIONS: { type: string; label: string }[] = [
   { type: "appraiser_report",      label: "דוח שמאי" },
   { type: "garage_invoice",        label: "חשבונית תיקון" },
   { type: "repair_receipt",        label: "קבלה על תשלום" },
+  { type: "payment_notice",        label: "הודעת תשלום (מהמבטחת)" },
+  { type: "rejection_letter",      label: "מכתב דחייה" },
   { type: "assessor_fee_invoice",  label: 'חשבון שכ"ט שמאי' },
   { type: "assessor_fee_receipt",  label: 'קבלה שכ"ט שמאי' },
   { type: "no_claim_confirmation", label: "אישור אי-הגשת תביעה" },

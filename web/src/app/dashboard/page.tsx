@@ -10,6 +10,8 @@ import { composeDashboard } from "@/lib/dashboard/compose";
 import RefreshOnFocus from "./RefreshOnFocus";
 import type { DraftLite } from "@/lib/dashboard/copy";
 import { greeting, hebDate } from "@/lib/dashboard/copy";
+import { effectiveHandling } from "@/lib/handling/effective";
+import { INSURER_DIRECTORY } from "@/lib/submission/directory";
 import { parsePage } from "@/lib/dashboard/paginate";
 import { briefEnabled } from "@/lib/dashboard/flags";
 import { getOrCreateBrief, warmBriefRanking } from "@/lib/brief/brief";
@@ -94,7 +96,7 @@ export default async function DashboardPage({
   const { data: claims } = await supabase
     .from("claims")
     .select(
-      "id, client_name, client_phone, claim_type, status, urgent, created_at, submitted_at, access_token, draft:summary_json->draft"
+      "id, client_name, client_phone, claim_type, status, urgent, created_at, submitted_at, access_token, handling_status, handling_status_changed_at, checklist_state, policy_insurer, at_fault_insurer, draft:summary_json->draft"
     )
     .order("created_at", { ascending: false });
 
@@ -124,6 +126,28 @@ export default async function DashboardPage({
       // Only the draft is pulled (JSON path select), not the whole summary_json.
       draft: c.draft as DraftLite,
       last_upload_at: lastUploadBy.get(c.id) ?? null,
+      ...(() => {
+        const effective = effectiveHandling(
+          c.handling_status,
+          (c.checklist_state as Record<string, boolean> | null) ?? {},
+          c.claim_type,
+        );
+        const insurerKey = c.claim_type === "own_policy" ? c.policy_insurer : c.at_fault_insurer;
+        return {
+          handling_effective: effective,
+          handling_insurer_label: insurerKey
+            ? (INSURER_DIRECTORY[insurerKey]?.label ?? insurerKey)
+            : null,
+          handling_days: c.handling_status_changed_at
+            ? Math.max(
+                0,
+                Math.floor(
+                  (now.getTime() - new Date(c.handling_status_changed_at).getTime()) / 86_400_000,
+                ),
+              )
+            : 0,
+        };
+      })(),
     })),
     queue, brief,
     openTasks: (taskRows ?? []).map((t) => ({ claim_id: t.claim_id, title: t.title, due_at: t.due_at })),

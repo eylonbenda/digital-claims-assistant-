@@ -25,6 +25,9 @@ import CockpitTabs from "./CockpitTabs";
 import NotesPanel, { type NoteView } from "./NotesPanel";
 import TasksPanel, { type TaskView } from "./TasksPanel";
 import { deriveCockpit, type TabKey } from "@/lib/cockpit/derive";
+import { effectiveHandling } from "@/lib/handling/effective";
+import { composeSubmission } from "@/lib/submission/compose";
+import SubmissionPanel, { type SubmissionView } from "./SubmissionPanel";
 
 const BUCKET = "claim-docs";
 const SIGNED_TTL = 60 * 60; // 1h — agent viewing session
@@ -114,7 +117,7 @@ export default async function ClaimDetailPage({
   const { data: claim } = await supabase
     .from("claims")
     .select(
-      "id, client_name, client_phone, claim_type, status, urgent, access_token, policy_insurer, summary_json, created_at, submitted_at, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider"
+      "id, client_name, client_phone, claim_type, status, urgent, access_token, policy_insurer, at_fault_insurer, handling_status, handling_status_changed_at, summary_json, created_at, submitted_at, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider"
     )
     .eq("id", id)
     .single();
@@ -123,7 +126,7 @@ export default async function ClaimDetailPage({
 
   // RLS-scoped reads (claim_belongs_to_me): the claimant-uploaded docs, the
   // auto-generated accident-notice form(s), and the agent's notes.
-  const [{ data: rows }, { data: formRows }, { data: noteRows }, { data: taskRows }] = await Promise.all([
+  const [{ data: rows }, { data: formRows }, { data: noteRows }, { data: taskRows }, { data: tpRows }, { data: agentRow }] = await Promise.all([
     supabase
       .from("claim_documents")
       .select("id, type, storage_path, mime, uploaded_at")
@@ -144,6 +147,8 @@ export default async function ClaimDetailPage({
       .select("id, key, title, status, due_at, note, source")
       .eq("claim_id", id)
       .order("due_at", { ascending: true }),
+    supabase.from("third_parties").select("plate, insurer").eq("claim_id", id),
+    supabase.from("agents").select("name").eq("auth_user_id", user.id).maybeSingle(),
   ]);
   const notes: NoteView[] = noteRows ?? [];
   const tasks: TaskView[] = taskRows ?? [];
@@ -216,6 +221,7 @@ export default async function ClaimDetailPage({
   // mints short-lived signed URLs for the private bucket (Storage RLS is separate).
   const docs: DocView[] = [];
   const forms: GeneratedForm[] = [];
+  let urlByPath = new Map<string, string | null>();
   const allPaths = [
     ...(rows ?? []).map((r) => r.storage_path),
     ...(formRows ?? []).map((r) => r.storage_path),
@@ -225,8 +231,10 @@ export default async function ClaimDetailPage({
     const { data: signed } = await svc.storage
       .from(BUCKET)
       .createSignedUrls(allPaths, SIGNED_TTL);
-    const urlByPath = new Map(
-      (signed ?? []).map((s) => [s.path, s.error ? null : s.signedUrl])
+    urlByPath = new Map(
+      (signed ?? []).flatMap((s) =>
+        s.path ? [[s.path, s.error ? null : s.signedUrl] as [string, string | null]] : [],
+      ),
     );
     for (const r of rows ?? []) {
       docs.push({
@@ -295,6 +303,49 @@ export default async function ClaimDetailPage({
     label: INSURER_LABEL[key] ?? key,
   }));
 
+  // ── Prepare-and-confirm submission (spec: 2026-10-21-claim-handling) ──────
+  const tp = (tpRows ?? [])[0] ?? null;
+  const handlingChangedAt = (claim as Record<string, unknown>).handling_status_changed_at as
+    | string
+    | null;
+  const handlingEffective = effectiveHandling(
+    (claim as Record<string, unknown>).handling_status as string | null,
+    checklistState,
+    claim.claim_type,
+  );
+  const submission = composeSubmission({
+    claim: {
+      id: claim.id,
+      claimType: claim.claim_type,
+      clientName: claim.client_name,
+      ourPlate: formClaimData?.vehicle?.plate ?? null,
+      tpPlate: tp?.plate ?? formClaimData?.third_parties?.[0]?.vehicle_plate ?? null,
+      eventDate: formClaimData?.accident?.date ?? null,
+      atFaultInsurer:
+        ((claim as Record<string, unknown>).at_fault_insurer as string | null) ??
+        tp?.insurer ??
+        null,
+      policyInsurer: claim.policy_insurer,
+      agencyName: agentRow?.name ?? null,
+    },
+    checklist: checklistItems,
+    docs: (rows ?? []).map((r) => ({ type: r.type as string, storage_path: r.storage_path })),
+    forms: (formRows ?? []).map((r) => ({ insurer: r.insurer, storage_path: r.storage_path })),
+  });
+  const submissionView: SubmissionView | null =
+    submission && !handlingEffective
+      ? {
+          insurerKey: submission.insurerKey,
+          recipient: submission.recipient,
+          subject: submission.subject,
+          body: submission.body,
+          attachments: submission.attachments.map((a) => ({
+            label: a.label,
+            url: urlByPath.get(a.storagePath) ?? null,
+          })),
+        }
+      : null;
+
   const chaseLabels = chaseableLabels(blockingMissing);
   const { nextAction, badges } = deriveCockpit(
     {
@@ -308,6 +359,21 @@ export default async function ClaimDetailPage({
       nextMilestone: nextMilestone ? { key: nextMilestone.key, label: nextMilestone.label } : null,
       insurerLabel: claim.policy_insurer ? INSURER_LABEL[claim.policy_insurer] ?? claim.policy_insurer : null,
       docsCount: docs.length,
+      handlingEffective,
+      // Milestones are excluded: on the settlement track route_approved is a
+      // blocking milestone that can only be ticked AFTER the approval request
+      // goes out, so counting it would make the prepare action unreachable.
+      submissionReady:
+        !!submissionView && blockingMissing.filter((b) => b.kind !== "milestone").length === 0,
+      handlingOverdue:
+        tasks.some(
+          (t) =>
+            t.status !== "done" &&
+            t.key?.startsWith("follow_up") &&
+            t.due_at &&
+            new Date(t.due_at).getTime() <= now,
+        ) ||
+        (!!handlingChangedAt && now - new Date(handlingChangedAt).getTime() >= 14 * 86_400_000),
     },
     new Date(now),
   );
@@ -338,6 +404,13 @@ export default async function ClaimDetailPage({
             nextAction,
             chaseLabels,
             uploadUrl: `${origin}/c/${claim.access_token}`,
+            handlingEffective,
+            handlingDays: handlingChangedAt
+              ? Math.max(0, Math.floor((now - new Date(handlingChangedAt).getTime()) / 86_400_000))
+              : handlingEffective
+                ? daysSinceActivity
+                : null,
+            claimClosed: claim.status === "closed",
           }}
           badges={badges}
           initialTab={initialTab}
@@ -444,6 +517,14 @@ export default async function ClaimDetailPage({
           }
           work={
             <>
+              {submissionView && (
+                <SubmissionPanel
+                  claimId={claim.id}
+                  submission={submissionView}
+                  insurers={insurerOptions}
+                />
+              )}
+
               <section>
                 <h2 className="mb-3 text-lg font-semibold text-zinc-900">
                   משימות

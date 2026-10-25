@@ -100,10 +100,10 @@ describe("deriveCockpit precedence (spec §3, top-down first match)", () => {
   it("6. form done + milestone pending → milestone fallback", () => {
     const { nextAction } = deriveCockpit({
       ...base, hasGeneratedForm: true,
-      nextMilestone: { key: "submitted_to_insurer", label: "הוגש למבטח" },
+      nextMilestone: { key: "car_at_garage", label: "רכב נכנס למוסך" },
     }, NOW);
     expect(nextAction.kind).toBe("milestone");
-    if (nextAction.kind === "milestone") expect(nextAction.milestoneKey).toBe("submitted_to_insurer");
+    if (nextAction.kind === "milestone") expect(nextAction.milestoneKey).toBe("car_at_garage");
   });
 });
 

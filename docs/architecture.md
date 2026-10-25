@@ -50,11 +50,15 @@ claims          (id, agent_id → agents, client_name, client_phone,
                  sla_clock_started_at,  -- set when ALL required docs present (clock starts)
                  decision_due_at,       -- sla_clock_started_at + 30 calendar days
                  limitation_deadline,   -- 3y own-policy (§31) | 7y TP property tort
+                 handling_status, handling_status_changed_at,  -- post-send lifecycle (migration 011)
                  summary_json, checklist_state, created_at, submitted_at, closed_at)
                  -- claim_type: own_policy | third_party_report
                  --           | third_party_settlement | unknown
                  -- circumstance flags (bool, default false; migration 004) drive the
                  --   conditional checklist sections
+                 -- handling_status: null (not sent) | sent | docs_requested
+                 --   | approved_awaiting_payment | partial_paid | paid | rejected
+                 --   | appeal | legal — evidence-gated transitions, see claim-management.md
 claim_documents (id, claim_id → claims, type, storage_path,
                  mime, uploaded_at)
                  -- type: car_photo | drivers_license | vehicle_reg
@@ -72,6 +76,8 @@ claim_documents (id, claim_id → claims, type, storage_path,
                  --       | bank_details (טופס בנק / שיק מבוטל / IBAN)
                  --       | vat_offset_confirmation (אישור רו"ח על קיזוז מע"מ — עסקי)
                  --       | keys (מפתחות — גניבה) | demand_form | other
+                 --       | payment_notice (הודעת תשלום) | rejection_letter (מכתב דחייה)
+                 --         — migration 011, evidence for handling-status transitions
 third_parties   (id, claim_id → claims, name, phone, id_number,
                  plate, insurer)
 garages         (id, claim_id → claims, name, is_arranged bool,

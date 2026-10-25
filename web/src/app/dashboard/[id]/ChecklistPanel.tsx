@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { type ComputedItem, type ItemSection, groupBySection } from "@/lib/claims/checklist";
+import { isSystemMilestone } from "@/lib/handling/transitions";
+import { SYSTEM_MILESTONE_HINT } from "@/lib/handling/copy";
 
 type Props = {
   claimId: string;
@@ -150,7 +152,7 @@ function ChecklistRow({
   onToggle: (key: string, next: boolean) => void;
   docUrl?: string;
 }) {
-  const isMilestone = item.kind === "milestone";
+  const isMilestone = item.kind === "milestone" && !isSystemMilestone(item.key);
 
   const statusIcon = item.done
     ? "✅"
@@ -180,6 +182,9 @@ function ChecklistRow({
         </span>
         {item.note && (
           <span className="mr-1 text-xs text-zinc-400"> — {item.note}</span>
+        )}
+        {item.kind === "milestone" && isSystemMilestone(item.key) && !item.done && (
+          <span className="mr-1 block text-xs text-zinc-400">{SYSTEM_MILESTONE_HINT}</span>
         )}
         {!item.mandatory && !item.done && (
           <span className="mr-1 text-xs text-amber-600">(מותנה)</span>
