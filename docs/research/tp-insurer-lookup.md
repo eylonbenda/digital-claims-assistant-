@@ -68,9 +68,33 @@ The whole ecosystem treats plate→insurer as **personal data** (plate → owner
 - Querying the **third party's** plate is precisely what the insurer cover-check pages exist for — insurers offer them openly to accident third parties, which is our claimant's position. Using those channels keeps us inside the intended use.
 - Keep the query minimal (plate + accident date in, insurer-name + covered-y/n out), **store only the answer** (`at_fault_insurer`), log the claimant's consent/context (the claim itself is that context), and keep the accident-date requirement — it scopes every query to a concrete claim rather than a general dossier.
 
+## Per-insurer cover-check inventory (added 2026-10-28)
+
+All 11 canonical insurers (keys per `web/src/lib/submission/directory.ts`) were swept: Hebrew search per insurer, then the actual page rendered live in a browser and the form's DOM read. **No forms were submitted**, so each tool's output format is inferred from its own page copy, not observed.
+
+| key | status | URL | inputs | obstacles |
+|---|---|---|---|---|
+| `migdal` | standalone check | my.migdal.co.il/car-insurance/support/third-party-policy-examination | event date + plate | reCAPTCHA; JS-only; סחר policies excluded |
+| `menora` | **none found** | — (TP intake by email, hesder@menora.co.il) | — | Radware bot-wall limited the sweep → medium confidence |
+| `hachshara` | standalone check — cleanest | hcsra.co.il/tsad-gimel/ | plate + date (y/m/d) only | none observed (no CAPTCHA, no PII) |
+| `harel` | standalone check (re-verified live) | harel-group.co.il/.../cover-check.aspx → iframe at apps.harel-group.co.il/VehicleInsuranceCoverage | event date + **both** plates + caller name + phone (all mandatory) | invisible reCAPTCHA; most PII of any peer |
+| `clal` | **none** (חובה policy-copy request only, needs requester ת"ז+PII, no event date) | clalbit.co.il/claims/claimscarthirdparty/ (email-only intake) | — | product gap, not technical |
+| `phoenix` | embedded in TP intake portal | thirdpartyclaim.fnx.co.il | unverified — entry button doubles as terms-acceptance/ID gate | Angular SPA; gated |
+| `ayalon` | standalone per Ayalon's own copy — **unverified live** | ayalon-ins.co.il/third_party/ | plate + accident date (per snippet) | hard ShieldSquare/Radware bot-wall blocked even a real browser; needs a human check |
+| `shlomo` | standalone check | shlomo-bit.co.il/car_policy_status | rechush: plate + event date (the חובה check needs owner ת"ז — unusable blind) | CAPTCHA |
+| `libra` | standalone check | lbr.co.il/שירות-ותביעות/בדיקת-כיסוי-צד-ג/ | plate + event date only | none observed |
+| `aig` | check **is** the TP-portal login | services.aig.co.il/thirdparty/login | AIG-insured plate + event date + claimant's own plate | Angular SPA; no CAPTCHA detected |
+| `shomera` | embedded as step 1 of TP claim wizard | forms.shomera.co.il/thirdparty/ | hitting plate + event date (+ optional insured ת"ז) | CAPTCHA |
+
+**Rollup: 9 of 11 have a usable public check** (7 verified field-by-field: harel, migdal, hachshara, shlomo, libra, aig, shomera; phoenix gated behind a terms/ID step; ayalon near-certain but bot-walled). **No tool at all: menora, clal** — for those, `get_tp_insurer` stays manual by construction. No insurer documents any API or digital-partner program for this.
+
+**Automation feasibility caveat:** most checkers carry (invisible) reCAPTCHA, and menora/ayalon run Radware/ShieldSquare bot management that blocked even a real browser. Fully headless fan-out would be fragile and ToS-risky at several insurers. Two realistic implementation shapes:
+1. **Assisted lookup (low risk, ships first):** per-insurer **deep links** from the claim screen, plate + event date displayed for copy-paste (or pre-filled where the URL allows) — the פקידה clicks through the 9 checkers in seconds instead of hunting each site. No scraping, no ToS exposure, works despite CAPTCHAs.
+2. **Automated fan-out (ClaimAI parity):** start only with the friction-free checkers — **hachshara and libra (no CAPTCHA), aig (none detected)** — as server-side adapters; treat reCAPTCHA-protected ones as deep-link-only until/unless proven stable. Per-insurer ToS review before automating each.
+
 ## Recommendation
 
-1. **First route: per-insurer cover-check fan-out**, built incrementally — start with Harel's confirmed public page, and enumerate the remaining insurers' equivalents in a follow-up pass (only Harel's endpoint is verified so far; "16 insurers" is savetime's claim). Gate it behind the existing `get_tp_insurer` task + prepare-submission panel: on hit, prefill the canonical insurer key; on miss/ambiguity, fall back to today's manual flow. Pre-filter leasing via registry `baalut`. Expect per-insurer fragility (JS pages, WAF/CAPTCHA) — design each insurer as an independent adapter that can silently degrade, like `lookupVehicle` does.
+1. **First route: per-insurer cover-check integration**, per the inventory above — ship the **assisted deep-link lookup** first (all 9 insurers, zero scraping risk), then promote the friction-free checkers (hachshara, libra, aig) to **automated server-side adapters**. Gate it behind the existing `get_tp_insurer` task + prepare-submission panel: on hit, prefill the canonical insurer key; on miss/ambiguity, fall back to today's manual flow. Pre-filter leasing via registry `baalut`. Design each insurer as an independent adapter that can silently degrade, like `lookupVehicle` does — reCAPTCHA/bot-walls make headless automation fragile at migdal, harel, shlomo, shomera, menora, ayalon.
 2. **Ask the garage first** (questions above) — if the pilot garage already has a portal or DMS feature that answers this, integrating *their* access may beat scraping.
 3. **Karnit** only after legal review (requester-identity restriction, חובה-only, paid, no API).
 4. **Drop** הר הביטוח, מרכז הסליקה/infocar, and data.gov.il as third-party-lookup routes — verified dead ends.
@@ -82,4 +106,4 @@ The whole ecosystem treats plate→insurer as **personal data** (plate → owner
 3. The name "ב.א.פ.י" — resolved to nothing public; ask the garage.
 4. ClaimAI's actual backend — inference only.
 5. savetime.co.il details — search snippets only.
-6. The per-insurer inventory of cover-check endpoints (only Harel confirmed).
+6. ~~The per-insurer inventory of cover-check endpoints~~ — done 2026-10-28 (table above). Still open within it: each checker's actual response shape (nothing was submitted), phoenix's inner fields (terms/ID gate), and ayalon's form (bot-wall; needs a human check).
