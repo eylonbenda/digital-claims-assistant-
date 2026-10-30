@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toClaimData, type State } from "./claim-state";
+import { licenceHolderName, toClaimData, type State } from "./claim-state";
 
 const base: State = {
   consent: true,
@@ -48,6 +48,35 @@ describe("toClaimData — driver", () => {
   it("omits driver when the car was parked (nobody drove)", () => {
     const d = toClaimData({ ...base, driver: { ...base.driver, parked: true } });
     expect(d.driver).toBeUndefined();
+  });
+});
+
+describe("licenceHolderName", () => {
+  it("names the policyholder when they drove", () => {
+    expect(licenceHolderName({ ...base, driver: { ...base.driver, isInsured: true } })).toBe("דנה לוי");
+  });
+
+  it("names the other driver when someone else drove", () => {
+    const s = { ...base, driver: { ...base.driver, isInsured: false, first_name: "רון", last_name: "כהן" } };
+    expect(licenceHolderName(s)).toBe("רון כהן");
+  });
+
+  it("is empty when the other driver's name hasn't been entered", () => {
+    expect(licenceHolderName({ ...base, driver: { ...base.driver, isInsured: false } })).toBe("");
+  });
+
+  it("is empty when the driver question is unanswered", () => {
+    expect(licenceHolderName(base)).toBe("");
+  });
+
+  it("is empty for a parked car, even with a stale driver answer", () => {
+    const s = { ...base, driver: { ...base.driver, isInsured: true, parked: true } };
+    expect(licenceHolderName(s)).toBe("");
+  });
+
+  it("trims and skips a missing name part", () => {
+    const s = { ...base, driver: { ...base.driver, isInsured: false, first_name: " רון ", last_name: "" } };
+    expect(licenceHolderName(s)).toBe("רון");
   });
 });
 

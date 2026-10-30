@@ -1,4 +1,4 @@
-import { REQUIRED_DOCS, type DocType, type RequiredDocType, type State } from "@/lib/collection/claim-state";
+import { REQUIRED_DOCS, licenceHolderName, type DocType, type RequiredDocType, type State } from "@/lib/collection/claim-state";
 import { doneCount } from "../steps";
 import { DocField } from "./fields";
 
@@ -41,20 +41,12 @@ function DeferToggle({
   );
 }
 
-// Whose licence we're asking for. The wizard already knows: nobody drove (parked),
-// someone else drove (named on the driver-details step), or the policyholder drove.
-// "של מי שנהג/ה" would be nonsense on a parked car, so that case asks for the
-// owner's licence instead.
-function licenceOwnerHint(s: State): string {
-  if (s.driver?.parked) {
-    return "שני הצדדים (קדמי ואחורי) — של בעל/ת הרכב";
-  }
-  if (s.driver?.isInsured === false) {
-    const name = [s.driver.first_name, s.driver.last_name].filter(Boolean).join(" ").trim();
-    return name
-      ? `שני הצדדים — של ${name}, שנהג/ה ברכב בזמן התאונה`
-      : "שני הצדדים — של מי שנהג/ה ברכב בזמן התאונה";
-  }
+// Whose licence we're asking for. When the wizard knows the driver's name it goes in
+// the label itself, not the small hint, so it can't be skimmed past. "של מי שנהג/ה"
+// would be nonsense on a parked car, so that case asks for the owner's licence.
+function licenceOwnerHint(s: State, holder: string): string {
+  if (s.driver?.parked) return "שני הצדדים (קדמי ואחורי) — של בעל/ת הרכב";
+  if (holder) return "שני הצדדים (קדמי ואחורי) — מי שנהג/ה ברכב בזמן התאונה";
   return "שני הצדדים (קדמי ואחורי) — של מי שנהג/ה ברכב בזמן התאונה";
 }
 
@@ -72,6 +64,7 @@ export default function DocumentsStep({
   const spec = (t: RequiredDocType) => REQUIRED_DOCS.find((r) => r.type === t)!;
   const licence = spec("drivers_license");
   const licenceApplies = licence.appliesTo(s);
+  const holder = licenceHolderName(s);
   const licenceDone = doneCount(s, "drivers_license");
   const regDone = doneCount(s, "vehicle_reg");
   const deferred = (t: RequiredDocType) => s.docsDeferred?.[t] === true;
@@ -91,9 +84,9 @@ export default function DocumentsStep({
       {licenceApplies && (
         <div>
           <DocField
-            label="רישיון נהיגה"
+            label={holder ? `רישיון נהיגה של ${holder}` : "רישיון נהיגה"}
             required
-            hint={licenceOwnerHint(s)}
+            hint={licenceOwnerHint(s, holder)}
             type="drivers_license"
             multiple
             docs={s.documents}

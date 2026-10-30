@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-10-21**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-10-30**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -393,3 +393,7 @@ cd web ; npm run dev
 - **Prepare-and-confirm submission**: `web/src/lib/submission/` (directory — ships with NO live addresses until verified; subject with claim short-id correlation key; deterministic Hebrew body; compose; `matchInsurer` exact-only canonicalization), `POST /api/claims/[id]/submission` (validates recipient, persists `at_fault_insurer` on TP tracks — finally auto-completing `get_tp_insurer` — ticks the track's sent-milestone, sets `sent`), cockpit `SubmissionPanel` on the work tab with copy-buttons + clipboard fallback.
 - **System milestones** (`submitted_to_insurer`, `submitted_to_tp_insurer`, `approval_requested`, `payment_received`) are **no longer manually tickable** — checklist PATCH 403s, rows render read-only with a hint; the cockpit header's milestone action skips them, replaced by `prepare_submission` / `update_handling` next-actions + the `HandlingDialog` (upload-evidence-then-transition). Dashboard cards show a handling line; the archive table gains a "מול המבטחת" column.
 - **Not yet done:** live e2e walk (blocked on applying `011` to dev + agent login); insurer intake addresses verification (pilot legwork — ClaimAI-observed הפניקס lead is a comment in `directory.ts`).
+
+### Done since last sync (2026-10-30, PR #89 — name the driver in the licence upload label)
+- **No migration.** Pure wizard-copy change in `web/src/lib/collection/claim-state.ts` + `DocumentsStep.tsx`.
+- **New `licenceHolderName(s)` helper** (`claim-state.ts`) returns whoever's licence is wanted — the policyholder's name when they drove, the named other driver's when `driver.isInsured === false`, or `""` when parked or unanswered. `DocumentsStep.tsx` now puts that name in the **field label** (`רישיון נהיגה של {name}`) instead of burying it in the hint, and `licenceOwnerHint` is simplified to a generic hint that only special-cases the parked-car wording.
