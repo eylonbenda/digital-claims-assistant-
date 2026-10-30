@@ -36,6 +36,16 @@ export const REQUIRED_DOCS: RequiredDocSpec[] = [
   { type: "drivers_license", min: 2, appliesTo: () => true },
   { type: "vehicle_reg", min: 1, appliesTo: () => true },
 ];
+
+// The name of whoever drove, for the licence upload prompt — "" when the wizard
+// doesn't know it. Pilot (2026-09-29): clients send the policyholder's licence when
+// someone else drove, so the prompt names the person whose licence we want. A parked
+// car yields "": the owner isn't necessarily the policyholder, and we never ask.
+export function licenceHolderName(s: State): string {
+  if (s.driver?.parked || s.driver?.isInsured == null) return "";
+  const who = s.driver.isInsured ? s.insured : s.driver;
+  return [who.first_name, who.last_name].map((p) => p.trim()).filter(Boolean).join(" ");
+}
 export type UploadedDoc = {
   localId: string;
   type: DocType;
