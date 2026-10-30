@@ -68,35 +68,55 @@ The whole ecosystem treats plate→insurer as **personal data** (plate → owner
 - Querying the **third party's** plate is precisely what the insurer cover-check pages exist for — insurers offer them openly to accident third parties, which is our claimant's position. Using those channels keeps us inside the intended use.
 - Keep the query minimal (plate + accident date in, insurer-name + covered-y/n out), **store only the answer** (`at_fault_insurer`), log the claimant's consent/context (the claim itself is that context), and keep the accident-date requirement — it scopes every query to a concrete claim rather than a general dossier.
 
-## Per-insurer cover-check inventory (added 2026-10-28)
+## Per-insurer cover-check inventory (swept 2026-10-28, re-swept 2026-10-30)
 
-All 11 canonical insurers (keys per `web/src/lib/submission/directory.ts`) were swept: Hebrew search per insurer, then the actual page rendered live in a browser and the form's DOM read. **No forms were submitted**, so each tool's output format is inferred from its own page copy, not observed.
+**Method (re-sweep):** Google query `איפה הרכב מבוטח <שם המבטחת>` per insurer (the user's query — it surfaces checkers the insurers don't link from their TP-claims pages, which is why the first sweep missed menora/clal/phoenix's direct URL), plus an insurance agent's public toolbox page that lists a checker link per insurer ([amoshd.co.il/existence-insurance2](https://amoshd.co.il/existence-insurance2/) — "בדיקת קיום ביטוח רכב עבור תביעות צד ג'", data credited to סו"ב גל ברזני). Every URL below was then opened live in a browser and the form's DOM read. **No forms were submitted**, so each tool's output is inferred from its own page copy, not observed.
 
-| key | status | URL | inputs | obstacles |
-|---|---|---|---|---|
-| `migdal` | standalone check | my.migdal.co.il/car-insurance/support/third-party-policy-examination | event date + plate | reCAPTCHA; JS-only; סחר policies excluded |
-| `menora` | standalone check — **the only one covering חובה too** | menoramivt.co.il/car-insurance-validity/ ("בדיקת תוקף ביטוח רכב") | radio חובה / מקיף וצד ג' + plate + event date (y/m/d) | no CAPTCHA on the form; site-wide Radware bot management blocked an automated crawl (verified 2026-10-30) |
-| `hachshara` | standalone check — cleanest | hcsra.co.il/tsad-gimel/ | plate + date (y/m/d) only | none observed (no CAPTCHA, no PII) |
-| `harel` | standalone check (re-verified live) | harel-group.co.il/.../cover-check.aspx → iframe at apps.harel-group.co.il/VehicleInsuranceCoverage | event date + **both** plates + caller name + phone (all mandatory) | invisible reCAPTCHA; most PII of any peer |
-| `clal` | standalone check ("האם הרכב מבוטח בכלל") | clalbit.co.il/influence/ | `licenseNumber` + `eventDate` (DD/MM/YYYY) | no CAPTCHA detected; Angular page, Glassbox recording; **fleet (ציי רכב) policies excluded** (verified 2026-10-30) |
-| `phoenix` | embedded in TP intake portal | thirdpartyclaim.fnx.co.il | unverified — entry button doubles as terms-acceptance/ID gate | Angular SPA; gated |
-| `ayalon` | standalone per Ayalon's own copy — **unverified live** | ayalon-ins.co.il/third_party/ | plate + accident date (per snippet) | hard ShieldSquare/Radware bot-wall blocked even a real browser; needs a human check |
-| `shlomo` | standalone check | shlomo-bit.co.il/car_policy_status | rechush: plate + event date (the חובה check needs owner ת"ז — unusable blind) | CAPTCHA |
-| `libra` | standalone check | lbr.co.il/שירות-ותביעות/בדיקת-כיסוי-צד-ג/ | plate + event date only | none observed |
-| `aig` | check **is** the TP-portal login | services.aig.co.il/thirdparty/login | AIG-insured plate + event date + claimant's own plate | Angular SPA; no CAPTCHA detected |
-| `shomera` | embedded as step 1 of TP claim wizard | forms.shomera.co.il/thirdparty/ | hitting plate + event date (+ optional insured ת"ז) | CAPTCHA |
+### The 11 canonical insurers (`web/src/lib/submission/directory.ts`)
 
-**Rollup: all 11 have a public check** (9 verified field-by-field: harel, migdal, hachshara, shlomo, libra, aig, shomera, menora, clal; phoenix gated behind a terms/ID step; ayalon near-certain but bot-walled). The first sweep reported menora and clal as "none" — both checkers are real and live (`/car-insurance-validity/`, `/influence/`), found by the user and verified 2026-10-30; the sweep missed them because neither is linked from the insurer's TP-claims pages. No insurer documents any API or digital-partner program for this.
+| key | URL (verified live) | inputs | obstacles |
+|---|---|---|---|
+| `migdal` | my.migdal.co.il/car-insurance/support/third-party-policy-examination | event date + plate | reCAPTCHA; JS-only; סחר policies excluded |
+| `menora` | menoramivt.co.il/car-insurance-validity/ | radio **חובה / מקיף וצד ג'** + plate + event date (y/m/d) | no CAPTCHA on the form; site-wide Radware bot management |
+| `hachshara` | hcsra.co.il/tsad-gimel/ | plate + date (y/m/d) | none observed — the cleanest |
+| `harel` | harel-group.co.il/Insurance/car/information/calculators/Pages/cover-check.aspx (form is an iframe at apps.harel-group.co.il/VehicleInsuranceCoverage) | event date + **both** plates + caller name + phone (all mandatory) | invisible reCAPTCHA; most PII of any checker |
+| `clal` | clalbit.co.il/influence/ ("האם הרכב מבוטח בכלל") | `licenseNumber` + `eventDate` (DD/MM/YYYY) | none detected; fleets (ציי רכב) excluded |
+| `phoenix` | **thirdpartyclaim.fnx.co.il/coverage-check/at-fault-details** — direct deep link skips the portal's terms/ID gate | step 1: "מספר הרכב הפוגע" (wizard; event date presumably on the next step) | Angular SPA; no CAPTCHA detected |
+| `ayalon` | ayalon-ins.co.il/third_party/ (also indexed: /car/having-policy) | plate + accident date (per Ayalon's own indexed copy) | **hCaptcha bot wall (ShieldSquare/perfdrive) on every visit** — still not verified live; needs a human check |
+| `shlomo` | shlomo-bit.co.il/car_policy_status | רכוש: plate + event date (its חובה check needs the owner's ת"ז — unusable blind) | CAPTCHA |
+| `libra` | lbr.co.il/שירות-ותביעות/בדיקת-כיסוי-צד-ג/ | plate + event date | none observed |
+| `aig` | **aig.co.il/בדיקת-פוליסת-רכוש-פעילה** ("בדיקת פוליסת רכוש פעילה" — replaces the TP-portal login as the entry point) | `incidentDate` + `carNumber` | none detected; private cars only; page warns data may be stale for cancelled/frozen policies |
+| `shomera` | forms.shomera.co.il/thirdparty/ (step 1 of the TP claim wizard; the older services.shomera.co.il/gimel/ is a 404) | hitting plate + event date (+ optional insured ת"ז) | CAPTCHA |
 
-Coverage caveats that apply across the board: almost every checker answers **רכב רכוש (מקיף/צד ג') only** — Menora's is the only one that also checks חובה by plate+date; and fleet/trade policies (ציי רכב, סחר) are excluded at least at clal and migdal — consistent with ClaimAI's leasing exclusion.
+### Insurers missing from our canonical list
 
-**Automation feasibility caveat:** most checkers carry (invisible) reCAPTCHA, and menora/ayalon run Radware/ShieldSquare bot management site-wide (ayalon's blocked even a real browser). Fully headless fan-out would be fragile and ToS-risky at several insurers. Two realistic implementation shapes:
-1. **Assisted lookup (low risk, ships first):** per-insurer **deep links** from the claim screen, plate + event date displayed for copy-paste (or pre-filled where the URL allows) — the פקידה clicks through all 11 checkers in seconds instead of hunting each site. No scraping, no ToS exposure, works despite CAPTCHAs.
-2. **Automated fan-out (ClaimAI parity):** start only with the friction-free checkers — **hachshara and libra (no CAPTCHA), aig and clal (none detected)** — as server-side adapters; treat reCAPTCHA- or bot-wall-protected ones (incl. menora) as deep-link-only until/unless proven stable. Per-insurer ToS review before automating each.
+The at-fault vehicle can be insured anywhere — these sell private-car רכוש and have public checkers too, but **have no key in `directory.ts` / `claim-state.ts`**, so a hit couldn't even be stored as a canonical value today:
+
+| insurer | URL (verified live) | inputs | obstacles |
+|---|---|---|---|
+| ביטוח ישיר (IDI; also the 9 מיליון brand) | 555.co.il/pearl/apps/agent-statuses/login ("מערכת לניהול תביעות צד ג'") | Yashir-insured plate + event date + claimant's plate **+ one-time code by SMS/email** | OTP — not a blind check; it's the TP-claims portal login. Large market share, so this is the biggest gap |
+| weSure | we-sure.co.il/בדיקת-תוקף-הביטוח/ ("בדיקת קיום פוליסה") | `accDate` + `carId` + mandatory checkbox "הבדיקה נועדה לצרכי הגשת תביעה בלבד" | reCAPTCHA |
+| ביטוח חקלאי | bth.co.il/insurance-check/ | `license-number` + `search-date` | reCAPTCHA |
+| קש חתמים בינלאומיים | user.kesh-ins.co.il/Check_insurance ("בדיקה האם רכב מבוטח בקש") | `license` + `the_date` | none detected |
+
+For חובה specifically, קרנית's paid query (Track 1b) is the cross-insurer route; among the per-insurer checkers only Menora's answers חובה.
+
+### Rollup
+
+- **15 insurers with a public plate+date checker** — all 11 canonical ones plus ביטוח ישיר, weSure, ביטוח חקלאי, קש. 14 verified field-by-field live; ayalon stays bot-walled.
+- **No CAPTCHA detected (automation candidates):** hachshara, libra, clal, aig, phoenix, קש — plus menora's form (but behind site-wide Radware).
+- **reCAPTCHA/hCaptcha/OTP:** migdal, harel, shlomo, shomera, weSure, ביטוח חקלאי, ayalon, ביטוח ישיר.
+- No insurer documents any API or digital-partner program for this. The first sweep missed menora, clal and phoenix's direct URL because none is linked from the insurer's TP-claims pages; the user's Google query and the agent toolbox page found them.
+
+Coverage caveats that apply across the board: almost every checker answers **רכב רכוש (מקיף/צד ג') only** — Menora's is the only one that also checks חובה; and fleet/trade/leasing policies (ציי רכב, סחר) are excluded at least at clal, migdal and aig (private cars only) — consistent with ClaimAI's leasing exclusion. Several pages carry a disclaimer that a positive answer is not an admission of liability or cover (weSure states it explicitly) — fine for routing a claim, not proof of cover.
+
+**Automation feasibility caveat:** about half the checkers carry reCAPTCHA/hCaptcha, menora/ayalon run Radware/ShieldSquare bot management site-wide (ayalon's walls even a real browser), and ביטוח ישיר needs an OTP. Fully headless fan-out would be fragile and ToS-risky at several insurers. Two realistic implementation shapes:
+1. **Assisted lookup (low risk, ships first):** per-insurer **deep links** from the claim screen, plate + event date displayed for copy-paste (or pre-filled where the URL allows) — the פקידה clicks through all 15 checkers in seconds instead of hunting each site. No scraping, no ToS exposure, works despite CAPTCHAs.
+2. **Automated fan-out (ClaimAI parity):** start only with the friction-free checkers — **hachshara, libra, clal, aig, phoenix, קש** (no CAPTCHA detected) — as server-side adapters; treat reCAPTCHA- or bot-wall-protected ones (incl. menora) as deep-link-only until/unless proven stable. Per-insurer ToS review before automating each.
 
 ## Recommendation
 
-1. **First route: per-insurer cover-check integration**, per the inventory above — ship the **assisted deep-link lookup** first (all 11 insurers, zero scraping risk), then promote the friction-free checkers (hachshara, libra, aig, clal) to **automated server-side adapters**. Gate it behind the existing `get_tp_insurer` task + prepare-submission panel: on hit, prefill the canonical insurer key; on miss/ambiguity, fall back to today's manual flow. Pre-filter leasing via registry `baalut`. Design each insurer as an independent adapter that can silently degrade, like `lookupVehicle` does — reCAPTCHA/bot-walls make headless automation fragile at migdal, harel, shlomo, shomera, menora, ayalon. Because the checkers answer רכוש only (except Menora), a hit says where the vehicle's מקיף/צד ג' sits — which is the policy a property-damage claim goes against.
+1. **First route: per-insurer cover-check integration**, per the inventory above — ship the **assisted deep-link lookup** first (all 15 checkers, zero scraping risk), then promote the friction-free checkers (hachshara, libra, clal, aig, phoenix, קש) to **automated server-side adapters**. Prerequisite: add ביטוח ישיר, weSure, ביטוח חקלאי and קש to the canonical insurer keys, or a hit on them has nowhere to land. Gate it behind the existing `get_tp_insurer` task + prepare-submission panel: on hit, prefill the canonical insurer key; on miss/ambiguity, fall back to today's manual flow. Pre-filter leasing via registry `baalut`. Design each insurer as an independent adapter that can silently degrade, like `lookupVehicle` does — reCAPTCHA/bot-walls/OTP make headless automation fragile at migdal, harel, shlomo, shomera, menora, ayalon, weSure, ביטוח חקלאי, ביטוח ישיר. Because the checkers answer רכוש only (except Menora), a hit says where the vehicle's מקיף/צד ג' sits — which is the policy a property-damage claim goes against.
 2. **Ask the garage first** (questions above) — if the pilot garage already has a portal or DMS feature that answers this, integrating *their* access may beat scraping.
 3. **Karnit** only after legal review (requester-identity restriction, חובה-only, paid, no API).
 4. **Drop** הר הביטוח, מרכז הסליקה/infocar, and data.gov.il as third-party-lookup routes — verified dead ends.
@@ -108,4 +128,4 @@ Coverage caveats that apply across the board: almost every checker answers **ר�
 3. The name "ב.א.פ.י" — resolved to nothing public; ask the garage.
 4. ClaimAI's actual backend — inference only.
 5. savetime.co.il details — search snippets only.
-6. ~~The per-insurer inventory of cover-check endpoints~~ — done 2026-10-28 (table above). Still open within it: each checker's actual response shape (nothing was submitted), phoenix's inner fields (terms/ID gate), and ayalon's form (bot-wall; needs a human check).
+6. ~~The per-insurer inventory of cover-check endpoints~~ — done 2026-10-28 (table above). Re-swept 2026-10-30 (15 insurers). Still open: each checker's actual response shape (nothing was submitted), phoenix's steps after the plate field, and ayalon's form (hCaptcha bot wall; needs a human check).
