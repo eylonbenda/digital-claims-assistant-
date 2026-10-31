@@ -106,7 +106,7 @@ export const INSURERS: { key: string; label: string; templated: boolean }[] = [
   { key: "libra", label: "ליברה", templated: true },
   { key: "aig", label: "AIG", templated: true },
   { key: "shomera", label: "שומרה", templated: true },
-  { key: "haklai", label: "חקלאי", templated: false },
+  { key: "haklai", label: "חקלאי", templated: true },
   { key: "kash", label: "קש", templated: true },
 ];
 
