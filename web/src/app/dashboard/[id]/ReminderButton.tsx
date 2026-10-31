@@ -34,7 +34,7 @@ export default function ReminderButton({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     })
-      .then((res) => { if (res.ok) router.refresh(); else fail(); })
+      .then((res) => { if (res.ok) { setBusy(false); router.refresh(); } else fail(); })
       .catch(fail);
   }
 

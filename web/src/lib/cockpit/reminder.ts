@@ -29,3 +29,9 @@ export function reminderTarget(
     payload: { claim_id: claimId, task_key: "chase_missing_docs", kind: "sent", body: fallbackBody },
   };
 }
+
+// No due item and nothing missing => the ad-hoc chase would tell the client
+// documents are missing when they are not.
+export function canRemind(pendingSend: SendItem | null, chaseLabels: string[]): boolean {
+  return pendingSend !== null || chaseLabels.length > 0;
+}

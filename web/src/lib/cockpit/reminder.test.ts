@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reminderTarget } from "./reminder";
+import { canRemind, reminderTarget } from "./reminder";
 import type { SendItem } from "@/lib/outbound/queue";
 
 const item = {
@@ -20,4 +20,10 @@ describe("reminderTarget", () => {
   it("null href passes through", () => {
     expect(reminderTarget("c1", null, null, "b").href).toBeNull();
   });
+});
+
+describe("canRemind", () => {
+  it("true with a pending item and no labels", () => expect(canRemind(item, [])).toBe(true));
+  it("true with labels and no pending item", () => expect(canRemind(null, ["x"])).toBe(true));
+  it("false with neither", () => expect(canRemind(null, [])).toBe(false));
 });

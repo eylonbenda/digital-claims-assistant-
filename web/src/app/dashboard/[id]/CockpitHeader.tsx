@@ -8,6 +8,7 @@ import type { HandlingStatus } from "@/lib/handling/types";
 import { HANDLING_LABEL } from "@/lib/handling/copy";
 import type { SendItem } from "@/lib/outbound/queue";
 import HandlingDialog from "./HandlingDialog";
+import { canRemind } from "@/lib/cockpit/reminder";
 import ReminderButton from "./ReminderButton";
 
 export type CockpitHeaderProps = {
@@ -23,7 +24,7 @@ export type CockpitHeaderProps = {
   nextAction: NextAction;
   chaseLabels: string[];
   pendingSend: SendItem | null;
-  claimOpen: boolean;
+  claimOpen: boolean; // status not closed/abandoned (gates the reminder); claimClosed is only status === "closed" (gates handling edits)
   uploadUrl: string;
   // Post-send handling: effective status (column or legacy milestone) + days in it.
   handlingEffective: HandlingStatus | null;
@@ -65,6 +66,8 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
   }
 
   const na = p.nextAction;
+  // canRemind: with nothing due and nothing missing, the ad-hoc chase would falsely say documents are missing.
+  const showReminder = p.claimOpen && canRemind(p.pendingSend, p.chaseLabels);
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -96,7 +99,7 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
             )}
           </div>
           {p.clientPhone && <p className="mt-1 text-sm text-zinc-500" dir="ltr">{p.clientPhone}</p>}
-          {p.claimOpen && na.kind !== "chase" && (
+          {showReminder && na.kind !== "chase" && (
             <div className="mt-2">
               <ReminderButton
                 claimId={p.claimId} pendingSend={p.pendingSend}
@@ -128,12 +131,12 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
         </p>
         <div className="flex items-center gap-2">
           {error && <span className="text-xs text-red-600">{error}</span>}
-          {na.kind === "chase" && p.claimOpen ? (
+          {na.kind === "chase" ? (showReminder ? (
             <ReminderButton
               claimId={p.claimId} pendingSend={p.pendingSend}
               fallbackHref={chaseHref} fallbackBody={chaseBody} size="primary"
             />
-          ) : na.kind === "milestone" ? (
+          ) : null) : na.kind === "milestone" ? (
             <button
               type="button" disabled={busy} onClick={() => advanceMilestone(na.milestoneKey)}
               className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
