@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-10-30**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-10-31**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -397,3 +397,10 @@ cd web ; npm run dev
 ### Done since last sync (2026-10-30, PR #89 — name the driver in the licence upload label)
 - **No migration.** Pure wizard-copy change in `web/src/lib/collection/claim-state.ts` + `DocumentsStep.tsx`.
 - **New `licenceHolderName(s)` helper** (`claim-state.ts`) returns whoever's licence is wanted — the policyholder's name when they drove, the named other driver's when `driver.isInsured === false`, or `""` when parked or unanswered. `DocumentsStep.tsx` now puts that name in the **field label** (`רישיון נהיגה של {name}`) instead of burying it in the hint, and `licenceOwnerHint` is simplified to a generic hint that only special-cases the parked-car wording.
+
+### Done since last sync (2026-10-31, PR #91 — multi-car accidents: up to 3 third-party vehicles)
+- **No migration.** `third_parties` already keyed `claim_id → claims` (one-to-many); the limit was the app, not the schema.
+- **Wizard:** `tp_details` can add up to `MAX_THIRD_PARTIES` (3) vehicles (`State.extraThirdParties`, kept apart from `thirdParty` so older drafts/submitted blobs load unchanged); each extra vehicle gets its own fields + "details unknown" escape hatch (`TpDetailsStep.tsx`). `allThirdParties(s)` (`claim-state.ts`) is the one place that flattens `thirdParty` + `extraThirdParties`; `toClaimData` and the step-completeness check (`tp_details.isComplete`) both go through it.
+- **Submit (`POST /api/claims/submit`):** inserts one `third_parties` row per reported vehicle instead of at most one; a non-array `extraThirdParties` in untrusted `collected` JSON is ignored rather than trusted.
+- **Form-fill:** vehicles past the slots a given insurer template maps (`third_parties.N.*` keys) are folded into `accident.description` as "מעורב נוסף: …" instead of being dropped (`foldOverflowThirdParties`, new `web/src/lib/formfill/overflow.ts`, wired into `fillForm`). הכשרה and מנורה templates gained explicit `third_parties.1`/`.2` coordinates (ayalon, libra, phoenix, shlomo already had them).
+- **Agent-side editor** (`FormFieldEditor.tsx`): one section per `third_parties[]` entry, with add/remove up to the same cap; the dashboard's TP plate/insurer summary now prefers `formClaimData.third_parties[0]` over the (unordered) `third_parties` table row.
