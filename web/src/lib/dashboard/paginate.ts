@@ -22,7 +22,7 @@ export function paginate<T>(all: T[], page: number, size: number): Page<T> {
   return { items, page: p, pages, from: items.length ? start + 1 : 0, to: start + items.length, total };
 }
 
-/** `?p=` / `?tp=` → positive int, anything else → 1. */
+/** `?p=` → positive int, anything else → 1. */
 export function parsePage(raw: string | string[] | undefined): number {
   const v = Array.isArray(raw) ? raw[0] : raw;
   return v && /^\d+$/.test(v) && Number(v) >= 1 ? Number(v) : 1;

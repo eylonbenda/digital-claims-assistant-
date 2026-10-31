@@ -32,6 +32,7 @@ A claim has 4 tracks (`claim_type`): `own_policy`, `third_party_report` ("דוח
 - **Draw Hebrew in logical order — do NOT reverse the string.** pdf-lib + fontkit shape RTL themselves; manual reversal looks right in code and renders as gibberish. But fontkit reverses the *whole* string, LTR runs included — so all form text must go through the engine's `drawRightAnchored` (`formfill/bidi.ts` splits direction runs), never a bare `page.drawText`, or "כביש 75" prints as "כביש 57". Test template QA with multi-digit numbers inside Hebrew.
 - **Anthropic SDK work → consult the `claude-api` skill first** (model IDs, SDK surface). Never assert model facts from memory.
 - **This Next.js is v16** — per `web/AGENTS.md`, read `web/node_modules/next/dist/docs/` before writing Next code.
+- **URL-mirrored UI state must be read from `useSearchParams`, not seeded from a server prop.** Server-seeded `useState` + `history.replaceState` looks right, but Back restores the router's cached payload for the *old* URL, so the filter/page silently resets. That is how `?p=` broke before 2026-10-31. Pattern: `useUrlPage` / `useUrlStage` in `web/src/app/dashboard/Pager.tsx`.
 - The file once named `docs/accidentStatementPdf/כלל_טופס_תאונה.pdf` was actually **מנורה** (now renamed `מנורה_טופס_תאונה.pdf`). The real כלל form is `כלל_טופס-הודעה.pdf` — a 9-page claim kit; only pages 3–5 are the fillable form.
 
 ## Docs index

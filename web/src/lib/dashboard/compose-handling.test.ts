@@ -12,6 +12,11 @@ function claim(overrides: Partial<ComposeClaim> = {}): ComposeClaim {
     status: "checklist_active",
     submitted_at: "2026-10-01T10:00:00Z",
     created_at: "2026-10-01T09:00:00Z",
+    phone: "0520000000",
+    urgent: false,
+    access_token: "tok",
+    client_plate: null,
+    tp_plates: [],
     ...overrides,
   };
 }
@@ -31,7 +36,7 @@ describe("handlingLine", () => {
 
 describe("composeDashboard — handling waiting line", () => {
   test("a sent claim's card carries the handling line", () => {
-    const { cards } = composeDashboard({
+    const cards = composeDashboard({
       claims: [
         claim({
           handling_effective: "sent",
@@ -48,7 +53,7 @@ describe("composeDashboard — handling waiting line", () => {
   });
 
   test("an unsent claim is unchanged", () => {
-    const { cards } = composeDashboard({
+    const cards = composeDashboard({
       claims: [claim()],
       queue: null,
       brief: null,

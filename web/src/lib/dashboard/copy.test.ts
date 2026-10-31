@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  ALL_DONE_NOTE, TRACK_LABEL, WAITING_NOTE,
-  alsoLine, doActionLine, greeting, hebDate, pendingClientLine, sendActionLine, unclassifiedLine, waitingLine,
+  ALL_DONE_NOTE, NO_NAME, TRACK_LABEL,
+  activityAgo, clientNameLabel, alsoLine, doActionLine, greeting, hebDate, pendingClientLine, sendActionLine, unclassifiedLine, waitingLine,
 } from "./copy";
 
 describe("greeting", () => {
@@ -71,7 +71,6 @@ describe("small lines", () => {
   });
   it("constants exist", () => {
     expect(TRACK_LABEL.unknown).toBe("טרם סווג");
-    expect(WAITING_NOTE.length).toBeGreaterThan(0);
     expect(ALL_DONE_NOTE).toContain("✅");
   });
 });
@@ -108,5 +107,25 @@ describe("sendActionLine — finish_wizard", () => {
     expect(
       sendActionLine({ taskKey: "finish_wizard", docLabels: [], lastSentAt: null }, new Date("2026-10-09T12:00:00Z")),
     ).toBe("הלקוח לא סיים למלא את הטופס · טרם נשלחה תזכורת");
+  });
+});
+
+describe("activityAgo", () => {
+  const now = new Date("2026-10-31T10:00:00Z");
+  it("today", () => expect(activityAgo("2026-10-31T01:00:00Z", now)).toBe("היום"));
+  it("yesterday", () => expect(activityAgo("2026-10-30T09:00:00Z", now)).toBe("אתמול"));
+  it("N days", () => expect(activityAgo("2026-10-26T09:00:00Z", now)).toBe("לפני 5 ימים"));
+  it("future clamps to today", () => expect(activityAgo("2026-11-05T09:00:00Z", now)).toBe("היום"));
+});
+
+describe("clientNameLabel", () => {
+  it("falls back for null, empty and whitespace-only names", () => {
+    expect(clientNameLabel(null)).toBe(NO_NAME);
+    expect(clientNameLabel(undefined)).toBe(NO_NAME);
+    expect(clientNameLabel("")).toBe(NO_NAME);
+    expect(clientNameLabel("   ")).toBe(NO_NAME);
+  });
+  it("returns a real name trimmed", () => {
+    expect(clientNameLabel("  דנה כהן ")).toBe("דנה כהן");
   });
 });
