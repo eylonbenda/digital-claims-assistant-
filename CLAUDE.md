@@ -50,5 +50,5 @@ A claim has 4 tracks (`claim_type`): `own_policy`, `third_party_report` ("דוח
 | `docs/research/claimai/` | competitor research on ClaimAI (claimai.co.il) — product, pricing, company, comparison vs us, trial-account test plan; raw notes in `notes/` |
 | `docs/validation-guide.md` | Mom Test interview kit |
 | `docs/assumptions-canvas.md` | assumption tracker |
-| `docs/accidentStatementPdf/` | the source insurer PDFs — 12 files / 11 insurers (inventory + traps in `form-field-map.md`) |
+| `docs/accidentStatementPdf/` | the source insurer PDFs — 13 files / 12 insurers (inventory + traps in `form-field-map.md`) |
 | `poc/README.md` | the original coordinate-mapping method write-up |
