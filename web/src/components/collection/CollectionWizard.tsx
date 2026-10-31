@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Fault } from "@/lib/formfill/types";
 import { compressImage } from "@/lib/images/compress";
-import { type State, type DocType, type RequiredDocType, INSURERS } from "@/lib/collection/claim-state";
+import { type State, type DocType, type RequiredDocType } from "@/lib/collection/claim-state";
 import { clearWizardState, draftToSaved, loadWizardState, saveWizardState } from "@/lib/collection/persist";
 import { sentTitle } from "@/lib/collection/recipient";
 import { isValidIsraeliId, isPlausiblePlate } from "@/lib/validation/il";
@@ -251,16 +251,8 @@ export default function CollectionWizard({
     }, 600);
     return () => clearTimeout(timer);
   }, [plateDigits, stepKey]);
-  // Third-party insurer: select of known insurers; "חברה אחרת…" reveals a free-text
-  // field. A restored session with a custom name (not in the list) reopens it too.
-  const [tpInsurerOther, setTpInsurerOther] = useState(false);
   const [geoBusy, setGeoBusy] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
-  const tpInsurerCustom =
-    tpInsurerOther ||
-    (!!s.thirdParty.insurer &&
-      s.thirdParty.insurer !== "לא ידוע" &&
-      !INSURERS.some((i) => i.label === s.thirdParty.insurer));
 
   const set = (patch: Partial<State>) => setS((p) => ({ ...p, ...patch }));
   const docDone = s.documents.filter((d) => d.status === "done").length;
@@ -524,13 +516,7 @@ export default function CollectionWizard({
       {active.key === "insured" && <InsuredStep s={s} set={set} idWarn={idWarn} />}
       {active.key === "driver_details" && <DriverDetailsStep s={s} set={set} idWarn={idWarn} />}
       {active.key === "tp_details" && (
-        <TpDetailsStep
-          s={s}
-          set={set}
-          plateWarn={plateWarn}
-          tpInsurerCustom={tpInsurerCustom}
-          setTpInsurerOther={setTpInsurerOther}
-        />
+        <TpDetailsStep s={s} set={set} plateWarn={plateWarn} />
       )}
       {active.key === "when_where" && (
         <WhenWhereStep s={s} set={set} geoBusy={geoBusy} geoError={geoError} useMyLocation={useMyLocation} />

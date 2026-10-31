@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { templates, fillForm } from "@/lib/formfill";
-import { toClaimData, type State } from "@/lib/collection/claim-state";
+import { allThirdParties, toClaimData, type State } from "@/lib/collection/claim-state";
 import { after } from "next/server";
 import { runEngine } from "@/lib/tasks/runner";
 import { warmAnalysis } from "@/lib/claims/analysis-cache";
@@ -45,7 +45,6 @@ export async function POST(request: Request) {
   }
 
   const insured = (collected?.insured ?? {}) as Record<string, string>;
-  const thirdParty = (collected?.thirdParty ?? {}) as Record<string, unknown>;
   // "unknown" is the wizard's "client isn't sure" sentinel — store as no insurer;
   // the raw value is still preserved in summary_json.collected.
   const rawInsurer = (collected?.policyInsurer as string) || null;
@@ -146,14 +145,21 @@ export async function POST(request: Request) {
     }
   }
 
-  if (thirdParty.present) {
-    const { error: tpErr } = await svc.from("third_parties").insert({
-      claim_id: claim.id,
-      name: (thirdParty.name as string) || null,
-      phone: (thirdParty.phone as string) || null,
-      plate: (thirdParty.plate as string) || null,
-      insurer: (thirdParty.insurer as string) || null,
-    });
+  // One row per reported vehicle (multi-car accidents). `collected` is untrusted JSON:
+  // a non-array extraThirdParties is ignored rather than trusted.
+  const tpState = {
+    thirdParty: collected?.thirdParty ?? { present: false },
+    extraThirdParties: Array.isArray(collected?.extraThirdParties) ? collected.extraThirdParties : [],
+  } as unknown as State;
+  const tpRows = allThirdParties(tpState).map((tp) => ({
+    claim_id: claim.id,
+    name: tp?.name || null,
+    phone: tp?.phone || null,
+    plate: tp?.plate || null,
+    insurer: tp?.insurer || null,
+  }));
+  if (tpRows.length) {
+    const { error: tpErr } = await svc.from("third_parties").insert(tpRows);
     await logFailure("third_parties insert", tpErr);
   }
 

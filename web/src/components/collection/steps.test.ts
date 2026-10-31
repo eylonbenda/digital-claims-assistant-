@@ -135,6 +135,18 @@ describe("step registry", () => {
     expect(step.isComplete(filled)).toBe(true);
   });
 
+  it("tp_details.isComplete holds on a blank extra vehicle until filled, unknown, or removed", () => {
+    const step = STEPS.find((s) => s.key === "tp_details")!;
+    const first = { ...BASE.thirdParty, present: true, name: "יוסי לוי", plate: "1234567", insurer: "הראל" };
+    const blank = { name: "", phone: "", plate: "", insurer: "" };
+    expect(step.isComplete({ ...BASE, thirdParty: first, extraThirdParties: [blank] })).toBe(false);
+    expect(step.isComplete({ ...BASE, thirdParty: first, extraThirdParties: [{ ...blank, details_unknown: true }] })).toBe(true);
+    expect(
+      step.isComplete({ ...BASE, thirdParty: first, extraThirdParties: [{ name: "גל", phone: "", plate: "7654321", insurer: "כלל" }] }),
+    ).toBe(true);
+    expect(step.isComplete({ ...BASE, thirdParty: first, extraThirdParties: [] })).toBe(true);
+  });
+
   it("isStepKey guards strings", () => {
     expect(isStepKey("vehicle")).toBe(true);
     expect(isStepKey("no_such")).toBe(false);

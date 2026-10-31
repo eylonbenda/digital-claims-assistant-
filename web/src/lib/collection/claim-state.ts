@@ -54,6 +54,11 @@ export type UploadedDoc = {
   error?: string;
 };
 
+// One third-party vehicle as the claimant reports it.
+export type TpEntry = { details_unknown?: boolean; name: string; phone: string; plate: string; insurer: string };
+export const EMPTY_TP: TpEntry = { name: "", phone: "", plate: "", insurer: "" };
+export const MAX_THIRD_PARTIES = 3;
+
 export type State = {
   consent: boolean;
   injuries: boolean | null;
@@ -74,7 +79,12 @@ export type State = {
   fault: Fault | null;
   // details_unknown: the client can't identify the other side (e.g. hit-and-run) —
   // unblocks the wizard while keeping whatever partial details they do have.
-  thirdParty: { present: boolean | null; details_unknown?: boolean; name: string; phone: string; plate: string; insurer: string };
+  thirdParty: { present: boolean | null } & TpEntry;
+  // Vehicles beyond the first, for multi-car accidents (pilot, 2026-10-31: two TP
+  // vehicles, and the operator wrote the second onto the form by hand). Kept apart from
+  // `thirdParty` so drafts and submitted `collected` blobs from older deploys load
+  // unchanged. Optional: absent on those saves. At most MAX_THIRD_PARTIES - 1 entries.
+  extraThirdParties?: TpEntry[];
   declaration: {
     data_consent: boolean;
     poa_third_party: boolean;
@@ -91,6 +101,15 @@ export type State = {
   // Optional: absent on drafts saved by an older deploy.
   docsDeferred?: Partial<Record<RequiredDocType, boolean>>;
 };
+
+// Every third-party vehicle the claimant reported, first one first — [] when they said
+// there was none. The single place that knows the first vehicle lives apart.
+export function allThirdParties(s: State): TpEntry[] {
+  if (!s.thirdParty.present) return [];
+  const { name, phone, plate, insurer, details_unknown } = s.thirdParty;
+  const first: TpEntry = { name, phone, plate, insurer, ...(details_unknown !== undefined ? { details_unknown } : {}) };
+  return [first, ...(s.extraThirdParties ?? [])].slice(0, MAX_THIRD_PARTIES);
+}
 
 // Israeli insurers. `templated` = we have a coordinate template, so the form auto-fills.
 // Others are still selectable (persisted), but the agent fills the form manually for now.
@@ -138,15 +157,13 @@ export function toClaimData(s: State): ClaimData {
     // so it never reached the PDF or the AI analysis.
     ...(s.thirdParty.present
       ? {
-          third_parties: [
-            {
-              owner_name: s.thirdParty.name,
-              driver_name: s.thirdParty.name,
-              phone: s.thirdParty.phone,
-              vehicle_plate: s.thirdParty.plate,
-              insurer: s.thirdParty.insurer,
-            },
-          ],
+          third_parties: allThirdParties(s).map((tp) => ({
+            owner_name: tp.name,
+            driver_name: tp.name,
+            phone: tp.phone,
+            vehicle_plate: tp.plate,
+            insurer: tp.insurer,
+          })),
         }
       : {}),
     // Driver — only once the "who was driving" question is answered. When the insured
