@@ -6,7 +6,9 @@ import { chaseMessage, waHref } from "@/lib/wa";
 import type { NextAction, TabKey } from "@/lib/cockpit/derive";
 import type { HandlingStatus } from "@/lib/handling/types";
 import { HANDLING_LABEL } from "@/lib/handling/copy";
+import type { SendItem } from "@/lib/outbound/queue";
 import HandlingDialog from "./HandlingDialog";
+import ReminderButton from "./ReminderButton";
 
 export type CockpitHeaderProps = {
   claimId: string;
@@ -20,6 +22,8 @@ export type CockpitHeaderProps = {
   summary: string | null;
   nextAction: NextAction;
   chaseLabels: string[];
+  pendingSend: SendItem | null;
+  claimOpen: boolean;
   uploadUrl: string;
   // Post-send handling: effective status (column or legacy milestone) + days in it.
   handlingEffective: HandlingStatus | null;
@@ -43,14 +47,6 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
     uploadUrl: p.uploadUrl,
   });
   const chaseHref = waHref(p.clientPhone, chaseBody);
-
-  function logChase() {
-    fetch("/api/outbound/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ claim_id: p.claimId, task_key: "chase_missing_docs", kind: "sent", body: chaseBody }),
-    }).catch(() => {});
-  }
 
   async function advanceMilestone(key: string) {
     setBusy(true); setError(null);
@@ -100,6 +96,14 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
             )}
           </div>
           {p.clientPhone && <p className="mt-1 text-sm text-zinc-500" dir="ltr">{p.clientPhone}</p>}
+          {p.claimOpen && na.kind !== "chase" && (
+            <div className="mt-2">
+              <ReminderButton
+                claimId={p.claimId} pendingSend={p.pendingSend}
+                fallbackHref={chaseHref} fallbackBody={chaseBody} size="secondary"
+              />
+            </div>
+          )}
         </div>
         <div className="shrink-0 text-sm text-zinc-400">
           {p.daysOpen === 0 ? "נפתחה היום" : `${p.daysOpen} ימים פתוחה`}
@@ -124,13 +128,11 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
         </p>
         <div className="flex items-center gap-2">
           {error && <span className="text-xs text-red-600">{error}</span>}
-          {na.kind === "chase" && chaseHref ? (
-            <a
-              href={chaseHref} onClick={logChase} target="_blank" rel="noopener noreferrer"
-              className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
-            >
-              💬 בקש מהלקוח בוואטסאפ ↗
-            </a>
+          {na.kind === "chase" && p.claimOpen ? (
+            <ReminderButton
+              claimId={p.claimId} pendingSend={p.pendingSend}
+              fallbackHref={chaseHref} fallbackBody={chaseBody} size="primary"
+            />
           ) : na.kind === "milestone" ? (
             <button
               type="button" disabled={busy} onClick={() => advanceMilestone(na.milestoneKey)}
