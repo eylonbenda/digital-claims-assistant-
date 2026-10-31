@@ -6,6 +6,7 @@ import { LABELS } from "./labels";
 import { normalizeClaimDates } from "./dates";
 import { foldOverflowThirdParties, thirdPartySlots } from "./overflow";
 import type { ClaimData } from "./types";
+import { visualRuns } from "./bidi";
 
 const FILL = rgb(0.05, 0.13, 0.55);
 const MARK = rgb(0.75, 0.05, 0.05);
@@ -68,6 +69,20 @@ const resolve = (obj: unknown, p: string): unknown => {
 };
 
 const isCheckbox = (f: Field): f is CheckboxField => "type" in f && f.type === "checkbox";
+
+type Page = ReturnType<PDFDocument["getPages"]>[number];
+type Font = Awaited<ReturnType<PDFDocument["embedFont"]>>;
+
+// Right-anchored at `right`. Mixed RTL/LTR text is drawn run by run (see bidi.ts).
+function drawRightAnchored(page: Page, text: string, right: number, y: number, size: number, font: Font) {
+  const runs = visualRuns(text);
+  const widths = runs.map((r) => font.widthOfTextAtSize(r.text, size));
+  let x = right - widths.reduce((a, b) => a + b, 0);
+  runs.forEach((r, i) => {
+    page.drawText(r.text, { x, y, size, font, color: FILL });
+    x += widths[i];
+  });
+}
 
 export async function fillForm(
   template: Template,
@@ -140,21 +155,13 @@ export async function fillForm(
         lines = wrap(size);
       }
       lines.slice(0, maxLines).forEach((line, i) => {
-        const lw = font.widthOfTextAtSize(line, size);
-        page.drawText(line, {
-          x: f.right - lw,
-          y: f.y - i * (f.lineHeight ?? size + 3),
-          size,
-          font,
-          color: FILL,
-        });
+        drawRightAnchored(page, line, f.right, f.y - i * (f.lineHeight ?? size + 3), size, font);
       });
       continue;
     }
 
-    const w = font.widthOfTextAtSize(s, size);
     // Hebrew drawn in logical order — pdf-lib + fontkit shape RTL. Right-anchored.
-    page.drawText(s, { x: f.right - w, y: f.y, size, font, color: FILL });
+    drawRightAnchored(page, s, f.right, f.y, size, font);
   }
   return pdf.save();
 }
