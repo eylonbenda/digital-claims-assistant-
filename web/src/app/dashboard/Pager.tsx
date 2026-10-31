@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { StageFilter } from "@/lib/dashboard/list";
 
 // Page state for one dashboard list, mirrored into `?<param>=` via replaceState
 // (same pattern as CockpitTabs) so "back" from a claim lands on the same page.
@@ -16,6 +17,19 @@ export function useUrlPage(param: string, initial: number) {
     if (scrollTo) document.getElementById(scrollTo)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   return [page, go] as const;
+}
+
+// Stage chip, mirrored into `?stage=` the same way ("all" is the default → no param).
+export function useUrlStage(initial: StageFilter) {
+  const [stage, setStage] = useState<StageFilter>(initial);
+  function go(next: StageFilter) {
+    setStage(next);
+    const url = new URL(window.location.href);
+    if (next === "all") url.searchParams.delete("stage");
+    else url.searchParams.set("stage", next);
+    window.history.replaceState(null, "", url);
+  }
+  return [stage, go] as const;
 }
 
 export default function Pager({

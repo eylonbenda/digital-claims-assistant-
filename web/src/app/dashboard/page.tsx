@@ -3,8 +3,7 @@ import { headers } from "next/headers";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import NewClaimForm from "./NewClaimForm";
-import ClaimsTable from "./ClaimsTable";
-import TodayList from "./TodayList";
+import ClaimsList from "./ClaimsList";
 import BriefAutoRefresh from "./BriefAutoRefresh";
 import { composeDashboard } from "@/lib/dashboard/compose";
 import RefreshOnFocus from "./RefreshOnFocus";
@@ -13,6 +12,7 @@ import { greeting, hebDate } from "@/lib/dashboard/copy";
 import { effectiveHandling } from "@/lib/handling/effective";
 import { INSURER_DIRECTORY } from "@/lib/submission/directory";
 import { parsePage } from "@/lib/dashboard/paginate";
+import { parseStageFilter } from "@/lib/dashboard/list";
 import { briefEnabled } from "@/lib/dashboard/flags";
 import { getOrCreateBrief, warmBriefRanking } from "@/lib/brief/brief";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -29,9 +29,9 @@ export const maxDuration = 60;
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ p?: string | string[]; tp?: string | string[] }>;
+  searchParams: Promise<{ p?: string | string[]; stage?: string | string[] }>;
 }) {
-  const { p, tp } = await searchParams;
+  const { p, stage } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -96,7 +96,7 @@ export default async function DashboardPage({
   const { data: claims } = await supabase
     .from("claims")
     .select(
-      "id, client_name, client_phone, claim_type, status, urgent, created_at, submitted_at, access_token, handling_status, handling_status_changed_at, checklist_state, policy_insurer, at_fault_insurer, draft:summary_json->draft"
+      "id, client_name, client_phone, claim_type, status, urgent, created_at, submitted_at, access_token, handling_status, handling_status_changed_at, checklist_state, policy_insurer, at_fault_insurer, draft:summary_json->draft, client_plate:summary_json->collected->vehicle->>plate"
     )
     .order("created_at", { ascending: false });
 
@@ -117,15 +117,28 @@ export default async function DashboardPage({
   const lastUploadBy = new Map<string, string>();
   for (const d of docRows ?? []) if (!lastUploadBy.has(d.claim_id)) lastUploadBy.set(d.claim_id, d.uploaded_at);
 
+  // Third-party vehicle plates per claim (RLS-scoped) — searchable from the list.
+  const { data: tpRows } = await supabase.from("third_parties").select("claim_id, plate");
+  const tpPlatesBy = new Map<string, string[]>();
+  for (const t of tpRows ?? []) {
+    if (!t.plate) continue;
+    const arr = tpPlatesBy.get(t.claim_id) ?? [];
+    arr.push(t.plate);
+    tpPlatesBy.set(t.claim_id, arr);
+  }
+
   const now = new Date();
-  const openClaims = (claims ?? []).filter((c) => c.status !== "closed" && c.status !== "abandoned");
-  const list = composeDashboard({
-    claims: openClaims.map((c) => ({
+  const rows = composeDashboard({
+    claims: (claims ?? []).map((c) => ({
       id: c.id, client_name: c.client_name, claim_type: c.claim_type,
       status: c.status, submitted_at: c.submitted_at, created_at: c.created_at,
       // Only the draft is pulled (JSON path select), not the whole summary_json.
       draft: c.draft as DraftLite,
       last_upload_at: lastUploadBy.get(c.id) ?? null,
+      phone: c.client_phone, urgent: c.urgent, access_token: c.access_token,
+      client_plate: (c.client_plate as string | null) ?? null,
+      tp_plates: tpPlatesBy.get(c.id) ?? [],
+      handling_changed_at: c.handling_status_changed_at,
       ...(() => {
         const effective = effectiveHandling(
           c.handling_status,
@@ -175,17 +188,14 @@ export default async function DashboardPage({
           <NewClaimForm />
         </div>
 
-        <TodayList
-          list={list}
+        <ClaimsList
+          rows={rows}
           greeting={greeting(now)}
           dateLabel={hebDate(now)}
           name={user.email?.split("@")[0] ?? null}
-          claimsCount={(claims ?? []).length}
-          showBrief={showBrief}
           initialPage={parsePage(p)}
+          initialStage={parseStageFilter(stage)}
         />
-
-        <ClaimsTable claims={claims ?? []} initialPage={parsePage(tp)} />
       </main>
     </div>
   );
