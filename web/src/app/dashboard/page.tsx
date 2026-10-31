@@ -11,8 +11,6 @@ import type { DraftLite } from "@/lib/dashboard/copy";
 import { greeting, hebDate } from "@/lib/dashboard/copy";
 import { effectiveHandling } from "@/lib/handling/effective";
 import { INSURER_DIRECTORY } from "@/lib/submission/directory";
-import { parsePage } from "@/lib/dashboard/paginate";
-import { parseStageFilter } from "@/lib/dashboard/list";
 import { briefEnabled } from "@/lib/dashboard/flags";
 import { getOrCreateBrief, warmBriefRanking } from "@/lib/brief/brief";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -26,12 +24,9 @@ import type { OutboundQueue as OutboundQueueType } from "@/lib/outbound/queue";
 // enabled; with it off nothing runs after the response.
 export const maxDuration = 60;
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ p?: string | string[]; stage?: string | string[] }>;
-}) {
-  const { p, stage } = await searchParams;
+// ?stage= / ?p= are read client-side (useSearchParams in ./Pager) so Back from a
+// claim restores them even when the router serves a cached payload.
+export default async function DashboardPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -194,8 +189,6 @@ export default async function DashboardPage({
           dateLabel={hebDate(now)}
           nowIso={now.toISOString()}
           name={user.email?.split("@")[0] ?? null}
-          initialPage={parsePage(p)}
-          initialStage={parseStageFilter(stage)}
         />
       </main>
     </div>

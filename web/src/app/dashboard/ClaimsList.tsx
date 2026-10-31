@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { ClaimRow } from "@/lib/dashboard/compose";
 import {
   ACTIVITY_HEADER, ALL_CHIP, ALL_DONE_NOTE, CLIENT_HEADER, COPY_LINK_LABEL, EMPTY_STAGE_NOTE,
-  NEEDS_YOU_CHIP, NEXT_STEP_HEADER, NO_RESULTS, SEARCH_PLACEHOLDER, STAGE_HEADER, STAGE_LABEL, activityAgo,
+  NEEDS_YOU_CHIP, NEXT_STEP_HEADER, NO_RESULTS, SEARCH_PLACEHOLDER, STAGE_HEADER, STAGE_LABEL, activityAgo, clientNameLabel,
 } from "@/lib/dashboard/copy";
 import { chipCounts, visibleRows, type StageFilter } from "@/lib/dashboard/list";
 import { paginate } from "@/lib/dashboard/paginate";
@@ -76,7 +76,7 @@ function Row({ row, now }: { row: ClaimRow; now: Date }) {
             href={`/dashboard/${row.claim_id}`}
             className={`font-medium after:absolute after:inset-0 hover:underline ${row.closed ? "text-zinc-400" : "text-zinc-900"}`}
           >
-            {row.client_name ?? "ללא שם"}
+            {clientNameLabel(row.client_name)}
           </Link>
           {row.fresh && (
             <span className="ms-1 rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800">
@@ -114,7 +114,7 @@ function Row({ row, now }: { row: ClaimRow; now: Date }) {
 }
 
 export default function ClaimsList({
-  rows, greeting, dateLabel, nowIso, name, initialPage, initialStage,
+  rows, greeting, dateLabel, nowIso, name,
 }: {
   rows: ClaimRow[];
   greeting: string;
@@ -122,13 +122,11 @@ export default function ClaimsList({
   // Server render time — keeps relative labels identical on SSR and hydration.
   nowIso: string;
   name: string | null;
-  initialPage: number;
-  initialStage: StageFilter;
 }) {
   // The query is state only — names/phones must not land in the URL.
   const [query, setQuery] = useState("");
-  const [stage, setStage] = useUrlStage(initialStage);
-  const [page, setPage] = useUrlPage("p", initialPage);
+  const [stage, setStage] = useUrlStage();
+  const [page, setPage] = useUrlPage("p");
 
   const heading = (
     <div className="mb-3">

@@ -183,5 +183,10 @@ export const CLIENT_HEADER = "לקוח";
 export const STAGE_HEADER = "שלב";
 export const NEXT_STEP_HEADER = "הצעד הבא";
 export const COPY_LINK_LABEL = "העתק קישור ללקוח";
+export const NO_NAME = "ללא שם";
+/** Row label for a client: null, "" and whitespace-only all fall back to NO_NAME. */
+export function clientNameLabel(name: string | null | undefined): string {
+  return name?.trim() || NO_NAME;
+}
 // Relative day label for the activity column ("היום" / "אתמול" / "לפני N ימים").
 export { agoHe as activityAgo };

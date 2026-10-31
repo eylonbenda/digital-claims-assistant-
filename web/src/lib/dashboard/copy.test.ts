@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  ALL_DONE_NOTE, TRACK_LABEL,
-  activityAgo, alsoLine, doActionLine, greeting, hebDate, pendingClientLine, sendActionLine, unclassifiedLine, waitingLine,
+  ALL_DONE_NOTE, NO_NAME, TRACK_LABEL,
+  activityAgo, clientNameLabel, alsoLine, doActionLine, greeting, hebDate, pendingClientLine, sendActionLine, unclassifiedLine, waitingLine,
 } from "./copy";
 
 describe("greeting", () => {
@@ -116,4 +116,16 @@ describe("activityAgo", () => {
   it("yesterday", () => expect(activityAgo("2026-10-30T09:00:00Z", now)).toBe("אתמול"));
   it("N days", () => expect(activityAgo("2026-10-26T09:00:00Z", now)).toBe("לפני 5 ימים"));
   it("future clamps to today", () => expect(activityAgo("2026-11-05T09:00:00Z", now)).toBe("היום"));
+});
+
+describe("clientNameLabel", () => {
+  it("falls back for null, empty and whitespace-only names", () => {
+    expect(clientNameLabel(null)).toBe(NO_NAME);
+    expect(clientNameLabel(undefined)).toBe(NO_NAME);
+    expect(clientNameLabel("")).toBe(NO_NAME);
+    expect(clientNameLabel("   ")).toBe(NO_NAME);
+  });
+  it("returns a real name trimmed", () => {
+    expect(clientNameLabel("  דנה כהן ")).toBe("דנה כהן");
+  });
 });
