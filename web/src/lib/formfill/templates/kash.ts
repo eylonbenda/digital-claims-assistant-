@@ -41,7 +41,7 @@ const kash: Template = {
     { key: "insured.id_number", right: 308, y: 548, size: 9 },
     { key: "insured.phone", right: 558, y: 505, size: 9 }, // מספר טלפון בבית
     { key: "insured.mobile", right: 424, y: 505, size: 9 },
-    { key: "insured.address_line", right: 558, y: 465, size: 9 },
+    { key: "insured.city", right: 558, y: 465, size: 9 }, // the wizard collects city only — address_line is never set
     { key: "insured.email", right: 268, y: 465, size: 9 },
 
     // ג. פרטי הנהג ברכב בעת המקרה
