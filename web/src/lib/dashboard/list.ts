@@ -44,9 +44,10 @@ export function chipCounts(rows: ClaimRow[], q: string): Record<Exclude<StageFil
   const counts: Record<Exclude<StageFilter, "closed">, number> = {
     all: 0, needs_you: 0, with_client: 0, before_send: 0, sent: 0, awaiting_payment: 0,
   };
+  const searching = q.trim() !== "";
   for (const r of rows) {
     if (!matchesQuery(r, q)) continue;
-    if (!r.closed) counts.all++;
+    if (!r.closed || searching) counts.all++;
     if (r.needs_action && !r.closed) counts.needs_you++;
     if (r.stage !== "closed") counts[r.stage]++;
   }

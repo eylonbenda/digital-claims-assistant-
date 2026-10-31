@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ALL_DONE_NOTE, TRACK_LABEL, WAITING_NOTE,
+  ALL_DONE_NOTE, TRACK_LABEL,
   activityAgo, alsoLine, doActionLine, greeting, hebDate, pendingClientLine, sendActionLine, unclassifiedLine, waitingLine,
 } from "./copy";
 
@@ -71,7 +71,6 @@ describe("small lines", () => {
   });
   it("constants exist", () => {
     expect(TRACK_LABEL.unknown).toBe("טרם סווג");
-    expect(WAITING_NOTE.length).toBeGreaterThan(0);
     expect(ALL_DONE_NOTE).toContain("✅");
   });
 });

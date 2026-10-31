@@ -90,7 +90,6 @@ export function waitingLine(next: { title: string; due_at: string | null } | nul
   return `במעקב: ${next.title}${due}`;
 }
 
-export const WAITING_NOTE = "תקין — המערכת תזכיר כשיגיע הזמן לפעול";
 export const ALL_DONE_NOTE = "הכל טופל להיום ✅";
 // Where an unsubmitted claimant stopped — keyed by the wizard's StepKey
 // (components/collection/steps.ts). The four tap questions read as one stage.

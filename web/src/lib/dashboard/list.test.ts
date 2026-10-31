@@ -89,6 +89,11 @@ describe("chipCounts", () => {
     expect(c.needs_you).toBe(0);
     expect("closed" in c).toBe(false);
   });
+  it("counts closed matches under all only while searching", () => {
+    const rows = [row({ claim_id: "a", client_name: "אבי", stage: "closed", closed: true })];
+    expect(chipCounts(rows, "אבי").all).toBe(1);
+    expect(chipCounts(rows, "").all).toBe(0);
+  });
 });
 
 describe("parseStageFilter", () => {

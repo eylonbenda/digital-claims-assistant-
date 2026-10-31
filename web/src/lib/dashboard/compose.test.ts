@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLOSED_LINE } from "./copy";
+import { CLOSED_LINE, handlingLine } from "./copy";
 import { composeDashboard, type ComposeClaim, type OpenTaskLite } from "./compose";
 import type { Brief } from "@/lib/brief/brief";
 import type { OutboundQueue, SendItem, DoItem } from "@/lib/outbound/queue";
@@ -57,6 +57,12 @@ describe("composeDashboard — honest fallback lines (findings #1, #2)", () => {
   it("pre-submission claim with no queue items → pending-client line, even with a null brief", () => {
     const d = compose([cl({ submitted_at: null })], q(), null);
     expect(d[0].action_line).toMatch(/^הלקוח עוד לא התחיל למלא/);
+  });
+
+  it("agent-sent claim without a client submission shows the handling line, stage sent", () => {
+    const d = compose([cl({ submitted_at: null, handling_effective: "sent" })], q(), null);
+    expect(d[0].stage).toBe("sent");
+    expect(d[0].action_line).toBe(handlingLine("sent", null, 0));
   });
 });
 

@@ -93,7 +93,7 @@ export function composeDashboard(input: {
 
     // Card anatomy (spec §3): one card per claim; client message wins primary,
     // else the most-overdue do-task, else the classification prompt, else the
-    // waiting/ok line. Whatever lost the primary slot becomes one "וגם:" line.
+    // handling/pending-client/waiting line. Whatever lost the primary slot becomes one "וגם:" line.
     const daysOpen = Math.max(0, Math.floor((now.getTime() - new Date(c.created_at).getTime()) / DAY_MS));
     // Waiting-for-classification counts from submission, not from link creation —
     // a claim submitted a minute ago must not read "מחכה לסיווג כבר 5 יום".
@@ -131,14 +131,14 @@ export function composeDashboard(input: {
       also = dos[1] ?? null;
     } else if (unclassified) {
       action_line = unclassifiedLine(daysSinceSubmit);
-    } else if (!c.submitted_at) {
-      action_line = pendingClientLine(c.draft, c.created_at, now);
     } else if (c.handling_effective) {
       action_line = handlingLine(
         c.handling_effective,
         c.handling_insurer_label ?? null,
         c.handling_days ?? 0,
       );
+    } else if (!c.submitted_at) {
+      action_line = pendingClientLine(c.draft, c.created_at, now);
     } else {
       action_line = waitingLine(nearestOpen);
     }
@@ -170,7 +170,6 @@ export function composeDashboard(input: {
     };
     rows.push(row);
   }
-
 
   // Newest activity first (improvement log 0930-08): a link sent last week whose client
   // submitted today belongs above today's still-empty links. Sorted here rather than
