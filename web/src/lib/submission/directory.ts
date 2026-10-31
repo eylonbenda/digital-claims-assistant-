@@ -33,4 +33,6 @@ export const INSURER_DIRECTORY: Record<string, DirectoryEntry> = {
   libra: entry("ליברה"),
   aig: entry("AIG"),
   shomera: entry("שומרה"),
+  haklai: entry("חקלאי"),
+  kash: entry("קש"),
 };
