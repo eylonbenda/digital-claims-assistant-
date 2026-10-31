@@ -180,3 +180,9 @@ export const EMPTY_STAGE_NOTE = "אין תיקים בשלב הזה";
 export const SEARCH_PLACEHOLDER = "חיפוש לפי שם, טלפון או לוחית רישוי…";
 export const NO_RESULTS = "לא נמצאו תוצאות";
 export const ACTIVITY_HEADER = "פעילות אחרונה";
+export const CLIENT_HEADER = "לקוח";
+export const STAGE_HEADER = "שלב";
+export const NEXT_STEP_HEADER = "הצעד הבא";
+export const COPY_LINK_LABEL = "העתק קישור ללקוח";
+// Relative day label for the activity column ("היום" / "אתמול" / "לפני N ימים").
+export { agoHe as activityAgo };

@@ -192,6 +192,7 @@ export default async function DashboardPage({
           rows={rows}
           greeting={greeting(now)}
           dateLabel={hebDate(now)}
+          nowIso={now.toISOString()}
           name={user.email?.split("@")[0] ?? null}
           initialPage={parsePage(p)}
           initialStage={parseStageFilter(stage)}
