@@ -1,6 +1,6 @@
 // The wizard's single source of truth for step order, chapters, relevance and
 // completeness (spec §3, §6). Pure — no React, no I/O.
-import { REQUIRED_DOCS, type State } from "@/lib/collection/claim-state";
+import { REQUIRED_DOCS, allThirdParties, type State, type TpEntry } from "@/lib/collection/claim-state";
 
 export type StepKey =
   | "intro" | "injuries" | "driver_who" | "fault" | "tp_present"
@@ -19,6 +19,10 @@ export type StepDef = {
 
 const filled = (v: string) => v.trim().length > 0;
 const always = () => true;
+
+// details_unknown (hit-and-run) unblocks a vehicle — partial details are still kept.
+export const tpEntryComplete = (tp: TpEntry) =>
+  !!tp.details_unknown || (filled(tp.name) && filled(tp.plate) && filled(tp.insurer));
 
 // A required document is satisfied by enough completed uploads (two for the licence
 // — both sides) OR an explicit "I'll send it later" tap. Uploads still in flight or
@@ -51,10 +55,9 @@ export const STEPS: StepDef[] = [
     isComplete: (s) => filled(s.driver.first_name) && filled(s.driver.last_name) && filled(s.driver.id_number) },
   { key: "tp_details",     chapter: "details", isTapStep: false,
     isRelevant: (s) => s.thirdParty.present === true,
-    // details_unknown (hit-and-run) unblocks the step — partial details are still kept.
-    isComplete: (s) =>
-      !!s.thirdParty.details_unknown ||
-      (filled(s.thirdParty.name) && filled(s.thirdParty.plate) && filled(s.thirdParty.insurer)) },
+    // Every reported vehicle must be complete (or marked unknown) — an extra vehicle the
+    // claimant added and left blank holds the step until filled or removed.
+    isComplete: (s) => allThirdParties(s).every(tpEntryComplete) },
   { key: "when_where",     chapter: "details", isTapStep: false, isRelevant: always,
     isComplete: (s) => filled(s.accident.date) && filled(s.accident.time) && filled(s.accident.location) },
   { key: "description",    chapter: "details", isTapStep: false, isRelevant: always,

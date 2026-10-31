@@ -90,6 +90,27 @@ describe("toClaimData — third party", () => {
       { owner_name: "", driver_name: "", phone: "", vehicle_plate: "1234567", insurer: "" },
     ]);
   });
+
+  it("maps every reported vehicle in order (multi-car accident)", () => {
+    const d = toClaimData({
+      ...base,
+      thirdParty: { present: true, name: "רון", phone: "0501111111", plate: "1111111", insurer: "כלל" },
+      extraThirdParties: [{ name: "גל", phone: "", plate: "2222222", insurer: "הראל" }],
+    });
+    expect(d.third_parties?.map((tp) => tp.vehicle_plate)).toEqual(["1111111", "2222222"]);
+    expect(d.third_parties?.[1]).toEqual({
+      owner_name: "גל", driver_name: "גל", phone: "", vehicle_plate: "2222222", insurer: "הראל",
+    });
+  });
+
+  it("drops stale extra vehicles when the claimant then answered no third party", () => {
+    const d = toClaimData({
+      ...base,
+      thirdParty: { present: false, name: "", phone: "", plate: "", insurer: "" },
+      extraThirdParties: [{ name: "גל", phone: "", plate: "2222222", insurer: "הראל" }],
+    });
+    expect(d.third_parties).toBeUndefined();
+  });
 });
 
 describe("toClaimData — declaration", () => {

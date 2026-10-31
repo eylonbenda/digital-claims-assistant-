@@ -321,11 +321,13 @@ export default async function ClaimDetailPage({
       claimType: claim.claim_type,
       clientName: claim.client_name,
       ourPlate: formClaimData?.vehicle?.plate ?? null,
-      tpPlate: tp?.plate ?? formClaimData?.third_parties?.[0]?.vehicle_plate ?? null,
+      // Canonical third_parties[0] first: with several vehicles (multi-car accidents) the
+      // table rows carry no order, the form data does.
+      tpPlate: formClaimData?.third_parties?.[0]?.vehicle_plate || tp?.plate || null,
       eventDate: formClaimData?.accident?.date ?? null,
       atFaultInsurer:
         ((claim as Record<string, unknown>).at_fault_insurer as string | null) ??
-        tp?.insurer ??
+        (formClaimData?.third_parties?.[0]?.insurer || tp?.insurer) ??
         null,
       policyInsurer: claim.policy_insurer,
       agencyName: agentRow?.name ?? null,

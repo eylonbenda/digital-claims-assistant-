@@ -1,4 +1,4 @@
-import type { State } from "@/lib/collection/claim-state";
+import { allThirdParties, type State, type TpEntry } from "@/lib/collection/claim-state";
 import { CONSENT_RECIPIENT } from "@/lib/collection/recipient";
 import type { StepKey } from "../steps";
 import { toILDate } from "@/lib/dates";
@@ -10,6 +10,9 @@ function todayISO(): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+
+const tpLine = (tp: TpEntry) =>
+  [tp.name, tp.plate].filter(Boolean).join(" · ") || (tp.details_unknown ? "מעורב — אין פרטים" : "—");
 
 export default function SummaryStep({
   s,
@@ -39,10 +42,7 @@ export default function SummaryStep({
         <Row
           k="צד שני"
           v={
-            !s.thirdParty.present
-              ? "לא"
-              : [s.thirdParty.name, s.thirdParty.plate].filter(Boolean).join(" · ") ||
-                (s.thirdParty.details_unknown ? "מעורב — אין פרטים" : "—")
+            !s.thirdParty.present ? "לא" : allThirdParties(s).map(tpLine).join(" | ")
           }
           onEdit={() => goTo(s.thirdParty.present ? "tp_details" : "tp_present")}
         />

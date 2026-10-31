@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { LABELS } from "./labels";
 import { normalizeClaimDates } from "./dates";
+import { foldOverflowThirdParties, thirdPartySlots } from "./overflow";
+import type { ClaimData } from "./types";
 
 const FILL = rgb(0.05, 0.13, 0.55);
 const MARK = rgb(0.75, 0.05, 0.05);
@@ -73,7 +75,11 @@ export async function fillForm(
   fontFile = "app-hebrew.ttf"
 ): Promise<Uint8Array> {
   // ISO dates in, dd/mm/yyyy on the form. Done here so every caller is covered.
-  const data = normalizeClaimDates(rawData);
+  // Third parties beyond the rows this form has go into the accident description.
+  const data = foldOverflowThirdParties(
+    normalizeClaimDates(rawData) as ClaimData,
+    thirdPartySlots(template.fields.map((f) => f.key)),
+  );
   const pdf = await PDFDocument.load(readFileSync(path.join(ASSETS, template.srcFile)));
   pdf.registerFontkit(fontkit);
   const font = await pdf.embedFont(readFileSync(path.join(ASSETS, fontFile)), {

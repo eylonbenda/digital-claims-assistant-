@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ClaimData } from "@/lib/formfill/types";
+import { MAX_THIRD_PARTIES } from "@/lib/collection/claim-state";
 
 // ── immutable nested get/set by dot-path (supports numeric keys → arrays) ────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,7 +36,8 @@ function setPath(obj: any, path: string, value: string): any {
 
 type Validator = (v: string) => string | null; // returns Hebrew error, or null if ok
 type FieldDef = { path: string; label: string; type?: string; validate?: Validator };
-type Section = { title: string; fields: FieldDef[]; tpOnly?: boolean };
+// tpIndex: a third-party vehicle section (third_parties[tpIndex]) — one per vehicle.
+type Section = { title: string; fields: FieldDef[]; tpOnly?: boolean; tpIndex?: number };
 
 // ── field validators — catch the errors that get a filled form rejected ──────────
 // Israeli ID: 9 digits, Luhn-style weighted checksum (ת"ז).
@@ -128,20 +130,26 @@ const SECTIONS: Section[] = [
       { path: "damage.third_party_vehicle", label: "נזק לרכב צד ג'" },
     ],
   },
-  {
-    title: "צד ג'",
-    tpOnly: true,
-    fields: [
-      { path: "third_parties.0.owner_name", label: "שם בעל הרכב" },
-      { path: "third_parties.0.driver_name", label: "שם הנהג" },
-      { path: "third_parties.0.phone", label: "טלפון", validate: validatePhone },
-      { path: "third_parties.0.vehicle_plate", label: "מספר רישוי", validate: validatePlate },
-      { path: "third_parties.0.insurer", label: "חברת ביטוח" },
-      { path: "third_parties.0.policy_number", label: "מספר פוליסה" },
-      { path: "third_parties.0.damage_description", label: "תיאור הנזק" },
-    ],
-  },
 ];
+
+// One section per third-party vehicle (multi-car accidents), always at least one.
+function tpSection(i: number, count: number): Section {
+  const p = `third_parties.${i}`;
+  return {
+    title: count > 1 ? `צד ג' ${i + 1}` : "צד ג'",
+    tpOnly: true,
+    tpIndex: i,
+    fields: [
+      { path: `${p}.owner_name`, label: "שם בעל הרכב" },
+      { path: `${p}.driver_name`, label: "שם הנהג" },
+      { path: `${p}.phone`, label: "טלפון", validate: validatePhone },
+      { path: `${p}.vehicle_plate`, label: "מספר רישוי", validate: validatePlate },
+      { path: `${p}.insurer`, label: "חברת ביטוח" },
+      { path: `${p}.policy_number`, label: "מספר פוליסה" },
+      { path: `${p}.damage_description`, label: "תיאור הנזק" },
+    ],
+  };
+}
 
 export default function FormFieldEditor({
   claimId,
@@ -171,18 +179,32 @@ export default function FormFieldEditor({
     setSaved(false);
   }
 
+  const tpCount = Math.max(1, data.third_parties?.length ?? 0);
+  const sections = [...SECTIONS, ...Array.from({ length: tpCount }, (_, i) => tpSection(i, tpCount))];
+
+  function addTp() {
+    // A claim with no TP yet still shows one (empty) section — keep it as slot 0.
+    setData((d) => ({ ...d, third_parties: [...(d.third_parties?.length ? d.third_parties : [{}]), {}] }));
+    setSaved(false);
+  }
+  function removeTp(i: number) {
+    setData((d) => ({ ...d, third_parties: (d.third_parties ?? []).filter((_, j) => j !== i) }));
+    setSaved(false);
+  }
+
   // The third-party section is noise on an own-policy claim — collapse it by
   // default rather than hide, so it's still reachable if a TP is involved.
   const collapseTp = claimType === "own_policy";
 
   // Live validation across all fields (skips the TP section when collapsed).
   const fieldErrors: { label: string; error: string }[] = [];
-  for (const section of SECTIONS) {
+  for (const section of sections) {
     if (section.tpOnly && collapseTp) continue;
     for (const f of section.fields) {
       if (!f.validate) continue;
       const err = f.validate(getPath(data, f.path));
-      if (err) fieldErrors.push({ label: f.label, error: err });
+      const label = section.tpIndex != null && tpCount > 1 ? `${section.title} — ${f.label}` : f.label;
+      if (err) fieldErrors.push({ label, error: err });
     }
   }
 
@@ -242,7 +264,7 @@ export default function FormFieldEditor({
       </p>
 
       <div className="space-y-5">
-        {SECTIONS.map((section) => {
+        {sections.map((section) => {
           const grid = (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
               {section.fields.map((f) => {
@@ -287,13 +309,31 @@ export default function FormFieldEditor({
 
           return (
             <fieldset key={section.title}>
-              <legend className="mb-2 text-sm font-semibold text-zinc-700">
+              <legend className="mb-2 flex items-center gap-3 text-sm font-semibold text-zinc-700">
                 {section.title}
+                {section.tpIndex != null && tpCount > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeTp(section.tpIndex!)}
+                    className="text-xs font-normal text-red-600 hover:underline"
+                  >
+                    הסר רכב
+                  </button>
+                )}
               </legend>
               {grid}
             </fieldset>
           );
         })}
+        {!collapseTp && tpCount < MAX_THIRD_PARTIES && (
+          <button
+            type="button"
+            onClick={addTp}
+            className="w-full rounded-lg border border-dashed border-zinc-300 py-2 text-sm text-zinc-600 hover:border-blue-400 hover:text-blue-600"
+          >
+            + הוסף רכב מעורב נוסף
+          </button>
+        )}
       </div>
 
       {fieldErrors.length > 0 && (

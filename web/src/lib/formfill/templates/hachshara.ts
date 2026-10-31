@@ -126,6 +126,23 @@ const hachshara: Template = {
       options: { yes: [186, 109], no: [149, 109] },
     },
 
+    // ── Page 2: צד ג' נוסף #2 (block labels at y728) ──
+    { key: "third_parties.1.vehicle_plate", page: 1, right: 490, y: 714 },
+    { key: "third_parties.1.driver_name", page: 1, right: 468, y: 659 },
+    { key: "third_parties.1.owner_name", page: 1, right: 468, y: 632 },
+    { key: "third_parties.1.phone", page: 1, right: 372, y: 632 },
+    { key: "third_parties.1.insurer", page: 1, right: 360, y: 605 },
+    { key: "third_parties.1.policy_number", page: 1, right: 490, y: 605 },
+    { key: "third_parties.1.damage_description", page: 1, right: 488, y: 686, size: 9 },
+    // ── Page 2: צד ג' נוסף #3 (block labels at y587) ──
+    { key: "third_parties.2.vehicle_plate", page: 1, right: 490, y: 573 },
+    { key: "third_parties.2.driver_name", page: 1, right: 468, y: 519 },
+    { key: "third_parties.2.owner_name", page: 1, right: 468, y: 492 },
+    { key: "third_parties.2.phone", page: 1, right: 372, y: 492 },
+    { key: "third_parties.2.insurer", page: 1, right: 360, y: 465 },
+    { key: "third_parties.2.policy_number", page: 1, right: 490, y: 465 },
+    { key: "third_parties.2.damage_description", page: 1, right: 488, y: 546, size: 9 },
+
     // ── Page 2: עדים ────────────────────────────────────────────────────────
     { key: "witnesses.0.name", page: 1, right: 468, y: 435 },
     { key: "witnesses.0.address", page: 1, right: 290, y: 435 },

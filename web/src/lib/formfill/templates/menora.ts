@@ -153,6 +153,17 @@ const menora: Template = {
     // טל. בית (TP owner phone): label x=225-249 at y=343 → data right=224
     { key: "third_parties.0.phone", right: 224, y: 343, size: 8 },
 
+    // "פרטי רכבים מעורבים אחרים" — 2 extra rows (label baselines y=302 / 282, row bottoms ≈291 / 272).
+    // Row cells: מס' רישוי (label x=500-529) · שם הבעלים (label x=396-431) · טל. בית (label x=97-121).
+    // Labels fill the top of each cell, so values go on the label baseline just left of each label.
+    // Form has only 3 TP slots total (primary block + these 2); no insurer/policy cells in the extra rows.
+    { key: "third_parties.1.vehicle_plate", right: 497, y: 302, size: 8 },
+    { key: "third_parties.1.owner_name", right: 393, y: 302, size: 8 },
+    { key: "third_parties.1.phone", right: 94, y: 302, size: 8 },
+    { key: "third_parties.2.vehicle_plate", right: 497, y: 282, size: 8 },
+    { key: "third_parties.2.owner_name", right: 393, y: 282, size: 8 },
+    { key: "third_parties.2.phone", right: 94, y: 282, size: 8 },
+
     // אשפוז — נפגעי גוף, שורה ראשונה: single circle (checked = hospitalized).
     // Re-centered 2026-07-12 on the measured circle bbox (d≈11, center 129.5/252.8) —
     // this circle is bigger than the ones below, so the default size-11 X (w=7.3/h=7.9)
