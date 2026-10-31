@@ -122,13 +122,16 @@ No horizontal scroll. Each row collapses to two lines: **name + dot + stage badg
 - New client component (e.g. `ClaimsList.tsx`) owns search, chip, and paging state. `TodayList.tsx` and `ClaimsTable.tsx` are deleted. `Pager` / `useUrlPage` / `paginate` reused.
 - Pure helpers (`stage.ts`, a `matchesQuery`/`normalizeDigits` helper, the chip-count function) live in `lib/dashboard/` with Vitest coverage.
 
-## 6. Reminder parity — the cockpit gets the queue's send/skip
+## 6. Reminders — one button in the cockpit
 
-The list's "📤 שלח תזכורת" / "לא היום" (`SendButtons`) move into the cockpit. Parity does **not** exist today (verified by the builder check): the outbound queue sends **four** kinds of item (`SEND_RULES` in `lib/outbound/rules.ts`: `chase_missing_docs`, `get_tp_insurer`, `collect_private_report_docs`, `finish_wizard`), while `CockpitHeader`'s own chase builds a different message from blocking labels only, logs without `task_id`, ignores the cooldown and the one-per-day cap, and has no skip.
+The list's "📤 שלח תזכורת" / "לא היום" (`SendButtons`) leave the list. Parity does **not** exist today (verified by the builder check): the outbound queue sends **four** kinds of item (`SEND_RULES` in `lib/outbound/rules.ts`: `chase_missing_docs`, `get_tp_insurer`, `collect_private_report_docs`, `finish_wizard`), while `CockpitHeader`'s own chase builds a different message from blocking labels only, logs without `task_id`, ignores the cooldown and the one-per-day cap, and has no skip.
 
-Decision *(my call — flag in the PR)*: **one chase control in the cockpit header, not two.**
-- When the queue has a `SendItem` for this claim, the header's chase **is** that item: same body, `task_id`, `task_key`, send + "לא היום" skip, same `postEvent` contract (keep the synchronous `window.open` trap comment).
-- When it doesn't (cooldown, cap, not yet due), the existing ad-hoc chase stays available as a secondary "שלח בכל זאת" action, so the פקידה can always ask the client — but the queue's own path is the default and is what feeds suppression.
+Decision: **one button in the cockpit header — "שלח תזכורת ללקוח" — and no skip.** The user's rule: think as simply as possible from the פקידה's side. "לא היום" is system vocabulary she doesn't need, so it goes (user decision).
+- The button is **always** there while the claim is open.
+- When the queue has a `SendItem` for this claim, the button sends **that** item: same body, `task_id`, `task_key`, same `postEvent` contract (keep the synchronous `window.open` trap comment). Otherwise it sends the existing ad-hoc chase (`CockpitHeader` today) *(my call)*. Either way it logs a `sent` event, so cooldown, the daily cap and the call-escalation keep working.
+- No second "send anyway" control. Cooldown only decides whether the **list** shows a red dot, never whether the button exists.
+- The `skipped` event kind stays accepted by `/api/outbound/events` (no schema or API change); nothing in the UI writes it any more.
+- **Known cost, accepted:** without skip, a reminder she chooses not to send keeps its red dot until she sends it or the task resolves (e.g. the client uploads). Watch for this in the pilot; if "צריך אותך" fills up with reminders she's deliberately holding, revisit.
 - `loadQueue` loads the whole book by agent; add a per-claim variant (or filter) for the cockpit — builder's choice.
 
 ## 7. Parity table (nothing is lost)
@@ -137,7 +140,8 @@ Decision *(my call — flag in the PR)*: **one chase control in the cockpit head
 |---|---|
 | Card next-action / also / AI lines, tone colours | הצעד הבא column |
 | Fresh badges (חדש / מסמך חדש) | Next to the name |
-| Send / skip buttons | Cockpit (§6) |
+| Send button | Cockpit, one button (§6) |
+| Skip ("לא היום") | Removed — user decision (§6) |
 | "פתח את התיק ←" | Whole row is the link |
 | Table search (name, phone) | Search box (+ plates) |
 | Phone | לקוח column, second line |
@@ -185,5 +189,5 @@ Decision *(my call — flag in the PR)*: **one chase control in the cockpit head
 - A submitted claim with missing documents sits under "לפני שליחה למבטחת"; while a reminder is due it has a red dot and its next-step line names the missing documents.
 - A rejected claim appears under "נשלח למבטחת" with a red dot.
 - Opening a claim from a filtered view and pressing Back returns to the same chip and page.
-- From the cockpit of a claim with a pending reminder, the פקידה can send that exact reminder and skip it.
+- From the cockpit of a claim with a pending reminder, "שלח תזכורת ללקוח" sends that exact reminder (logged with its `task_id`); on a claim with none pending, the same button sends the ad-hoc chase. No skip control exists anywhere.
 - At 375px width: no horizontal page scroll; rows are two lines.
