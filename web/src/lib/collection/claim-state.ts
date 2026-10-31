@@ -125,6 +125,8 @@ export const INSURERS: { key: string; label: string; templated: boolean }[] = [
   { key: "libra", label: "ליברה", templated: true },
   { key: "aig", label: "AIG", templated: true },
   { key: "shomera", label: "שומרה", templated: true },
+  { key: "haklai", label: "חקלאי", templated: false },
+  { key: "kash", label: "קש", templated: true },
 ];
 
 // Maps the wizard State to the canonical ClaimData the form-fill engine consumes.

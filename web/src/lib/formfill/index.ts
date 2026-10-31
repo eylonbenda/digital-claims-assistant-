@@ -9,6 +9,7 @@ import phoenix from "./templates/phoenix";
 import ayalon from "./templates/ayalon";
 import shomera from "./templates/shomera";
 import clal from "./templates/clal";
+import kash from "./templates/kash";
 
 // Registry of insurer templates. Add a new insurer = add one template file here.
 export const templates = {
@@ -23,6 +24,7 @@ export const templates = {
   ayalon,
   shomera,
   clal,
+  kash,
 } as const;
 export type InsurerKey = keyof typeof templates;
 
