@@ -22,7 +22,7 @@ const haklai: Template = {
     // ── א. פרטים על הרכב המבוטח ───────────────────────────────────────────
     { key: "insured.full_name", right: 538, y: 708, size: 9 },
     { key: "insured.id_number", right: 435, y: 708, size: 9 },
-    { key: "insured.address_line", right: 333, y: 708, size: 9 },
+    { key: "insured.city", right: 333, y: 708, size: 9 }, // the wizard collects city only — address_line is never set
     { key: "insured.phone", right: 203, y: 708, size: 9 },
     { key: "insured.mobile", right: 115, y: 708, size: 9 },
 
