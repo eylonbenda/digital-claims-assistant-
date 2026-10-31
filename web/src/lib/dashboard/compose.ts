@@ -1,7 +1,7 @@
 import type { Brief, BriefItem } from "@/lib/brief/brief";
 import type { DoItem, OutboundQueue, SendItem } from "@/lib/outbound/queue";
-import { TIER_ORDER, type Tier } from "@/lib/brief/rank";
-import { TRACK_LABEL, alsoLine, doActionLine, handlingLine, pendingClientLine, sendActionLine, unclassifiedLine, waitingLine, type DraftLite } from "./copy";
+import { TRACK_LABEL, alsoLine, doActionLine, handlingLine, pendingClientLine, sendActionLine, unclassifiedLine, waitingLine, CLOSED_LINE, type DraftLite } from "./copy";
+import { claimStage, type Stage } from "./stage";
 
 const DAY_MS = 86_400_000;
 const FRESH_MS = DAY_MS;
@@ -20,6 +20,10 @@ export type ComposeClaim = {
   handling_effective?: string | null;
   handling_insurer_label?: string | null;
   handling_days?: number;
+  // When handling_effective last changed — a status update is activity too.
+  handling_changed_at?: string | null;
+  phone: string | null; urgent: boolean; access_token: string;
+  client_plate: string | null; tp_plates: string[];
 };
 export type OpenTaskLite = { claim_id: string; title: string; due_at: string | null };
 export type ClaimCard = {
@@ -38,12 +42,11 @@ export type ClaimCard = {
   // or not the AI brief is enabled.
   needs_action: boolean;
 };
-// `cards` is the intake-first view: every open claim in one list, newest first.
-// `attention`/`waiting`/`ok` are the brief-driven sectioning, rendered only when
-// the brief is enabled. Both are always computed; the dashboard picks one.
-export type DashboardList = {
-  cards: ClaimCard[];
-  attention: ClaimCard[]; waiting: ClaimCard[]; ok: ClaimCard[];
+// One row per claim, open or closed — the unified list's unit. The extra fields
+// feed search, the stage chips and the row's quick actions.
+export type ClaimRow = ClaimCard & {
+  stage: Stage; phone: string | null; urgent: boolean; closed: boolean;
+  access_token: string; client_plate: string | null; tp_plates: string[];
 };
 
 export function composeDashboard(input: {
@@ -52,7 +55,7 @@ export function composeDashboard(input: {
   brief: Brief | null;
   openTasks: OpenTaskLite[];
   now: Date;
-}): DashboardList {
+}): ClaimRow[] {
   const { claims, queue, brief, openTasks, now } = input;
 
   const sendBy = new Map<string, SendItem>((queue?.send ?? []).map((s) => [s.claim_id, s]));
@@ -64,17 +67,6 @@ export function composeDashboard(input: {
   }
   for (const list of dosBy.values()) list.sort((a, b) => b.overdue_days - a.overdue_days);
   const briefBy = new Map<string, BriefItem>((brief?.items ?? []).map((i) => [i.claim_id, i]));
-  const futureBy = new Map<string, OpenTaskLite[]>();
-  for (const t of openTasks) {
-    if (t.due_at && new Date(t.due_at).getTime() > now.getTime()) {
-      const list = futureBy.get(t.claim_id) ?? [];
-      list.push(t);
-      futureBy.set(t.claim_id, list);
-    }
-  }
-  for (const list of futureBy.values())
-    list.sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime());
-
   // All open tasks per claim, nearest-due first (nulls last) — used only for
   // the waiting fallback line (finding #1), so an overdue-but-suppressed task
   // still surfaces honestly instead of falling through to "אין פעולות פתוחות".
@@ -91,9 +83,7 @@ export function composeDashboard(input: {
       return ta - tb;
     });
 
-  const attention: ClaimCard[] = [];
-  const waiting: ClaimCard[] = [];
-  const ok: ClaimCard[] = [];
+  const rows: ClaimRow[] = [];
 
   for (const c of claims) {
     const send = sendBy.get(c.id) ?? null;
@@ -118,9 +108,19 @@ export function composeDashboard(input: {
         : null;
     const nearestOpen = openBy.get(c.id)?.[0] ?? null;
 
+    const stage = claimStage({
+      status: c.status, submitted_at: c.submitted_at, handling_effective: c.handling_effective ?? null,
+    });
+    // Closed rows skip the action-line machinery: nothing here is the operator's to do.
+    const closed = c.status === "closed" || c.status === "abandoned" || stage === "closed";
+
     let action_line: string;
     let also: DoItem | null = null;
-    if (send) {
+    if (closed) {
+      action_line = c.handling_effective
+        ? handlingLine(c.handling_effective, c.handling_insurer_label ?? null, c.handling_days ?? 0)
+        : CLOSED_LINE;
+    } else if (send) {
       action_line = sendActionLine(
         { taskKey: send.task_key, docLabels: send.doc_labels, lastSentAt: send.last_sent_at },
         now,
@@ -143,12 +143,15 @@ export function composeDashboard(input: {
       action_line = waitingLine(nearestOpen);
     }
 
-    const card: ClaimCard = {
+    const row: ClaimRow = {
       claim_id: c.id, client_name: c.client_name,
       created_at: c.created_at,
-      activity_at: latest(c.created_at, c.submitted_at, c.last_upload_at),
+      activity_at: latest(c.created_at, c.submitted_at, c.last_upload_at, c.handling_changed_at),
       fresh,
-      needs_action: !!send || dos.length > 0 || unclassified,
+      needs_action: !closed && (
+        !!send || dos.length > 0 || unclassified ||
+        c.handling_effective === "docs_requested" || c.handling_effective === "rejected"
+      ),
       track_label: TRACK_LABEL[c.claim_type] ?? c.claim_type,
       action_line,
       // Only badge a line as the model's when it actually came from the model.
@@ -159,42 +162,18 @@ export function composeDashboard(input: {
       // of the day. `ai` is per item, so a claim the AI skipped in an otherwise
       // successful run correctly loses the badge too.
       ai_line: b?.ai && b.reason ? `🤖 ${b.reason}` : null,
-      also_line: also ? alsoLine(also.title, also.overdue_days) : null,
-      send,
-      overdue_days: Math.max(send?.overdue_days ?? 0, dos[0]?.overdue_days ?? 0),
+      also_line: !closed && also ? alsoLine(also.title, also.overdue_days) : null,
+      send: closed ? null : send,
+      overdue_days: closed ? 0 : Math.max(send?.overdue_days ?? 0, dos[0]?.overdue_days ?? 0),
+      stage, closed, phone: c.phone, urgent: c.urgent,
+      access_token: c.access_token, client_plate: c.client_plate, tp_plates: c.tp_plates,
     };
-
-    if (send || dos.length > 0 || unclassified || b?.tier === "act_now") {
-      attention.push(card);
-    } else if (futureBy.has(c.id) || b?.tier === "waiting" || b?.tier === "this_week" || !c.submitted_at) {
-      waiting.push(card);
-    } else {
-      ok.push(card);
-    }
+    rows.push(row);
   }
 
-  const tierOrd = (t: Tier | null | undefined) => (t ? TIER_ORDER[t] : Number.MAX_SAFE_INTEGER);
-  attention.sort((a, b) => {
-    const ba = briefBy.get(a.claim_id); const bb = briefBy.get(b.claim_id);
-    return tierOrd(ba?.tier) - tierOrd(bb?.tier) || (bb?.score ?? 0) - (ba?.score ?? 0) || b.overdue_days - a.overdue_days;
-  });
-  waiting.sort((a, b) => {
-    const na = futureBy.get(a.claim_id)?.[0]?.due_at; const nb = futureBy.get(b.claim_id)?.[0]?.due_at;
-    return (
-      (na ? new Date(na).getTime() : Number.MAX_SAFE_INTEGER) -
-      (nb ? new Date(nb).getTime() : Number.MAX_SAFE_INTEGER)
-    );
-  });
-  ok.sort((a, b) => (a.client_name ?? "").localeCompare(b.client_name ?? "", "he"));
 
-  // Pilot feedback (2026-09-13): the operator's day is intake → form → send to the
-  // insurer, and she asked for the newest claim first. "Newest" is by latest
-  // activity (improvement log 0930-08): a link sent last week whose client submitted
-  // today belongs above today's still-empty links. Sorted here rather than leaning on
-  // the caller's query order, so the guarantee belongs to the compose layer.
-  const cards = [...attention, ...waiting, ...ok].sort((a, b) =>
-    b.activity_at.localeCompare(a.activity_at),
-  );
-
-  return { cards, attention, waiting, ok };
+  // Newest activity first (improvement log 0930-08): a link sent last week whose client
+  // submitted today belongs above today's still-empty links. Sorted here rather than
+  // leaning on the caller's query order, so the guarantee belongs to the compose layer.
+  return rows.sort((a, b) => b.activity_at.localeCompare(a.activity_at));
 }
