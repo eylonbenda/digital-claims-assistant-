@@ -1,6 +1,8 @@
 // The dashboard's language layer: system vocabulary in, agent Hebrew out.
 // Every user-visible string on the main screen comes from here (spec §5).
 
+import type { Stage } from "./stage";
+
 const DAY_MS = 86_400_000;
 const TZ = "Asia/Jerusalem";
 
@@ -160,3 +162,21 @@ export function handlingLine(
       return "בטיפול מול המבטחת";
   }
 }
+
+// ---- Unified claims list (spec 2026-10-31) ----
+
+export const STAGE_LABEL: Record<Stage, string> = {
+  with_client: "אצל הלקוח",
+  before_send: "לפני שליחה למבטחת",
+  sent: "נשלח למבטחת",
+  awaiting_payment: "ממתין לתשלום",
+  closed: "סגורים",
+};
+
+export const ALL_CHIP = "הכל";
+export const NEEDS_YOU_CHIP = "צריך אותך";
+export const CLOSED_LINE = "התיק נסגר";
+export const EMPTY_STAGE_NOTE = "אין תיקים בשלב הזה";
+export const SEARCH_PLACEHOLDER = "חיפוש לפי שם, טלפון או לוחית רישוי…";
+export const NO_RESULTS = "לא נמצאו תוצאות";
+export const ACTIVITY_HEADER = "פעילות אחרונה";
