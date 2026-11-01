@@ -1,21 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { parseStageFilter, type StageFilter } from "@/lib/dashboard/list";
+import { parsePage } from "@/lib/dashboard/paginate";
+import { withSearchParam } from "@/lib/dashboard/url-state";
 
-// Page state for one dashboard list, mirrored into `?<param>=` via replaceState
-// (same pattern as CockpitTabs) so "back" from a claim lands on the same page.
-// Seeded from the server-read searchParams — no useSearchParams, no Suspense.
-export function useUrlPage(param: string, initial: number) {
-  const [page, setPage] = useState(initial);
+// List state lives in the URL, not in useState: the value is DERIVED from
+// useSearchParams and written with window.history.replaceState, which Next 16
+// patches to update its router (and useSearchParams). This is what makes "back"
+// from a claim work: the client router restores /dashboard from its cached RSC
+// payload (rendered for the URL without ?stage/?p), so a server-seeded prop or
+// useState initialiser would be stale — but useSearchParams reflects the restored
+// URL. The dashboard route is dynamic (awaits searchParams), so this needs no
+// Suspense boundary and SSR sees the same params.
+export function useUrlPage(param: string) {
+  const page = parsePage(useSearchParams().get(param) ?? undefined);
   function go(next: number, scrollTo?: string) {
-    setPage(next);
-    const url = new URL(window.location.href);
-    if (next <= 1) url.searchParams.delete(param);
-    else url.searchParams.set(param, String(next));
-    window.history.replaceState(null, "", url);
+    window.history.replaceState(null, "", withSearchParam(window.location.href, param, next <= 1 ? null : String(next)));
     if (scrollTo) document.getElementById(scrollTo)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   return [page, go] as const;
+}
+
+// Stage chip, mirrored into `?stage=` the same way ("all" is the default → no param).
+export function useUrlStage() {
+  const stage = parseStageFilter(useSearchParams().get("stage") ?? undefined);
+  function go(next: StageFilter) {
+    window.history.replaceState(null, "", withSearchParam(window.location.href, "stage", next === "all" ? null : next));
+  }
+  return [stage, go] as const;
 }
 
 export default function Pager({

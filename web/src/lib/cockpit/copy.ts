@@ -32,3 +32,7 @@ export const NO_ACTION_LINE = "אין פעולות פתוחות — התיק ב�
 export const PREPARE_SUBMISSION_LINE = "התיק מוכן — להכין שליחה למבטחת";
 
 export const UPDATE_HANDLING_LINE = "לעדכן סטטוס מול המבטחת";
+
+export const REMINDER_LABEL = "💬 שלח תזכורת ללקוח ↗";
+export const REMINDER_FAILED = "הרישום נכשל — נסה שוב";
+export const REMINDER_NO_PHONE = "מספר טלפון חסר או לא תקין";

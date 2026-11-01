@@ -26,6 +26,7 @@ import NotesPanel, { type NoteView } from "./NotesPanel";
 import TasksPanel, { type TaskView } from "./TasksPanel";
 import { deriveCockpit, type TabKey } from "@/lib/cockpit/derive";
 import { effectiveHandling } from "@/lib/handling/effective";
+import { loadQueue } from "@/lib/outbound/load";
 import { composeSubmission } from "@/lib/submission/compose";
 import SubmissionPanel, { type SubmissionView } from "./SubmissionPanel";
 
@@ -150,7 +151,7 @@ export default async function ClaimDetailPage({
       .eq("claim_id", id)
       .order("due_at", { ascending: true }),
     supabase.from("third_parties").select("plate, insurer").eq("claim_id", id),
-    supabase.from("agents").select("name").eq("auth_user_id", user.id).maybeSingle(),
+    supabase.from("agents").select("id, name").eq("auth_user_id", user.id).maybeSingle(),
   ]);
   const notes: NoteView[] = noteRows ?? [];
   const tasks: TaskView[] = taskRows ?? [];
@@ -351,6 +352,12 @@ export default async function ClaimDetailPage({
       : null;
 
   const chaseLabels = chaseableLabels(blockingMissing);
+  // The one due reminder for this claim (outbound queue); null falls back to the ad-hoc chase.
+  const claimOpen = claim.status !== "closed" && claim.status !== "abandoned";
+  const queue = agentRow && claimOpen
+    ? await loadQueue(agentRow.id, origin, null, { claimId: claim.id })
+    : null;
+  const pendingSend = queue?.send.find((s) => s.claim_id === claim.id) ?? null;
   const { nextAction, badges } = deriveCockpit(
     {
       classificationNeedsAttention,
@@ -407,6 +414,8 @@ export default async function ClaimDetailPage({
             summary: analysis?.summary ?? null,
             nextAction,
             chaseLabels,
+            pendingSend,
+            claimOpen,
             uploadUrl: `${origin}/c/${claim.access_token}`,
             handlingEffective,
             handlingDays: handlingChangedAt

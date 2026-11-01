@@ -1,6 +1,8 @@
 // The dashboard's language layer: system vocabulary in, agent Hebrew out.
 // Every user-visible string on the main screen comes from here (spec §5).
 
+import type { Stage } from "./stage";
+
 const DAY_MS = 86_400_000;
 const TZ = "Asia/Jerusalem";
 
@@ -88,7 +90,6 @@ export function waitingLine(next: { title: string; due_at: string | null } | nul
   return `במעקב: ${next.title}${due}`;
 }
 
-export const WAITING_NOTE = "תקין — המערכת תזכיר כשיגיע הזמן לפעול";
 export const ALL_DONE_NOTE = "הכל טופל להיום ✅";
 // Where an unsubmitted claimant stopped — keyed by the wizard's StepKey
 // (components/collection/steps.ts). The four tap questions read as one stage.
@@ -160,3 +161,32 @@ export function handlingLine(
       return "בטיפול מול המבטחת";
   }
 }
+
+// ---- Unified claims list (spec 2026-10-31) ----
+
+export const STAGE_LABEL: Record<Stage, string> = {
+  with_client: "אצל הלקוח",
+  before_send: "לפני שליחה למבטחת",
+  sent: "נשלח למבטחת",
+  awaiting_payment: "ממתין לתשלום",
+  closed: "סגורים",
+};
+
+export const ALL_CHIP = "הכל";
+export const NEEDS_YOU_CHIP = "צריך אותך";
+export const CLOSED_LINE = "התיק נסגר";
+export const EMPTY_STAGE_NOTE = "אין תיקים בשלב הזה";
+export const SEARCH_PLACEHOLDER = "חיפוש לפי שם, טלפון או לוחית רישוי…";
+export const NO_RESULTS = "לא נמצאו תוצאות";
+export const ACTIVITY_HEADER = "פעילות אחרונה";
+export const CLIENT_HEADER = "לקוח";
+export const STAGE_HEADER = "שלב";
+export const NEXT_STEP_HEADER = "הצעד הבא";
+export const COPY_LINK_LABEL = "העתק קישור ללקוח";
+export const NO_NAME = "ללא שם";
+/** Row label for a client: null, "" and whitespace-only all fall back to NO_NAME. */
+export function clientNameLabel(name: string | null | undefined): string {
+  return name?.trim() || NO_NAME;
+}
+// Relative day label for the activity column ("היום" / "אתמול" / "לפני N ימים").
+export { agoHe as activityAgo };

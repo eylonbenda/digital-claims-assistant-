@@ -22,18 +22,21 @@ export async function loadQueue(
   agentId: string,
   origin: string,
   brief: Brief | null,
+  opts?: { claimId?: string }, // narrow to one claim (cockpit reminder button)
 ): Promise<OutboundQueue | null> {
   try {
     const svc = createServiceClient();
     const now = new Date();
 
-    const { data: claims, error: claimsErr } = await svc
+    let claimsQuery = svc
       .from("claims")
       .select(
         "id, client_name, client_phone, access_token, claim_type, created_at, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider",
       )
       .eq("agent_id", agentId)
       .not("status", "in", "(closed,abandoned)");
+    if (opts?.claimId) claimsQuery = claimsQuery.eq("id", opts.claimId);
+    const { data: claims, error: claimsErr } = await claimsQuery;
     if (claimsErr) throw claimsErr;
     if (!claims || claims.length === 0) return { send: [], doToday: [] };
     const ids = claims.map((c) => c.id);
