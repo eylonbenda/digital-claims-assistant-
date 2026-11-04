@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { EMPTY_TP, INSURERS, MAX_THIRD_PARTIES, type State, type TpEntry } from "@/lib/collection/claim-state";
+import {
+  EMPTY_TP,
+  INSURERS,
+  MAX_THIRD_PARTIES,
+  TP_INSURER_NONE,
+  TP_INSURER_UNKNOWN,
+  isNamedTpInsurer,
+  type State,
+  type TpEntry,
+} from "@/lib/collection/claim-state";
 import { Text } from "./fields";
 
 // Select sentinel for "a company not in the list" — never stored in state.
@@ -70,7 +79,7 @@ function TpFields({
   // A restored session with a custom name (not in the list) reopens it too.
   const [otherPicked, setOtherPicked] = useState(false);
   const custom =
-    otherPicked || (!!tp.insurer && tp.insurer !== "לא ידוע" && !INSURERS.some((i) => i.label === tp.insurer));
+    otherPicked || (isNamedTpInsurer(tp.insurer) && !INSURERS.some((i) => i.label === tp.insurer));
   const unknown = !!tp.details_unknown;
   return (
     <div className="mt-4 space-y-3">
@@ -89,13 +98,12 @@ function TpFields({
       {unknown && (
         <p className="text-sm text-zinc-500">אפשר להמשיך — ואם ידוע לך פרט כלשהו (אפילו חלקי), כל פרט עוזר.</p>
       )}
-      <Text required={!unknown} label="שם הנהג השני" value={tp.name} onChange={(v) => onChange({ name: v })} />
-      <Text label="טלפון" type="tel" value={tp.phone} onChange={(v) => onChange({ phone: v })} />
+      {/* The plate is the one required field — the claim is filed against the vehicle. */}
       <Text required={!unknown} label="מספר רישוי" inputMode="numeric" warn={plateWarn(tp.plate)} value={tp.plate} onChange={(v) => onChange({ plate: v })} />
+      <Text label="שם הנהג השני" value={tp.name} onChange={(v) => onChange({ name: v })} />
+      <Text label="טלפון" type="tel" value={tp.phone} onChange={(v) => onChange({ phone: v })} />
       <label className="block">
-        <span className="text-base text-zinc-600">
-          חברת הביטוח שלו{!unknown && <span className="text-red-500"> *</span>}
-        </span>
+        <span className="text-base text-zinc-600">חברת הביטוח שלו</span>
         <select
           value={custom ? OTHER_INSURER : tp.insurer}
           onChange={(e) => {
@@ -111,12 +119,13 @@ function TpFields({
               {i.label}
             </option>
           ))}
-          <option value="לא ידוע">לא ידוע כרגע</option>
           <option value={OTHER_INSURER}>חברה אחרת…</option>
+          <option value={TP_INSURER_NONE}>לא מבוטח / ללא ביטוח</option>
+          <option value={TP_INSURER_UNKNOWN}>לא ידוע כרגע</option>
         </select>
       </label>
       {custom && (
-        <Text required={!unknown} label="שם חברת הביטוח" value={tp.insurer} onChange={(v) => onChange({ insurer: v })} />
+        <Text label="שם חברת הביטוח" value={tp.insurer} onChange={(v) => onChange({ insurer: v })} />
       )}
     </div>
   );
