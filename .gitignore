@@ -27,3 +27,6 @@ yarn-debug.log*
 .DS_Store
 Thumbs.db
 *.pem
+
+# Raw customer-meeting transcripts (PII) — see .claude/skills/meeting-to-canvas
+.meetings/
