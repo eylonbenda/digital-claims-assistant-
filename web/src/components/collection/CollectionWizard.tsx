@@ -7,7 +7,6 @@ import { type State, type DocType, type RequiredDocType } from "@/lib/collection
 import { clearWizardState, draftToSaved, loadWizardState, saveWizardState } from "@/lib/collection/persist";
 import { sentTitle } from "@/lib/collection/recipient";
 import { isValidIsraeliId, isPlausiblePlate } from "@/lib/validation/il";
-import { reverseGeocode } from "@/lib/geo/reverse";
 import {
   isLookupablePlate,
   mergeVehicleInfo,
@@ -26,6 +25,7 @@ import InsuredStep from "./steps/InsuredStep";
 import DriverDetailsStep from "./steps/DriverDetailsStep";
 import TpDetailsStep from "./steps/TpDetailsStep";
 import WhenWhereStep from "./steps/WhenWhereStep";
+import DamageStep from "./steps/DamageStep";
 import DescriptionStep from "./steps/DescriptionStep";
 import DocumentsStep from "./steps/DocumentsStep";
 import SummaryStep from "./steps/SummaryStep";
@@ -251,9 +251,6 @@ export default function CollectionWizard({
     }, 600);
     return () => clearTimeout(timer);
   }, [plateDigits, stepKey]);
-  const [geoBusy, setGeoBusy] = useState(false);
-  const [geoError, setGeoError] = useState<string | null>(null);
-
   const set = (patch: Partial<State>) => setS((p) => ({ ...p, ...patch }));
   const docDone = s.documents.filter((d) => d.status === "done").length;
 
@@ -269,30 +266,6 @@ export default function CollectionWizard({
       return "מספר רישוי הוא בדרך כלל 7–8 ספרות";
     return undefined;
   };
-
-  // Fill the location field from device GPS (clients are often still at the
-  // scene). Result stays fully editable; any failure degrades to a hint, and
-  // reverse-geocode failure degrades to raw coordinates inside reverseGeocode.
-  function useMyLocation() {
-    setGeoError(null);
-    if (!navigator.geolocation) {
-      setGeoError("הדפדפן לא תומך באיתור מיקום — אפשר להקליד ידנית");
-      return;
-    }
-    setGeoBusy(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const label = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-        setS((p) => ({ ...p, accident: { ...p.accident, location: label } }));
-        setGeoBusy(false);
-      },
-      () => {
-        setGeoError("לא הצלחנו לקבל את המיקום — אפשר להקליד ידנית");
-        setGeoBusy(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-    );
-  }
 
   async function handleSubmit() {
     setSubmitBusy(true);
@@ -518,9 +491,8 @@ export default function CollectionWizard({
       {active.key === "tp_details" && (
         <TpDetailsStep s={s} set={set} plateWarn={plateWarn} />
       )}
-      {active.key === "when_where" && (
-        <WhenWhereStep s={s} set={set} geoBusy={geoBusy} geoError={geoError} useMyLocation={useMyLocation} />
-      )}
+      {active.key === "when_where" && <WhenWhereStep s={s} set={set} />}
+      {active.key === "damage" && <DamageStep s={s} set={set} />}
       {active.key === "description" && <DescriptionStep s={s} set={set} />}
       {active.key === "documents" && (
         <DocumentsStep s={s} onPick={onPickDocs} onRemove={removeDoc} onDefer={setDeferred} />

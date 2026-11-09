@@ -1,4 +1,4 @@
-import { allThirdParties, type State, type TpEntry } from "@/lib/collection/claim-state";
+import { accidentPlace, allThirdParties, damageFocusText, type State, type TpEntry } from "@/lib/collection/claim-state";
 import { CONSENT_RECIPIENT } from "@/lib/collection/recipient";
 import type { StepKey } from "../steps";
 import { toILDate } from "@/lib/dates";
@@ -36,7 +36,8 @@ export default function SummaryStep({
         <Row k="רכב" v={[s.vehicle.plate, s.vehicle.manufacturer].filter(Boolean).join(" · ") || "—"} onEdit={() => goTo("vehicle")} />
         <Row k="נהג" v={s.driver.parked ? "אף אחד — הרכב היה חנוי" : s.driver.isInsured === false ? `${s.driver.first_name} ${s.driver.last_name}`.trim() || "—" : s.driver.isInsured ? "המבוטח" : "—"} onEdit={() => goTo("driver_who")} />
         <Row k="מתי" v={[toILDate(s.accident.date), s.accident.time].filter(Boolean).join(" ") || "—"} onEdit={() => goTo("when_where")} />
-        <Row k="איפה" v={s.accident.location || "—"} onEdit={() => goTo("when_where")} />
+        <Row k="איפה" v={accidentPlace(s) || "—"} onEdit={() => goTo("when_where")} />
+        <Row k="מוקד נזק" v={damageFocusText(s).replace(/^מוקד נזק: /, "") || "—"} onEdit={() => goTo("damage")} />
         <Row k="מה קרה" v={s.accident.description || "—"} onEdit={() => goTo("description")} />
         <Row k="מי אשם" v={s.fault === "me" ? "אני" : s.fault === "third_party" ? "הצד השני" : "לא בטוח"} onEdit={() => goTo("fault")} />
         <Row

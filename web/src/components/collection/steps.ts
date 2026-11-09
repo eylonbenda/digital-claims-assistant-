@@ -5,7 +5,7 @@ import { REQUIRED_DOCS, allThirdParties, type State, type TpEntry } from "@/lib/
 export type StepKey =
   | "intro" | "injuries" | "driver_who" | "fault" | "tp_present"
   | "vehicle" | "insured" | "driver_details" | "tp_details"
-  | "when_where" | "description" | "documents" | "summary";
+  | "when_where" | "damage" | "description" | "documents" | "summary";
 
 export type Chapter = "intro" | "quick" | "details" | "finish";
 
@@ -20,9 +20,20 @@ export type StepDef = {
 const filled = (v: string) => v.trim().length > 0;
 const always = () => true;
 
-// details_unknown (hit-and-run) unblocks a vehicle — partial details are still kept.
-export const tpEntryComplete = (tp: TpEntry) =>
-  !!tp.details_unknown || (filled(tp.name) && filled(tp.plate) && filled(tp.insurer));
+// Only the plate is required — the claim is filed against the vehicle (expert review
+// 2026-11-01); driver name and insurer are asked but optional. details_unknown
+// (hit-and-run) unblocks a vehicle — partial details are still kept.
+export const tpEntryComplete = (tp: TpEntry) => !!tp.details_unknown || filled(tp.plate);
+
+// Areas picked (or "not sure"), then the "another focus?" follow-up answered — and,
+// on yes, at least one area for it.
+export function damageComplete(s: State): boolean {
+  const d = s.damage;
+  if (!d) return false;
+  if (d.unsure) return true;
+  if (!d.areas.length || d.hasMore === null) return false;
+  return !d.hasMore || d.moreAreas.length > 0;
+}
 
 // A required document is satisfied by enough completed uploads (two for the licence
 // — both sides) OR an explicit "I'll send it later" tap. Uploads still in flight or
@@ -59,7 +70,9 @@ export const STEPS: StepDef[] = [
     // claimant added and left blank holds the step until filled or removed.
     isComplete: (s) => allThirdParties(s).every(tpEntryComplete) },
   { key: "when_where",     chapter: "details", isTapStep: false, isRelevant: always,
-    isComplete: (s) => filled(s.accident.date) && filled(s.accident.time) && filled(s.accident.location) },
+    // The place (street + city) is optional — exact location matters only in a dispute.
+    isComplete: (s) => filled(s.accident.date) && filled(s.accident.time) },
+  { key: "damage",         chapter: "details", isTapStep: false, isRelevant: always, isComplete: damageComplete },
   { key: "description",    chapter: "details", isTapStep: false, isRelevant: always,
     isComplete: (s) => filled(s.accident.description) },
   { key: "documents",      chapter: "finish",  isTapStep: false, isRelevant: always, isComplete: docsSatisfied },
