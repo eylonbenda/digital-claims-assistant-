@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { sentTitle } from "@/lib/collection/recipient";
 import { compressImage } from "@/lib/images/compress";
-import { FOLLOWUP_TYPE_LABEL, followupFields, type FollowupDocType } from "@/lib/collection/followup-fields";
+import { followupLabel, type FollowupField } from "@/lib/collection/followup-fields";
 
-type DocType = FollowupDocType;
+type DocType = string;
 type LocalDoc = {
   localId: string;
   type: DocType;
@@ -14,23 +14,21 @@ type LocalDoc = {
   error?: string;
 };
 
-const TYPE_LABEL: Record<string, string> = FOLLOWUP_TYPE_LABEL;
-
 // Post-submit document upload: the client can add documents they didn't include the
 // first time (the agent often asks for more). Reuses POST /api/claims/documents.
 export default function FollowupUpload({
   token,
   existingCounts,
   handlerName,
-  claimType,
-  policyActivated,
+  fields,
 }: {
   token: string;
   existingCounts: Record<string, number>;
   // Name of the business handling the claim (agent or garage), when stored.
   handlerName?: string | null;
-  claimType: string | null;
-  policyActivated: boolean;
+  // From followupFields on the server: the still-missing documents a chase message
+  // can ask for, so every requested item has somewhere to go.
+  fields: FollowupField[];
 }) {
   const [docs, setDocs] = useState<LocalDoc[]>([]);
 
@@ -77,13 +75,13 @@ export default function FollowupUpload({
           כבר בתיק:{" "}
           {Object.entries(existingCounts)
             .filter(([, n]) => n > 0)
-            .map(([t, n]) => `${TYPE_LABEL[t] ?? t} (${n})`)
+            .map(([t, n]) => `${followupLabel(t)} (${n})`)
             .join(" · ")}
         </p>
       )}
 
       <div className="mt-5 space-y-3">
-        {followupFields(claimType, policyActivated).map((f) => (
+        {fields.map((f) => (
           <DocField
             key={f.type}
             label={f.label}

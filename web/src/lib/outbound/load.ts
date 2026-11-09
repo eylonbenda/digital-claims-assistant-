@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { computeChecklist, chaseItemLabels, satisfiedDocTypes } from "@/lib/claims/checklist";
+import { computeChecklist, chaseItemLabels, missingLateDocItems, satisfiedDocTypes } from "@/lib/claims/checklist";
 import type { Brief } from "@/lib/brief/brief";
 import {
   buildQueue,
