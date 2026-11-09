@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-10-31**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-09**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -417,3 +417,12 @@ cd web ; npm run dev
 
 ### Done since last sync (2026-10-31, PR #90 — קש template; חקלאי listed untemplated)
 - **No migration.** New `web/src/lib/formfill/templates/kash.ts` + bundled `assets/kash.pdf`, wired into the `formfill/index.ts` registry (now 12 templated insurers). `claim-state.ts`'s `INSURERS` and the dashboard's `INSURER_LABEL` gain `kash` (`templated: true`) and `haklai` (`templated: false` — see `form-field-map.md` for why), and `submission/directory.ts` gains both entry names.
+
+### Done since last sync (2026-11-09, PR #99 — third-party report docs requested at claim start)
+- **No migration.** `no_claim_confirmation` / `insurance_history` were already `doc_type` enum values.
+- **`third_party_report`'s checklist now matches the business process:** אישור אי-הגשת תביעה moves from the late section to `base` and stays `blocking` (still filtered out when `policy_activated`, replaced by `loss_confirmation`, unchanged); עבר ביטוחי moves from `conditional`/optional to `base`/`mandatory`, `blocking: false` for now — required but not gating submission until the pilot confirms insurers won't process a claim without it; `bank_details` drops from `mandatory` to optional (`claim-management.md` updated to match).
+- **New `chaseItemLabels()`** (`web/src/lib/claims/checklist.ts`) widens `chaseableLabels` to also include not-done, client-suppliable `base`-section mandatory items that don't block (i.e. עבר ביטוחי) — `outbound/load.ts`'s `blocking_labels` now comes from it instead of a plain `blocking && !done` filter, so `chase_missing_docs` can actually name a required-but-non-blocking doc.
+- **The post-submit follow-up link (`/c/[token]`, `FollowupUpload.tsx`) now accepts what it's asked for.** New pure `web/src/lib/collection/followup-fields.ts` (`followupFields(claimType, policyActivated)`) returns the upload fields per track — `third_party_report` adds אישור אי-הגשת תביעה (when not `policy_activated`) + עבר ביטוחי, `third_party_settlement` adds אישור אי-הגשת תביעה — and `POST /api/claims/documents`'s client-facing `ALLOWED_TYPES` gains both doc types. `page.tsx` now also selects `claim_type`/`policy_activated` to pass through.
+- **`composeSubmission` now attaches every checklist doc on file, not just mandatory ones** — optional docs the agent uploaded (e.g. `bank_details`, now optional) were silently dropped from the insurer email before.
+- `tasks/templates.ts`'s `collect_private_report_docs` title updated (dropped the now-stale "אישור אי-הגשה, עבר ביטוחי" — those are collected at claim start, not after the repair).
+- Unit-tested: `checklist.test.ts`, `followup-fields.test.ts` (new), `submission.test.ts`.
