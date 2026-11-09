@@ -104,6 +104,7 @@ const STEP_LABEL: Record<string, string> = {
   driver_details: "פרטי הנהג",
   tp_details: "פרטי הצד השני",
   when_where: "מועד ומקום התאונה",
+  damage: "מוקד הנזק",
   description: "תיאור התאונה",
   documents: "העלאת המסמכים",
   summary: "הסיכום והשליחה",

@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { computeChecklist, satisfiedDocTypes } from "@/lib/claims/checklist";
+import { TP_INSURER_UNKNOWN } from "@/lib/collection/claim-state";
 import { advanceTasks } from "./engine";
 import {
   STATUS_ORDER,
@@ -67,8 +68,12 @@ export async function runEngine(
 
     // The TP insurer lives in third_parties (written at submit), not claims.at_fault_insurer
     // (which no route populates). Prefer it; fall back to the claims column for forward-compat.
+    // "לא ידוע" is still to chase, so it doesn't count; "לא מבוטח" is a settled answer
+    // (there is no insurer to get), so it does close the get-insurer task.
     const atFaultInsurer =
-      (tpRows ?? []).map((t) => t.insurer).find((v) => !!v) ?? claim.at_fault_insurer ?? null;
+      (tpRows ?? []).map((t) => t.insurer).find((v) => !!v && v !== TP_INSURER_UNKNOWN) ??
+      claim.at_fault_insurer ??
+      null;
 
     const result = advanceTasks({
       claim: {

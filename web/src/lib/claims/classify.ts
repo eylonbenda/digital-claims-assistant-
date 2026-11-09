@@ -12,6 +12,7 @@
 // auditable and can't hallucinate a track.
 
 import type { ClaimData, ClaimType, Fault, InsuranceType } from "@/lib/formfill/types";
+import { TP_INSURER_NONE, isNamedTpInsurer } from "@/lib/collection/claim-state";
 
 export type IncidentKind =
   | "collision" // standard multi-vehicle impact
@@ -27,6 +28,7 @@ export type Confidence = "high" | "medium" | "low";
 export type ClassifierInput = {
   fault: Fault; // claimant-stated (me | third_party | unknown)
   thirdPartyIdentified: boolean; // do we hold a plate / insurer for a TP?
+  thirdPartyUninsured?: boolean; // claimant reported the TP as "לא מבוטח" — no insurer to claim from
   insuranceType?: InsuranceType; // comprehensive | mandatory | third_party
   incidentKind?: IncidentKind; // narrative-derived (LLM), optional
   inferredFault?: Fault; // narrative-derived (LLM), optional
@@ -57,8 +59,11 @@ const OWN_DAMAGE_KINDS: ReadonlySet<IncidentKind> = new Set([
 const NO_OWN_COVERAGE =
   "אין כיסוי מקיף — נזק לרכב עצמו אינו מכוסה, ולא ניתן לתבוע צד ג' מזוהה. ייתכן שאין תביעה רכושית ברת-מימוש.";
 
+const TP_UNINSURED =
+  "הצד השני דווח כלא מבוטח — אין מבטח צד ג' לתבוע מולו; יש לבדוק את מסלול הגבייה מול הנהג / בעל הרכב.";
+
 export function classify(input: ClaimInputResolved): Classification {
-  const { fault, thirdPartyIdentified, insuranceType, incidentKind, inferredFault } = input;
+  const { fault, thirdPartyIdentified, thirdPartyUninsured, insuranceType, incidentKind, inferredFault } = input;
 
   const hasComprehensive = insuranceType === "comprehensive";
   const coverageKnown = insuranceType != null;
@@ -128,6 +133,20 @@ export function classify(input: ClaimInputResolved): Classification {
     }
 
     case "third_party": {
+      // An uninsured TP leaves no insurer to claim from. The track isn't flipped here —
+      // the route is the agent's call — but confidence drops and the agent is warned.
+      if (thirdPartyUninsured) {
+        reasons.push("צד ג' מזוהה והלקוח אינו אשם, אך הצד השני דווח כלא מבוטח — אין מבטח צד ג' לתבוע מולו.");
+        return done("third_party_report", "low", {
+          reasons,
+          faultMismatch,
+          needsAgentChoice: true,
+          tpStrategyRecommendation: "third_party_report",
+          viabilityWarning: hasComprehensive
+            ? TP_UNINSURED + " קיים כיסוי מקיף — ניתן לשקול תביעה דרך פוליסת הלקוח."
+            : TP_UNINSURED,
+        });
+      }
       reasons.push("צד ג' מזוהה והלקוח אינו אשם — תביעה מול מבטח צד ג'.");
       reasons.push('בחירת מסלול נדרשת: "דוח פרטי" (מלא, אחרי תיקון) מול "הסדר" (אישור מראש).');
       return done("third_party_report", faultMismatch ? "low" : "high", {
@@ -197,11 +216,16 @@ export function classifyFromClaimData(
   data: ClaimData,
   signals?: { incidentKind?: IncidentKind; inferredFault?: Fault },
 ): Classification {
-  const thirdPartyIdentified =
-    data.third_parties?.some((tp) => !!(tp.vehicle_plate || tp.insurer)) ?? false;
+  // The "לא ידוע" / "לא מבוטח" sentinels are stored as the insurer value but don't
+  // identify anyone — only a plate or a named insurer does.
+  const tps = data.third_parties ?? [];
+  const thirdPartyIdentified = tps.some((tp) => !!tp.vehicle_plate?.trim() || isNamedTpInsurer(tp.insurer));
+  // Every reported vehicle uninsured — one insured vehicle still leaves an insurer to claim from.
+  const thirdPartyUninsured = tps.length > 0 && tps.every((tp) => tp.insurer === TP_INSURER_NONE);
   return classify({
     fault: data.fault ?? "unknown",
     thirdPartyIdentified,
+    thirdPartyUninsured,
     insuranceType: data.insurance_type,
     incidentKind: signals?.incidentKind,
     inferredFault: signals?.inferredFault,

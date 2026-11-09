@@ -23,7 +23,7 @@ describe("step registry", () => {
     expect(keys).toEqual([
       "intro", "injuries", "driver_who", "fault", "tp_present",
       "vehicle", "insured", "driver_details", "tp_details",
-      "when_where", "description", "documents", "summary",
+      "when_where", "damage", "description", "documents", "summary",
     ]);
   });
 
@@ -65,6 +65,7 @@ describe("step registry", () => {
       driver: { ...BASE.driver, isInsured: true },
       vehicle: { plate: "1234567", manufacturer: "טויוטה", year: "2020" },
       accident: { date: "2026-08-01", time: "10:00", location: "איילון", description: "פגיעה מאחור" },
+      damage: { areas: ["rear"], hasMore: false, moreAreas: [] },
       thirdParty: { ...BASE.thirdParty, present: false },
     };
     // Everything typed, but no licence/registration yet — resume must land on
@@ -121,18 +122,36 @@ describe("step registry", () => {
     expect(step.isComplete(hitAndRun)).toBe(true);
   });
 
-  it("tp_details.isComplete requires name/plate/insurer, not just some", () => {
+  it("tp_details.isComplete requires only the plate — name and insurer are optional", () => {
     const step = STEPS.find((s) => s.key === "tp_details")!;
-    const missingName: State = {
+    const noPlate: State = {
       ...BASE,
-      thirdParty: { ...BASE.thirdParty, present: true, name: "", plate: "1234567", insurer: "הראל" },
+      thirdParty: { ...BASE.thirdParty, present: true, name: "יוסי לוי", plate: " ", insurer: "הראל" },
     };
-    expect(step.isComplete(missingName)).toBe(false);
-    const filled: State = {
+    expect(step.isComplete(noPlate)).toBe(false);
+    const plateOnly: State = {
       ...BASE,
-      thirdParty: { ...BASE.thirdParty, present: true, name: "יוסי לוי", plate: "1234567", insurer: "הראל" },
+      thirdParty: { ...BASE.thirdParty, present: true, name: "", plate: "1234567", insurer: "" },
     };
-    expect(step.isComplete(filled)).toBe(true);
+    expect(step.isComplete(plateOnly)).toBe(true);
+  });
+
+  it("when_where completes on date + time; the place is optional", () => {
+    const step = STEPS.find((s) => s.key === "when_where")!;
+    expect(step.isComplete({ ...BASE, accident: { ...BASE.accident, date: "2026-11-01", time: "09:00" } })).toBe(true);
+    expect(step.isComplete({ ...BASE, accident: { ...BASE.accident, date: "2026-11-01" } })).toBe(false);
+  });
+
+  it("damage completes on areas + an answered follow-up, or on 'not sure'", () => {
+    const step = STEPS.find((s) => s.key === "damage")!;
+    const d = (damage: State["damage"]) => step.isComplete({ ...BASE, damage });
+    expect(d(undefined)).toBe(false);
+    expect(d({ areas: [], hasMore: null, moreAreas: [] })).toBe(false);
+    expect(d({ areas: ["front", "right"], hasMore: null, moreAreas: [] })).toBe(false);
+    expect(d({ areas: ["front", "right"], hasMore: false, moreAreas: [] })).toBe(true);
+    expect(d({ areas: ["front"], hasMore: true, moreAreas: [] })).toBe(false);
+    expect(d({ areas: ["front"], hasMore: true, moreAreas: ["rear"] })).toBe(true);
+    expect(d({ areas: [], unsure: true, hasMore: null, moreAreas: [] })).toBe(true);
   });
 
   it("tp_details.isComplete holds on a blank extra vehicle until filled, unknown, or removed", () => {

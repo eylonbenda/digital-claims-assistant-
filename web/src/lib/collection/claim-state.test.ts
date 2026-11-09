@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { licenceHolderName, toClaimData, type State } from "./claim-state";
+import {
+  TP_INSURER_NONE,
+  TP_INSURER_UNKNOWN,
+  isNamedTpInsurer,
+  licenceHolderName,
+  toClaimData,
+  type State,
+} from "./claim-state";
 
 const base: State = {
   consent: true,
@@ -141,6 +148,57 @@ describe("toClaimData — insurance type", () => {
   it('omits insurance_type for "" and for the "unknown" sentinel', () => {
     expect(toClaimData({ ...base, insuranceType: "" }).insurance_type).toBeUndefined();
     expect(toClaimData({ ...base, insuranceType: "unknown" }).insurance_type).toBeUndefined();
+  });
+});
+
+describe("toClaimData — accident place", () => {
+  it("joins street + city into the single location cell", () => {
+    const d = toClaimData({ ...base, accident: { ...base.accident, street: "דרך אחוזה", city: "רעננה" } });
+    expect(d.accident?.location).toBe("דרך אחוזה, רעננה");
+  });
+
+  it("accepts either part alone, and neither", () => {
+    expect(toClaimData({ ...base, accident: { ...base.accident, location: "", city: "חיפה" } }).accident?.location).toBe("חיפה");
+    expect(toClaimData({ ...base, accident: { ...base.accident, location: "", street: "", city: "" } }).accident?.location).toBe("");
+  });
+
+  it("keeps a pre-split free-text location as the street", () => {
+    expect(toClaimData(base).accident?.location).toBe("צומת");
+    expect(toClaimData({ ...base, accident: { ...base.accident, city: "חיפה" } }).accident?.location).toBe("צומת, חיפה");
+  });
+});
+
+describe("toClaimData — damage focus", () => {
+  it("fills damage.insured_vehicle and appends it to the description", () => {
+    const d = toClaimData({ ...base, damage: { areas: ["right", "front"], hasMore: true, moreAreas: ["rear"] } });
+    expect(d.damage?.insured_vehicle).toBe("מוקד נזק: קדמי + צד ימין; מוקד נזק נוסף: אחורי");
+    expect(d.accident?.description).toBe("פגיעה מאחור | מוקד נזק: קדמי + צד ימין; מוקד נזק נוסף: אחורי");
+  });
+
+  it("ignores stale extra areas once the follow-up is answered no", () => {
+    const d = toClaimData({ ...base, damage: { areas: ["left"], hasMore: false, moreAreas: ["rear"] } });
+    expect(d.damage?.insured_vehicle).toBe("מוקד נזק: צד שמאל");
+  });
+
+  it('records "not sure" as an unknown focus', () => {
+    const d = toClaimData({ ...base, damage: { areas: [], unsure: true, hasMore: null, moreAreas: [] } });
+    expect(d.damage?.insured_vehicle).toBe("מוקד נזק: לא ידוע");
+  });
+
+  it("leaves damage and the description untouched when unanswered (older claims)", () => {
+    const d = toClaimData(base);
+    expect(d.damage).toBeUndefined();
+    expect(d.accident?.description).toBe("פגיעה מאחור");
+  });
+});
+
+describe("isNamedTpInsurer", () => {
+  it("rejects the unknown / uninsured sentinels and blanks", () => {
+    expect(isNamedTpInsurer("הראל")).toBe(true);
+    expect(isNamedTpInsurer(TP_INSURER_UNKNOWN)).toBe(false);
+    expect(isNamedTpInsurer(TP_INSURER_NONE)).toBe(false);
+    expect(isNamedTpInsurer(" ")).toBe(false);
+    expect(isNamedTpInsurer(null)).toBe(false);
   });
 });
 
