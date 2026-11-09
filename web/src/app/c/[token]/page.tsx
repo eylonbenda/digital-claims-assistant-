@@ -28,7 +28,7 @@ export default async function CollectPage({
     // agents(name) is the business handling this claim — an insurance agent or a
     // garage. Embedded via the claims.agent_id FK so the client screens can name
     // the real recipient instead of assuming "הסוכן".
-    .select("id, status, client_name, client_phone, summary_json, agents(name)")
+    .select("id, status, client_name, client_phone, summary_json, claim_type, policy_activated, agents(name)")
     .eq("access_token", token)
     .single();
 
@@ -72,7 +72,13 @@ export default async function CollectPage({
       existingCounts[d.type] = (existingCounts[d.type] ?? 0) + 1;
     }
     return (
-      <FollowupUpload token={token} existingCounts={existingCounts} handlerName={handlerName} />
+      <FollowupUpload
+        token={token}
+        existingCounts={existingCounts}
+        handlerName={handlerName}
+        claimType={claim.claim_type}
+        policyActivated={!!claim.policy_activated}
+      />
     );
   }
 

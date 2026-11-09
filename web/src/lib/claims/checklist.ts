@@ -63,6 +63,12 @@ const THIRD_PARTY_REPORT: ChecklistItemDef[] = [
   { key: "vehicle_reg",              label: "רישיון רכב",                               kind: "doc",  docType: "vehicle_reg",              mandatory: true,  blocking: true,  section: "base" },
   { key: "car_photo",                label: "תמונות נזק",                               kind: "doc",  docType: "car_photo",                mandatory: true,  blocking: true,  section: "base" },
   { key: "demand_form",              label: "מכתב דרישה",                               kind: "doc",  docType: "demand_form",              mandatory: true,  blocking: true,  section: "base", clientSuppliable: false },
+  // Requested when the claim opens. Mutually exclusive with loss_confirmation —
+  // filtered by policy_activated in computeChecklist.
+  { key: "no_claim_confirmation",    label: "אישור אי-הגשת תביעה",                      kind: "doc",  docType: "no_claim_confirmation",    mandatory: true,  blocking: true,  section: "base", note: "כשלא הופעלה פוליסת הלקוח" },
+  // Required but not gating submission until the pilot confirms insurers won't
+  // handle a claim without it — it may be slow to obtain.
+  { key: "insurance_history",        label: "עבר ביטוחי",                               kind: "doc",  docType: "insurance_history",        mandatory: true,  blocking: false, section: "base" },
   { key: "appraiser_report",         label: "דוח שמאי (כולל תמונות צבעוניות)",          kind: "doc",  docType: "appraiser_report",         mandatory: true,  blocking: true,  section: "late" },
   { key: "assessor_fee_invoice",     label: 'חשבון שכ"ט שמאי',                         kind: "doc",  docType: "assessor_fee_invoice",     mandatory: true,  blocking: false, section: "late" },
   { key: "assessor_fee_receipt",     label: 'קבלה על שכ"ט שמאי',                       kind: "doc",  docType: "assessor_fee_receipt",     mandatory: true,  blocking: false, section: "late" },
@@ -70,12 +76,9 @@ const THIRD_PARTY_REPORT: ChecklistItemDef[] = [
   // Still required for the file, but deliberately not gating readiness for now —
   // the receipt lands well after the invoice and was stalling otherwise-ready claims.
   { key: "repair_receipt",           label: "קבלה על תשלום (≠ חשבונית)",               kind: "doc",  docType: "repair_receipt",           mandatory: true,  blocking: false, section: "late", note: "נדרשת בנפרד מהחשבונית" },
-  { key: "bank_details",             label: "פרטי חשבון בנק",                           kind: "doc",  docType: "bank_details",             mandatory: true,  blocking: false, section: "late" },
-  // Mutually exclusive — filtered by policy_activated flag in computeChecklist
-  { key: "no_claim_confirmation",    label: "אישור אי-הגשת תביעה",                      kind: "doc",  docType: "no_claim_confirmation",    mandatory: true,  blocking: true,  section: "late", note: "כשלא הופעלה פוליסת הלקוח" },
-  { key: "loss_confirmation",        label: "אישור הפסדים",                             kind: "doc",  docType: "loss_confirmation",        mandatory: false, blocking: true,  section: "late", note: "כשהופעלה פוליסת הלקוח" },
+  { key: "bank_details",             label: "פרטי חשבון בנק",                           kind: "doc",  docType: "bank_details",             mandatory: false, blocking: false, section: "late", note: "אופציונלי" },
+  { key: "loss_confirmation",      label: "אישור הפסדים",                             kind: "doc",  docType: "loss_confirmation",        mandatory: false, blocking: true,  section: "late", note: "כשהופעלה פוליסת הלקוח" },
   // Optional / conditional
-  { key: "insurance_history",        label: "עבר ביטוחי",                               kind: "doc",  docType: "insurance_history",        mandatory: false, blocking: false, section: "conditional", note: "ירידת ערך / אובדן גמור" },
   { key: "info_consent",             label: "הסכמה למשרד הרישוי",                       kind: "doc",  docType: "info_consent",             mandatory: false, blocking: false, section: "conditional", note: "לבדיקת עבר הרכב" },
   { key: "power_of_attorney",        label: "ייפוי כוח (§68)",                          kind: "doc",  docType: "power_of_attorney",        mandatory: false, blocking: false, section: "conditional", note: 'כשמגיש עו"ד / מוסך / סוכן' },
   { key: "car_at_garage",            label: "רכב נכנס למוסך",                           kind: "milestone", mandatory: true,  blocking: false, section: "milestone" },
@@ -212,6 +215,15 @@ export function chaseableLabels(
   return items
     .filter((i) => i.kind === "doc" && i.clientSuppliable !== false)
     .map((i) => i.label);
+}
+
+// What the outbound chase asks the client for. Wider than the blocking list: a
+// required start-of-claim doc that doesn't gate submission (עבר ביטוחי) keeps
+// chase_missing_docs open, so the message has to name it.
+export function chaseItemLabels(items: ComputedItem[]): string[] {
+  return chaseableLabels(
+    items.filter((i) => !i.done && (i.blocking || (i.section === "base" && i.mandatory))),
+  );
 }
 
 export function groupBySection(

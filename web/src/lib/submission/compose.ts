@@ -47,11 +47,11 @@ export function composeSubmission(input: {
   const entry = insurerKey ? INSURER_DIRECTORY[insurerKey] : undefined;
 
   // Attachments: the latest generated accident-notice form, then every uploaded
-  // doc whose checklist item is mandatory for this track, labeled in Hebrew.
+  // doc on this track's checklist, labeled in Hebrew.
   const attachments: { label: string; storagePath: string }[] = [];
   const form = forms[0];
   if (form) attachments.push({ label: "טופס הודעה על תאונה", storagePath: form.storage_path });
-  // Every file of a mandatory type is listed — the פקידה attaches from this
+  // Every file of each type is listed — the פקידה attaches from this
   // list, so collapsing multi-file types (damage photos, both licence sides)
   // would send an incomplete packet that looks complete.
   const byType = new Map<string, string[]>();
@@ -61,7 +61,8 @@ export function composeSubmission(input: {
     byType.set(d.type, list);
   }
   for (const item of checklist) {
-    if (item.kind !== "doc" || !item.mandatory || !item.docType || !item.done) continue;
+    // Optional docs count too: if it's on file, someone meant the insurer to see it.
+    if (item.kind !== "doc" || !item.docType || !item.done) continue;
     const paths = byType.get(item.docType) ?? [];
     paths.forEach((path, i) => {
       const label = paths.length > 1 ? `${item.label} (${i + 1}/${paths.length})` : item.label;

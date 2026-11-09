@@ -9,7 +9,14 @@ const BUCKET = "claim-docs";
 const MAX_BYTES = 8 * 1024 * 1024; // 8MB safety cap (images are compressed client-side first)
 
 // Claimant-facing subset of the doc_type enum. Prevents a client from writing agent-only types.
-const ALLOWED_TYPES = new Set(["car_photo", "drivers_license", "vehicle_reg", "third_party_doc"]);
+const ALLOWED_TYPES = new Set([
+  "car_photo",
+  "drivers_license",
+  "vehicle_reg",
+  "third_party_doc",
+  "no_claim_confirmation",
+  "insurance_history",
+]);
 
 // Uploads are accepted right up until the claim is closed — clients routinely add
 // documents after the initial submit (the agent asks for more, or they forgot one).
