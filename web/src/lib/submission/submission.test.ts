@@ -126,6 +126,31 @@ describe("composeSubmission", () => {
   });
 });
 
+describe("composeSubmission — optional doc types", () => {
+  const optional = (done: boolean): ComputedItem => ({
+    ...doc("bank_details", "פרטי חשבון בנק", "bank_details", done),
+    mandatory: false,
+  });
+
+  test("an optional doc on file reaches the insurer", () => {
+    const r = composeSubmission({
+      claim: CLAIM,
+      checklist: [optional(true)],
+      docs: [{ type: "bank_details", storage_path: "c/1/bank.pdf" }],
+      forms: [],
+    });
+    if (!r) throw new Error("expected submission");
+    expect(r.attachments).toEqual([{ label: "פרטי חשבון בנק", storagePath: "c/1/bank.pdf" }]);
+    expect(r.body).toContain("- פרטי חשבון בנק");
+  });
+
+  test("an optional doc that was never uploaded is not listed", () => {
+    const r = composeSubmission({ claim: CLAIM, checklist: [optional(false)], docs: [], forms: [] });
+    if (!r) throw new Error("expected submission");
+    expect(r.attachments).toEqual([]);
+  });
+});
+
 describe("composeSubmission — multi-file doc types", () => {
   test("every uploaded file of a mandatory type is listed, numbered", () => {
     const checklist2: ComputedItem[] = [

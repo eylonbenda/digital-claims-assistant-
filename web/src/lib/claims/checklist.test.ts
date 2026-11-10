@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeChecklist, chaseableLabels, satisfiedDocTypes, type ClaimFlags } from "./checklist";
+import { computeChecklist, chaseableLabels, chaseItemLabels, satisfiedDocTypes, type ClaimFlags } from "./checklist";
 
 const NO_FLAGS: ClaimFlags = {
   theft: false, lien: false, business_use: false,
@@ -50,6 +50,52 @@ describe("computeChecklist — own_policy conditional docs", () => {
     );
     expect(blockingKeys(items)).not.toContain("police_report");
     expect(items.find((i) => i.key === "keys")?.done).toBe(true);
+  });
+});
+
+describe("computeChecklist — third_party_report document timing", () => {
+  const items = computeChecklist("third_party_report", new Set(), false, {}, NO_FLAGS);
+  const item = (key: string) => items.find((i) => i.key === key);
+
+  it("asks for אישור אי-הגשה at the start and keeps it blocking", () => {
+    expect(item("no_claim_confirmation")).toMatchObject({ section: "base", mandatory: true, blocking: true });
+  });
+
+  it("asks for עבר ביטוחי at the start as required, without gating submission", () => {
+    expect(item("insurance_history")).toMatchObject({ section: "base", mandatory: true, blocking: false });
+  });
+
+  it("treats the bank / account confirmation as optional", () => {
+    expect(item("bank_details")).toMatchObject({ mandatory: false, blocking: false });
+  });
+
+  it("keeps אישור הפסדים post-repair: it depends on the client's own insurer paying out", () => {
+    const activated = computeChecklist(
+      "third_party_report", new Set(), false, {}, { ...NO_FLAGS, policy_activated: true },
+    );
+    expect(activated.find((i) => i.key === "loss_confirmation")).toMatchObject({ section: "late", mandatory: true });
+  });
+});
+
+describe("chaseItemLabels", () => {
+  it("asks the client for blocking docs and for required start-of-claim docs that don't block", () => {
+    const items = computeChecklist("third_party_report", new Set(), false, {}, NO_FLAGS);
+    const labels = chaseItemLabels(items);
+    expect(labels).toContain("אישור אי-הגשת תביעה");
+    expect(labels).toContain("עבר ביטוחי");
+  });
+
+  it("never asks for the demand letter, the generated form, or optional docs", () => {
+    const items = computeChecklist("third_party_report", new Set(), false, {}, NO_FLAGS);
+    const labels = chaseItemLabels(items);
+    expect(labels).not.toContain("מכתב דרישה");
+    expect(labels).not.toContain("טופס הודעה על תאונה");
+    expect(labels).not.toContain("פרטי חשבון בנק");
+  });
+
+  it("drops a doc once it is on file", () => {
+    const items = computeChecklist("third_party_report", new Set(["insurance_history"]), false, {}, NO_FLAGS);
+    expect(chaseItemLabels(items)).not.toContain("עבר ביטוחי");
   });
 });
 

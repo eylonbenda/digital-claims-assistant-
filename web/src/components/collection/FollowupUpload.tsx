@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { sentTitle } from "@/lib/collection/recipient";
 import { compressImage } from "@/lib/images/compress";
+import { FOLLOWUP_TYPE_LABEL, followupFields, type FollowupDocType } from "@/lib/collection/followup-fields";
 
-type DocType = "car_photo" | "drivers_license" | "vehicle_reg" | "third_party_doc";
+type DocType = FollowupDocType;
 type LocalDoc = {
   localId: string;
   type: DocType;
@@ -13,19 +14,7 @@ type LocalDoc = {
   error?: string;
 };
 
-const FIELDS: { type: DocType; label: string; hint?: string; multiple?: boolean }[] = [
-  { type: "car_photo", label: "תמונות הרכב והנזק", hint: "כמה זוויות של הנזק", multiple: true },
-  { type: "drivers_license", label: "רישיון נהיגה" },
-  { type: "vehicle_reg", label: "רישיון רכב" },
-  { type: "third_party_doc", label: "מסמכי הצד השני", hint: "אם רלוונטי", multiple: true },
-];
-
-const TYPE_LABEL: Record<string, string> = {
-  car_photo: "תמונות הרכב והנזק",
-  drivers_license: "רישיון נהיגה",
-  vehicle_reg: "רישיון רכב",
-  third_party_doc: "מסמכי הצד השני",
-};
+const TYPE_LABEL: Record<string, string> = FOLLOWUP_TYPE_LABEL;
 
 // Post-submit document upload: the client can add documents they didn't include the
 // first time (the agent often asks for more). Reuses POST /api/claims/documents.
@@ -33,11 +22,15 @@ export default function FollowupUpload({
   token,
   existingCounts,
   handlerName,
+  claimType,
+  policyActivated,
 }: {
   token: string;
   existingCounts: Record<string, number>;
   // Name of the business handling the claim (agent or garage), when stored.
   handlerName?: string | null;
+  claimType: string | null;
+  policyActivated: boolean;
 }) {
   const [docs, setDocs] = useState<LocalDoc[]>([]);
 
@@ -90,7 +83,7 @@ export default function FollowupUpload({
       )}
 
       <div className="mt-5 space-y-3">
-        {FIELDS.map((f) => (
+        {followupFields(claimType, policyActivated).map((f) => (
           <DocField
             key={f.type}
             label={f.label}
