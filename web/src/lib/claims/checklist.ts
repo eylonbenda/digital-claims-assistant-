@@ -112,6 +112,9 @@ const TRACK_ITEMS: Record<string, ChecklistItemDef[]> = {
   unknown: UNKNOWN,
 };
 
+// Every item of every track, for derivations that must cover all tracks.
+export const ALL_TRACK_ITEMS: readonly ChecklistItemDef[] = Object.values(TRACK_ITEMS).flat();
+
 // ─── public API ──────────────────────────────────────────────────────────────
 
 // Completed uploads needed before a document counts as supplied on the agent side.
@@ -212,19 +215,59 @@ export function computeChecklist(
 export function chaseableLabels(
   items: { kind: ItemKind; label: string; clientSuppliable?: boolean }[],
 ): string[] {
-  return items
-    .filter((i) => i.kind === "doc" && i.clientSuppliable !== false)
-    .map((i) => i.label);
+  return items.filter(isClientDoc).map((i) => i.label);
 }
 
 // What the outbound chase asks the client for. Wider than the blocking list: a
 // required start-of-claim doc that doesn't gate submission (עבר ביטוחי) keeps
 // chase_missing_docs open, so the message has to name it.
 export function chaseItemLabels(items: ComputedItem[]): string[] {
-  return chaseableLabels(
-    items.filter((i) => !i.done && (i.blocking || (i.section === "base" && i.mandatory))),
+  return chaseItems(items).map((i) => i.label);
+}
+
+function isClientDoc(i: { kind: ItemKind; clientSuppliable?: boolean }): boolean {
+  return i.kind === "doc" && i.clientSuppliable !== false;
+}
+
+// The items behind chaseItemLabels (chase_missing_docs, and the cockpit's ad-hoc
+// chase, which asks for a subset of these).
+export function chaseItems(items: ComputedItem[]): ComputedItem[] {
+  return items.filter(
+    (i) => isClientDoc(i) && !i.done && (i.blocking || (i.section === "base" && i.mandatory)),
   );
 }
+
+// The items behind missing_doc_labels (collect_private_report_docs): required
+// post-repair docs the checklist doesn't gate readiness on (repair_receipt, the
+// assessor fee docs), so they still get asked for.
+export function missingLateDocItems(items: ComputedItem[]): ComputedItem[] {
+  return items.filter((i) => isClientDoc(i) && i.mandatory && !i.done && i.section === "late");
+}
+
+// Every not-done item any chase message may ask the client for, deduplicated, in
+// checklist order. The client follow-up link renders an upload field per item, so
+// whatever a message names, the link can accept.
+export function clientRequestedItems(items: ComputedItem[]): ComputedItem[] {
+  const keys = new Set([...chaseItems(items), ...missingLateDocItems(items)].map((i) => i.key));
+  return items.filter((i) => keys.has(i.key));
+}
+
+// Doc types a client may upload through the public token routes: every doc any
+// track lists as client-suppliable, plus the free-form third-party bucket the
+// wizard collects. A type marked clientSuppliable: false on ANY track is never in
+// here — the token route is unauthenticated beyond the link, and an agent-side
+// document (the demand letter) must not be writable from it.
+export const CLIENT_UPLOAD_DOC_TYPES: ReadonlySet<string> = (() => {
+  const all = ALL_TRACK_ITEMS;
+  const agentOnly = new Set(
+    all.filter((i) => i.kind === "doc" && i.clientSuppliable === false).map((i) => i.docType),
+  );
+  const types = new Set<string>(["third_party_doc"]);
+  for (const i of all) {
+    if (isClientDoc(i) && i.docType && !agentOnly.has(i.docType)) types.add(i.docType);
+  }
+  return types;
+})();
 
 export function groupBySection(
   items: ComputedItem[],
