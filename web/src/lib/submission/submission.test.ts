@@ -199,4 +199,32 @@ describe("composeSubmission — demand form", () => {
     expect(paths).toContain("c/1/libra.pdf");
     expect(paths).not.toContain("c/1/demand.pdf");
   });
+
+  test("an uploaded demand form wins even when it is not on the checklist", () => {
+    const r = composeSubmission({
+      claim: CLAIM,
+      checklist: [],
+      docs: [{ type: "demand_form", storage_path: "c/1/libra.pdf" }],
+      forms: [],
+      demandForms: [{ storage_path: "c/1/demand.pdf" }],
+    });
+    if (!r) throw new Error("expected submission");
+    expect(r.attachments.map((a) => a.storagePath)).not.toContain("c/1/demand.pdf");
+  });
+
+  test.each(["own_policy", "third_party_settlement"] as const)(
+    "a stale generated demand form is not attached on %s",
+    (claimType) => {
+      const r = composeSubmission({
+        claim: { ...CLAIM, claimType, policyInsurer: "migdal" },
+        checklist: [],
+        docs: [],
+        forms: [],
+        demandForms: [{ storage_path: "c/1/demand.pdf" }],
+      });
+      if (!r) throw new Error("expected submission");
+      expect(r.attachments.map((a) => a.storagePath)).not.toContain("c/1/demand.pdf");
+      expect(r.body).not.toContain("טופס דרישה");
+    },
+  );
 });

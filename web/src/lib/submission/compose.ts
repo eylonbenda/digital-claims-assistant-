@@ -62,20 +62,22 @@ export function composeSubmission(input: {
     list.push(d.storage_path);
     byType.set(d.type, list);
   }
-  let hasUploadedDemand = false;
   for (const item of checklist) {
     // Optional docs count too: if it's on file, someone meant the insurer to see it.
     if (item.kind !== "doc" || !item.docType || !item.done) continue;
     const paths = byType.get(item.docType) ?? [];
-    if (item.docType === "demand_form" && paths.length) hasUploadedDemand = true;
     paths.forEach((path, i) => {
       const label = paths.length > 1 ? `${item.label} (${i + 1}/${paths.length})` : item.label;
       attachments.push({ label, storagePath: path });
     });
   }
-  // An uploaded demand form (e.g. from Libra) wins; otherwise attach the newest generated one.
+  // The generated demand form belongs to the third_party_report track only — the
+  // classification is revisable, so a form generated before a track change must not
+  // ride along on another track's submission. An uploaded demand form (e.g. from
+  // Libra) wins; otherwise attach the newest generated one.
+  const hasUploadedDemand = docs.some((d) => d.type === "demand_form");
   const demand = demandForms[0];
-  if (!hasUploadedDemand && demand) attachments.push({ label: "טופס דרישה", storagePath: demand.storage_path });
+  if (claim.claimType === "third_party_report" && !hasUploadedDemand && demand) attachments.push({ label: "טופס דרישה", storagePath: demand.storage_path });
 
   return {
     insurerKey: insurerKey ?? null,
