@@ -19,7 +19,7 @@ import ClaimDocuments, { type DocView } from "./ClaimDocuments";
 import FormGenerator, { type InsurerOption } from "./FormGenerator";
 import FormFieldEditor from "./FormFieldEditor";
 import DemandFormPanel from "./DemandFormPanel";
-import { resolveAddressee } from "@/lib/demand/data";
+import { demandAddressee } from "@/lib/demand/inputs";
 import { INSURER_DIRECTORY } from "@/lib/submission/directory";
 import ChecklistPanel from "./ChecklistPanel";
 import AgentDocUpload from "./AgentDocUpload";
@@ -648,9 +648,9 @@ export default async function ClaimDetailPage({
                   }
                   senderMissing={!agentRow?.name?.trim()}
                   addresseeResolved={
-                    resolveAddressee(
+                    demandAddressee(
                       ((claim as Record<string, unknown>).at_fault_insurer as string | null) ?? null,
-                      (tpRows ?? []).map((t) => (t.insurer as string | null) ?? null),
+                      formClaimData,
                     ) !== null
                   }
                   insurerOptions={Object.entries(INSURER_DIRECTORY).map(([key, e]) => ({

@@ -2,6 +2,7 @@
 // unit-tested without Supabase.
 import { INSURER_DIRECTORY } from "../submission/directory";
 import { milestoneDates, type MilestoneEvent } from "../claims/milestone-dates";
+import type { ClaimData } from "../formfill/types";
 import { resolveAddressee } from "./data";
 
 export const DEMAND_TRACK = "third_party_report";
@@ -19,10 +20,19 @@ export function parseDemandFormBody(body: unknown): DemandFormBody {
   return { ok: true, atFaultInsurer: v };
 }
 
+// Who the demand is addressed to: claims.at_fault_insurer first, else the third
+// parties' insurers from the effective claim data (agent edits included) — the same
+// source the PDF's third-party rows and the submission read. Never the third_parties
+// table: it is written once at submit and form-data edits don't sync it.
+export function demandAddressee(atFaultInsurer: string | null, data: ClaimData | null): string | null {
+  return resolveAddressee(atFaultInsurer, (data?.third_parties ?? []).map((t) => t.insurer ?? null));
+}
+
 // Rows read from the DB -> the non-content inputs of buildDemandData.
+// `data` is effectiveClaimData(summary_json).
 export function demandInputs(input: {
   atFaultInsurer: string | null;
-  tpInsurers: (string | null)[];
+  data: ClaimData | null;
   agent: { name: string | null; phone: string | null; email: string | null } | null;
   events: MilestoneEvent[];
 }): {
@@ -31,7 +41,7 @@ export function demandInputs(input: {
   carAtGarageAt: string | null;
 } {
   return {
-    addresseeKey: resolveAddressee(input.atFaultInsurer, input.tpInsurers),
+    addresseeKey: demandAddressee(input.atFaultInsurer, input.data),
     sender: {
       name: input.agent?.name ?? null,
       phone: input.agent?.phone ?? null,

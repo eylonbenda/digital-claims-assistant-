@@ -31,11 +31,10 @@ export async function generateDemandForm(claimId: string): Promise<GenerateDeman
     if (!claim) return { ok: false, reason: "not_found" };
     if (claim.claim_type !== DEMAND_TRACK) return { ok: false, reason: "not_third_party_report" };
 
-    const [agentRes, tpRes, evRes, priorRes] = await Promise.all([
+    const [agentRes, evRes, priorRes] = await Promise.all([
       claim.agent_id
         ? svc.from("agents").select("name, phone, email").eq("id", claim.agent_id).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
-      svc.from("third_parties").select("insurer").eq("claim_id", claimId),
       svc
         .from("claim_events")
         .select("type, payload_json, created_at")
@@ -47,16 +46,18 @@ export async function generateDemandForm(claimId: string): Promise<GenerateDeman
         .eq("claim_id", claimId)
         .eq("kind", FORM_KIND.demand),
     ]);
-    for (const r of [agentRes, tpRes, evRes, priorRes]) if (r.error) throw r.error;
+    for (const r of [agentRes, evRes, priorRes]) if (r.error) throw r.error;
 
+    // One source for the addressee and the PDF's third-party rows (agent edits included).
+    const data = effectiveClaimData(claim.summary_json as ClaimSummaryJson);
     const inputs = demandInputs({
       atFaultInsurer: (claim.at_fault_insurer as string | null) ?? null,
-      tpInsurers: (tpRes.data ?? []).map((t) => (t.insurer as string | null) ?? null),
+      data,
       agent: agentRes.data as { name: string | null; phone: string | null; email: string | null } | null,
       events: (evRes.data ?? []) as { type: string; payload_json: unknown; created_at: string }[],
     });
     const doc = buildDemandData({
-      data: effectiveClaimData(claim.summary_json as ClaimSummaryJson),
+      data,
       ...inputs,
       now: new Date(),
     });

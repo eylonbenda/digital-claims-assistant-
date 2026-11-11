@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { demandInputs, parseDemandFormBody } from "./inputs";
+import { demandAddressee, demandInputs, parseDemandFormBody } from "./inputs";
+import { effectiveClaimData, type ClaimSummaryJson } from "../formfill/effective";
+
+type ClaimSummaryJsonCollected = NonNullable<NonNullable<ClaimSummaryJson>["collected"]>;
 
 describe("parseDemandFormBody", () => {
   it("treats a missing body or field as no change", () => {
@@ -31,7 +34,7 @@ describe("demandInputs", () => {
   it("resolves addressee, sender and car-at-garage date", () => {
     const r = demandInputs({
       atFaultInsurer: null,
-      tpInsurers: ["מגדל"],
+      data: { third_parties: [{ insurer: "מגדל" }] },
       agent: { name: "מוסך", phone: "03-1", email: null },
       events: [tick("car_at_garage", true, "2026-11-01T08:00:00Z"), tick("other", true, "2026-11-02T08:00:00Z")],
     });
@@ -45,12 +48,33 @@ describe("demandInputs", () => {
   it("prefers at_fault_insurer and tolerates a missing agent and an un-ticked milestone", () => {
     const r = demandInputs({
       atFaultInsurer: "harel",
-      tpInsurers: ["מגדל"],
+      data: { third_parties: [{ insurer: "מגדל" }] },
       agent: null,
       events: [tick("car_at_garage", true, "2026-11-01T08:00:00Z"), tick("car_at_garage", false, "2026-11-03T08:00:00Z")],
     });
     expect(r.addresseeKey).toBe("harel");
     expect(r.sender).toEqual({ name: null, phone: null, email: null });
     expect(r.carAtGarageAt).toBeNull();
+  });
+
+  it("addresses the insurer from the agent-edited form data, not the client's submission", () => {
+    const summary = {
+      collected: {} as ClaimSummaryJsonCollected,
+      form_data: { third_parties: [{ insurer: "מגדל" }] },
+    };
+    const r = demandInputs({
+      atFaultInsurer: null,
+      data: effectiveClaimData(summary),
+      agent: null,
+      events: [],
+    });
+    expect(r.addresseeKey).toBe("migdal");
+  });
+
+  it("leaves the addressee unresolved when edited third parties disagree", () => {
+    expect(
+      demandAddressee(null, { third_parties: [{ insurer: "מגדל" }, { insurer: "הראל" }] }),
+    ).toBeNull();
+    expect(demandAddressee(null, null)).toBeNull();
   });
 });
