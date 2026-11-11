@@ -14,7 +14,7 @@ const MARK = rgb(0.75, 0.05, 0.05);
 // Blank template PDFs + the Hebrew font live next to this module.
 // NOTE: app-hebrew.ttf is Noto Sans Hebrew (OFL 1.1 — license bundled as OFL.txt).
 // Path is process.cwd()-relative and bundled via next.config `outputFileTracingIncludes`.
-const ASSETS = path.join(process.cwd(), "src", "lib", "formfill", "assets");
+export const ASSETS = path.join(process.cwd(), "src", "lib", "formfill", "assets");
 
 export type TextField = {
   key: string;
@@ -74,7 +74,7 @@ type Page = ReturnType<PDFDocument["getPages"]>[number];
 type Font = Awaited<ReturnType<PDFDocument["embedFont"]>>;
 
 // Right-anchored at `right`. Mixed RTL/LTR text is drawn run by run (see bidi.ts).
-function drawRightAnchored(page: Page, text: string, right: number, y: number, size: number, font: Font) {
+export function drawRightAnchored(page: Page, text: string, right: number, y: number, size: number, font: Font) {
   const runs = visualRuns(text);
   const widths = runs.map((r) => font.widthOfTextAtSize(r.text, size));
   let x = right - widths.reduce((a, b) => a + b, 0);
