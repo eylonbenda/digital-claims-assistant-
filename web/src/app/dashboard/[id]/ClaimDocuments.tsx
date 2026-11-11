@@ -138,7 +138,7 @@ function DocCard({ doc, onZoom }: { doc: DocView; onZoom: () => void }) {
       <button
         type="button"
         onClick={onZoom}
-        className="group relative aspect-square overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100"
+        className="group relative block aspect-square w-full overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100"
         title={`הועלה ${date}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
