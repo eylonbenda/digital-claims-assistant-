@@ -455,3 +455,10 @@ cd web ; npm run dev
 - Sender = `agents.name/phone/email`, editable in "פרטי העסק" on `/dashboard` (`GET/PATCH /api/agents/me`) — **fill it in prod after deploy**.
 - New editor fields: policy number, insurance type, police involvement, appraiser, insurer claim number, model code, third-party ID. `setPath` moved to `formfill/set-path.ts`; `validatePhone` to `validation/phone.ts`.
 - **No migration.** Pending prod check: confirm `generated_forms.kind` has no CHECK constraint (otherwise `'demand_form'` inserts fail).
+
+### Done since last sync (2026-11-11, PR #105 — delete or re-file an uploaded document from the cockpit)
+- **No migration.**
+- **A file uploaded by mistake can now be fixed from the cockpit.** New `DELETE`/`PATCH /api/claims/[id]/documents/[docId]`: `DELETE` removes the `claim_documents` row then the Storage object (row first, so a failed object delete never leaves a row pointing at nothing — the orphan blob is the safe failure mode) and logs `document_deleted`; `PATCH { type }` re-files it under any `AGENT_DOC_TYPES` type, logs `document_retyped`, and re-runs the task engine as `doc_uploaded` for the new type. Ownership check is via the RLS-scoped auth client (another agent's doc reads as `404`); a closed claim gets `409` on either verb.
+- **`ClaimDocuments.tsx`** (קבצים tab) gains a type `<select>` (re-file) + **מחק** button (with `window.confirm`) per card, hidden when the claim is closed (`closed` prop, `page.tsx` passes `claim.status === "closed"`). `DOC_OPTIONS` is now exported from `AgentDocUpload.tsx` and shared.
+- **Known limit, not fixed here:** the engine is forward-only, so a chase task already completed by a now-deleted doc stays done; only the checklist item (a live derived view) flips back to missing.
+- Unit-tested: `route.test.ts` (new, for `/api/claims/[id]/documents/[docId]`) — 559/559 passing.

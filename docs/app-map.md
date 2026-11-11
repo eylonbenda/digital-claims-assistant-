@@ -65,6 +65,7 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | `/api/claims/draft` | POST | **client** in-progress wizard state by token → merged into `summary_json.draft` (64 KB cap, `409` once the claim is submitted — compare-and-set on status closes the race with a concurrent submit — `{ok:true, demo:true}` outside production when Supabase isn't configured, `503` in production) |
 | `/api/claims/documents` | POST | **client** upload (magic-byte sniffed); `503` in production when Supabase isn't configured (demo `{ok:true}` only outside production) |
 | `/api/claims/[id]/documents` | POST | **agent** upload with a type tag |
+| `/api/claims/[id]/documents/[docId]` | DELETE · PATCH | agent deletes a document, or re-files it under a different type — hidden on closed claims |
 | `/api/claims/[id]/classify` | PATCH | agent confirms the track |
 | `/api/claims/[id]/checklist` | PATCH | tick a milestone |
 | `/api/claims/[id]/tasks` · `/tasks/[taskId]` | POST · PATCH | ad-hoc agent tasks (`source='manual'`) |
