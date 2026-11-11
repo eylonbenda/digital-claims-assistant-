@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { PDFDocument } from "pdf-lib";
-import { renderDemandPdf } from "./render";
+import { renderDemandPdf, renderDemandPdfDebug } from "./render";
 import { buildDemandData } from "./data";
 
 const empty = () =>
@@ -33,5 +33,31 @@ describe("renderDemandPdf", () => {
     });
     const bytes = await renderDemandPdf(doc);
     expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
+  });
+});
+
+describe("overflow handling", () => {
+  it("truncates to stay above the bottom margin and marks it with an ellipsis", async () => {
+    const long = "מילה ארוכה מאוד בתיאור ".repeat(300);
+    const doc = buildDemandData({
+      data: {
+        accident: { description: long },
+        vehicle: { manufacturer: long, year: long },
+        insured: { first_name: long, last_name: long, mobile: long },
+        third_parties: [
+          { driver_name: long, id_number: long, phone: long },
+          { driver_name: long, id_number: long, phone: long },
+        ],
+        assessor_name: long,
+      },
+      sender: { name: long, phone: "050", email: "a@b.co" },
+      addresseeKey: null,
+      carAtGarageAt: null,
+      now: new Date("2026-11-11T10:00:00Z"),
+    });
+    const { drawn } = await renderDemandPdfDebug(doc);
+    expect(drawn.length).toBeGreaterThan(10);
+    expect(Math.min(...drawn.map((d) => d.y))).toBeGreaterThanOrEqual(50);
+    expect(drawn.some((d) => d.text.endsWith("…"))).toBe(true);
   });
 });
