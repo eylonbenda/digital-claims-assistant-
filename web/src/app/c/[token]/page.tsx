@@ -1,6 +1,8 @@
 import CollectionWizard from "@/components/collection/CollectionWizard";
 import FollowupUpload from "@/components/collection/FollowupUpload";
 import { createServiceClient } from "@/lib/supabase/service";
+import { satisfiedDocTypes } from "@/lib/claims/checklist";
+import { followupFields } from "@/lib/collection/followup-fields";
 
 // The claim was submitted, but the client can still add documents until it's closed.
 const SUBMITTED_STATUSES = new Set([
@@ -28,7 +30,7 @@ export default async function CollectPage({
     // agents(name) is the business handling this claim — an insurance agent or a
     // garage. Embedded via the claims.agent_id FK so the client screens can name
     // the real recipient instead of assuming "הסוכן".
-    .select("id, status, client_name, client_phone, summary_json, claim_type, policy_activated, agents(name)")
+    .select("id, status, client_name, client_phone, summary_json, claim_type, created_at, theft, lien, business_use, policy_activated, garage_network_rider, agents(name)")
     .eq("access_token", token)
     .single();
 
@@ -76,8 +78,17 @@ export default async function CollectPage({
         token={token}
         existingCounts={existingCounts}
         handlerName={handlerName}
-        claimType={claim.claim_type}
-        policyActivated={!!claim.policy_activated}
+        fields={followupFields(
+          claim.claim_type,
+          {
+            theft: !!claim.theft,
+            lien: !!claim.lien,
+            business_use: !!claim.business_use,
+            policy_activated: !!claim.policy_activated,
+            garage_network_rider: !!claim.garage_network_rider,
+          },
+          satisfiedDocTypes(existing ?? [], claim.created_at),
+        )}
       />
     );
   }

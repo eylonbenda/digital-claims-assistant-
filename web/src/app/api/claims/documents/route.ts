@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { sniffFileType, SNIFF_MIME, SNIFF_EXT } from "@/lib/files/sniff";
+import { CLIENT_UPLOAD_DOC_TYPES } from "@/lib/claims/checklist";
 import { runEngine } from "@/lib/tasks/runner";
 import { reportError, serverError } from "@/lib/observability/report";
 
@@ -8,15 +9,11 @@ export const runtime = "nodejs"; // needs the service client + Storage upload
 const BUCKET = "claim-docs";
 const MAX_BYTES = 8 * 1024 * 1024; // 8MB safety cap (images are compressed client-side first)
 
-// Claimant-facing subset of the doc_type enum. Prevents a client from writing agent-only types.
-const ALLOWED_TYPES = new Set([
-  "car_photo",
-  "drivers_license",
-  "vehicle_reg",
-  "third_party_doc",
-  "no_claim_confirmation",
-  "insurance_history",
-]);
+// Claimant-facing subset of the doc_type enum, derived from the checklist so every
+// document a chase message can ask for is accepted. Agent-only types
+// (clientSuppliable: false, e.g. the demand letter) are excluded — this route is
+// reachable with just the claim link and must not let a client write them.
+const ALLOWED_TYPES = CLIENT_UPLOAD_DOC_TYPES;
 
 // Uploads are accepted right up until the claim is closed — clients routinely add
 // documents after the initial submit (the agent asks for more, or they forgot one).

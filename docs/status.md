@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-09**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-10**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -434,3 +434,11 @@ cd web ; npm run dev
 - **`composeSubmission` now attaches every checklist doc on file, not just mandatory ones** — optional docs the agent uploaded (e.g. `bank_details`, now optional) were silently dropped from the insurer email before.
 - `tasks/templates.ts`'s `collect_private_report_docs` title updated (dropped the now-stale "אישור אי-הגשה, עבר ביטוחי" — those are collected at claim start, not after the repair).
 - Unit-tested: `checklist.test.ts`, `followup-fields.test.ts` (new), `submission.test.ts`.
+
+### Done since last sync (2026-11-10, PR #102 — follow-up link accepts every document a chase message asks for)
+- **No migration.**
+- **`followupFields` no longer hand-lists doc types per track.** It's now derived straight from `computeChecklist`: new `clientRequestedItems()` (`web/src/lib/claims/checklist.ts`) unions `chaseItems()` (the `chase_missing_docs` body) and `missingLateDocItems()` (the `collect_private_report_docs` body) — the same two sets the outbound chase messages actually name — so the link always has somewhere to put whatever a message asked for, including the post-repair docs (`garage_invoice`, `repair_receipt`, `appraiser_report`, the assessor-fee pair) and conditional ones (`police_report`+`keys` on theft, `lien_release` on lien, `vat_offset_confirmation` on business use). Docs already on file are left off the link; car photos and the free-form third-party bucket always stay.
+- **`followupFields` signature changed:** `(claimType, flags: ClaimFlags, satisfiedDocTypes?)` instead of `(claimType, policyActivated)` — it needs every conditional flag (`theft`/`lien`/`business_use`/`garage_network_rider`), not just `policy_activated`, to reproduce the checklist. `page.tsx` now selects those flag columns plus `created_at` (for `satisfiedDocTypes`'s licence-both-sides cutoff) and computes the field list server-side; `FollowupUpload.tsx` takes the resulting `fields: FollowupField[]` prop directly instead of `claimType`/`policyActivated`.
+- **`POST /api/claims/documents`'s client-facing `ALLOWED_TYPES` is now `CLIENT_UPLOAD_DOC_TYPES`** (`checklist.ts`): every doc type any track marks client-suppliable, derived from `ALL_TRACK_ITEMS` rather than a hand-maintained set — so a new client-suppliable checklist doc is accepted by the route without a second edit. Agent-only types (`clientSuppliable: false`, e.g. `demand_form`) stay excluded.
+- `FOLLOWUP_TYPE_LABEL` (the hardcoded label map) is gone — `followupLabel(type)` falls back to the checklist item's own label when there's no client-facing override in `CLIENT_COPY`.
+- Unit-tested: `followup-fields.test.ts` (rewritten — covers all 4 tracks × all 32 circumstance-flag combinations), `route.test.ts` (new, for `/api/claims/documents`).
