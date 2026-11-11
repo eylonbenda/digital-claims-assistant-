@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-10**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-11**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -442,3 +442,9 @@ cd web ; npm run dev
 - **`POST /api/claims/documents`'s client-facing `ALLOWED_TYPES` is now `CLIENT_UPLOAD_DOC_TYPES`** (`checklist.ts`): every doc type any track marks client-suppliable, derived from `ALL_TRACK_ITEMS` rather than a hand-maintained set — so a new client-suppliable checklist doc is accepted by the route without a second edit. Agent-only types (`clientSuppliable: false`, e.g. `demand_form`) stay excluded.
 - `FOLLOWUP_TYPE_LABEL` (the hardcoded label map) is gone — `followupLabel(type)` falls back to the checklist item's own label when there's no client-facing override in `CLIENT_COPY`.
 - Unit-tested: `followup-fields.test.ts` (rewritten — covers all 4 tracks × all 32 circumstance-flag combinations), `route.test.ts` (new, for `/api/claims/documents`).
+
+### Done since last sync (2026-11-11, PR #104 — repair-side docs are agent-sourced, never asked of the client)
+- **No migration.**
+- **Decision: the repair-side docs are agent-sourced, not client-sourced.** `appraiser_report`, `garage_invoice`, `assessor_fee_invoice`, `assessor_fee_receipt`, `repair_receipt` (`own_policy` + `third_party_report`) now carry `clientSuppliable: false` in `web/src/lib/claims/checklist.ts` — the claim handler gets these from the garage/appraiser, not the client. They still gate as before (`appraiser_report`/`garage_invoice` still block `third_party_report`) and still render on the cockpit; only client-facing surfaces change: `chaseableLabels`/`missingLateDocItems`/`clientRequestedItems` drop them, so the follow-up upload link no longer offers them and `CLIENT_UPLOAD_DOC_TYPES` no longer accepts them from the public token route.
+- **`collect_private_report_docs` now has nothing left to chase the client for** (its body used `missingLateDocItems`, now always empty for `third_party_report`), so the rule gains `requiresLabels: true` (`web/src/lib/outbound/rules.ts`). `buildQueue` (`queue.ts`) checks this before the existing give-up/cooldown logic: an empty label set routes the row straight to `doToday` as the agent's own task instead of the `send` lane — it never fires an empty WhatsApp message. `tasks/templates.ts`'s title for the task now says so explicitly ("...מהמוסך / השמאי").
+- Unit-tested: `checklist.test.ts`, `followup-fields.test.ts`, `queue.test.ts` (new case: empty labels → `doToday`, not `send`).
