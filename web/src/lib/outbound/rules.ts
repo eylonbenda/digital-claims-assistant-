@@ -30,6 +30,11 @@ export type SendRule = {
   // (collect_private_report_docs sends+displays missingDocLabels, not the
   // narrower blockingLabels chase_missing_docs uses).
   labels: (ctx: MessageCtx) => string[];
+  // The message only makes sense when it names something the client can send.
+  // With no labels the task stays the agent's and lands in doToday instead
+  // (collect_private_report_docs: the repair-side docs come from the garage /
+  // appraiser, so usually nothing is left to ask the client for).
+  requiresLabels?: boolean;
 };
 
 const rule = (
@@ -53,11 +58,14 @@ export const SEND_RULES: Record<string, SendRule> = {
     (ctx) => getTpInsurerMessage({ firstName: ctx.firstName }),
     () => [],
   ),
-  collect_private_report_docs: rule(
-    "collect_private_report_docs", 4,
-    (ctx) => collectPrivateReportMessage({ firstName: ctx.firstName, items: ctx.missingDocLabels, uploadUrl: ctx.uploadUrl }),
-    (ctx) => ctx.missingDocLabels,
-  ),
+  collect_private_report_docs: {
+    ...rule(
+      "collect_private_report_docs", 4,
+      (ctx) => collectPrivateReportMessage({ firstName: ctx.firstName, items: ctx.missingDocLabels, uploadUrl: ctx.uploadUrl }),
+      (ctx) => ctx.missingDocLabels,
+    ),
+    requiresLabels: true,
+  },
   finish_wizard: rule(
     "finish_wizard", 2,
     (ctx) => finishWizardMessage({ firstName: ctx.firstName, uploadUrl: ctx.uploadUrl }),
