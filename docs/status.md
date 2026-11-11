@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-10**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-11**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -442,3 +442,10 @@ cd web ; npm run dev
 - **`POST /api/claims/documents`'s client-facing `ALLOWED_TYPES` is now `CLIENT_UPLOAD_DOC_TYPES`** (`checklist.ts`): every doc type any track marks client-suppliable, derived from `ALL_TRACK_ITEMS` rather than a hand-maintained set — so a new client-suppliable checklist doc is accepted by the route without a second edit. Agent-only types (`clientSuppliable: false`, e.g. `demand_form`) stay excluded.
 - `FOLLOWUP_TYPE_LABEL` (the hardcoded label map) is gone — `followupLabel(type)` falls back to the checklist item's own label when there's no client-facing override in `CLIENT_COPY`.
 - Unit-tested: `followup-fields.test.ts` (rewritten — covers all 4 tracks × all 32 circumstance-flag combinations), `route.test.ts` (new, for `/api/claims/documents`).
+
+### Done since last sync (2026-11-11, PR #105 — delete or re-file an uploaded document from the cockpit)
+- **No migration.**
+- **A file uploaded by mistake can now be fixed from the cockpit.** New `DELETE`/`PATCH /api/claims/[id]/documents/[docId]`: `DELETE` removes the `claim_documents` row then the Storage object (row first, so a failed object delete never leaves a row pointing at nothing — the orphan blob is the safe failure mode) and logs `document_deleted`; `PATCH { type }` re-files it under any `AGENT_DOC_TYPES` type, logs `document_retyped`, and re-runs the task engine as `doc_uploaded` for the new type. Ownership check is via the RLS-scoped auth client (another agent's doc reads as `404`); a closed claim gets `409` on either verb.
+- **`ClaimDocuments.tsx`** (קבצים tab) gains a type `<select>` (re-file) + **מחק** button (with `window.confirm`) per card, hidden when the claim is closed (`closed` prop, `page.tsx` passes `claim.status === "closed"`). `DOC_OPTIONS` is now exported from `AgentDocUpload.tsx` and shared.
+- **Known limit, not fixed here:** the engine is forward-only, so a chase task already completed by a now-deleted doc stays done; only the checklist item (a live derived view) flips back to missing.
+- Unit-tested: `route.test.ts` (new, for `/api/claims/[id]/documents/[docId]`) — 559/559 passing.
