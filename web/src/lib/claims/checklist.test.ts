@@ -206,3 +206,11 @@ describe("satisfiedDocTypes — both sides of the licence", () => {
     expect(both.find((i) => i.key === "drivers_license")!.done).toBe(true);
   });
 });
+
+describe("computeChecklist — generated demand form", () => {
+  it("a demand form does not satisfy accident_form but does satisfy demand_form", () => {
+    const items = computeChecklist("third_party_report", new Set(["demand_form"]), false, {}, NO_FLAGS);
+    expect(items.find((i) => i.key === "accident_form")?.done).toBe(false);
+    expect(items.find((i) => i.key === "demand_form")?.done).toBe(true);
+  });
+});

@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { computeChecklist, satisfiedDocTypes } from "@/lib/claims/checklist";
 import { TP_INSURER_UNKNOWN } from "@/lib/collection/claim-state";
+import { formFacts } from "@/lib/forms/kinds";
 import { advanceTasks } from "./engine";
 import {
   STATUS_ORDER,
@@ -23,7 +24,7 @@ export async function runEngine(
     const [
       { data: claim },
       { data: docs },
-      { count: formCount },
+      { data: formRows },
       { data: taskRows },
       { data: tpRows },
     ] = await Promise.all([
@@ -37,7 +38,7 @@ export async function runEngine(
       svc.from("claim_documents").select("type").eq("claim_id", claimId),
       svc
         .from("generated_forms")
-        .select("id", { count: "exact", head: true })
+        .select("kind")
         .eq("claim_id", claimId),
       svc
         .from("tasks")
@@ -48,13 +49,17 @@ export async function runEngine(
     ]);
     if (!claim) return null;
 
-    const hasForm = (formCount ?? 0) > 0;
+    const facts = formFacts((formRows ?? []).map((f) => f.kind as string));
+    const hasForm = facts.hasAccidentNotice;
     const checklist = computeChecklist(
       claim.claim_type,
-      satisfiedDocTypes(
-        (docs ?? []).map((d) => ({ type: d.type as string })),
-        claim.created_at as string,
-      ),
+      new Set([
+        ...satisfiedDocTypes(
+          (docs ?? []).map((d) => ({ type: d.type as string })),
+          claim.created_at as string,
+        ),
+        ...facts.generatedDocTypes,
+      ]),
       hasForm,
       (claim.checklist_state as Record<string, boolean> | null) ?? {},
       {

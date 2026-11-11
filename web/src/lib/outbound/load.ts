@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { computeChecklist, chaseItemLabels, satisfiedDocTypes } from "@/lib/claims/checklist";
+import { formFacts } from "@/lib/forms/kinds";
 import type { Brief } from "@/lib/brief/brief";
 import {
   buildQueue,
@@ -46,7 +47,7 @@ export async function loadQueue(
         .select("id, claim_id, key, title, due_at, status, source")
         .in("claim_id", ids).neq("status", "done"),
       svc.from("claim_documents").select("claim_id, type, uploaded_at").in("claim_id", ids),
-      svc.from("generated_forms").select("claim_id").in("claim_id", ids),
+      svc.from("generated_forms").select("claim_id, kind").in("claim_id", ids),
       svc.from("outbound_events")
         .select("claim_id, task_key, kind, created_at")
         .in("claim_id", ids)
@@ -69,15 +70,21 @@ export async function loadQueue(
       list.push({ type: d.type as string, uploaded_at: d.uploaded_at as string });
       docsBy.set(d.claim_id, list);
     }
-    const formClaims = new Set((formsRes.data ?? []).map((f) => f.claim_id));
+    const formKindsBy = new Map<string, string[]>();
+    for (const f of formsRes.data ?? []) {
+      const list = formKindsBy.get(f.claim_id) ?? [];
+      list.push(f.kind as string);
+      formKindsBy.set(f.claim_id, list);
+    }
     const briefBy = new Map((brief?.items ?? []).map((i) => [i.claim_id, i]));
 
     const queueClaims: QueueClaim[] = claims.map((c) => {
       const docs = docsBy.get(c.id) ?? [];
+      const facts = formFacts(formKindsBy.get(c.id) ?? []);
       const checklist = computeChecklist(
         c.claim_type,
-        satisfiedDocTypes(docs, c.created_at as string),
-        formClaims.has(c.id),
+        new Set([...satisfiedDocTypes(docs, c.created_at as string), ...facts.generatedDocTypes]),
+        facts.hasAccidentNotice,
         (c.checklist_state as Record<string, boolean> | null) ?? {},
         {
           theft: !!c.theft, lien: !!c.lien, business_use: !!c.business_use,
