@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { computeChecklist, chaseItemLabels, satisfiedDocTypes } from "@/lib/claims/checklist";
+import { computeChecklist, chaseItemLabels, missingLateDocItems, satisfiedDocTypes } from "@/lib/claims/checklist";
 import { formFacts } from "@/lib/forms/kinds";
 import type { Brief } from "@/lib/brief/brief";
 import {
@@ -106,9 +106,7 @@ export async function loadQueue(
         // that also surfaces mandatory docs the checklist deliberately doesn't gate
         // readiness on (repair_receipt, the assessor fee docs, etc.) so
         // collect_private_report_docs can actually ask for them (finding #2).
-        missing_doc_labels: checklist
-          .filter((i) => i.kind === "doc" && i.mandatory && !i.done && i.section === "late")
-          .map((i) => i.label),
+        missing_doc_labels: missingLateDocItems(checklist).map((i) => i.label),
         last_doc_uploaded_at: docs.length
           ? docs.map((d) => d.uploaded_at).reduce((a, b2) => (a > b2 ? a : b2))
           : null,

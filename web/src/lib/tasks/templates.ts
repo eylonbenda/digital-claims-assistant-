@@ -119,7 +119,7 @@ export const TASK_RULES: TaskRule[] = [
   },
   {
     key: "collect_private_report_docs",
-    title: 'לאסוף מסמכים אחרי התיקון (קבלה, שכ"ט שמאי)',
+    title: 'לאסוף מסמכים אחרי התיקון מהמוסך / השמאי (קבלה, שכ"ט שמאי)',
     dueDays: DUE_OFFSETS.collect_private_report_docs,
     track: "third_party_report",
     spawnOn: (e) => e.type === "doc_uploaded" && e.docType === "garage_invoice",

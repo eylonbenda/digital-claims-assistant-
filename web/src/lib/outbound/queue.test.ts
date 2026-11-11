@@ -95,6 +95,15 @@ describe("buildQueue — lanes and eligibility", () => {
     expect(q.send[0].body).toContain("• קבלה על תשלום");
     expect(q.send[0].body).not.toContain("מכתב דרישה");
   });
+
+  it("collect_private_report_docs with nothing left to ask the client becomes an agent do-today item", () => {
+    const q = build(
+      [claim({ missing_doc_labels: [] })],
+      [task({ key: "collect_private_report_docs", title: "לאסוף מסמכים אחרי התיקון", due_at: daysAgo(1) })],
+    );
+    expect(q.send).toHaveLength(0);
+    expect(q.doToday).toEqual([expect.objectContaining({ title: "לאסוף מסמכים אחרי התיקון", escalation: false })]);
+  });
 });
 
 describe("buildQueue — cooldown", () => {
