@@ -193,6 +193,11 @@ export default async function ClaimDetailPage({
   const formSummary = claim.summary_json as ClaimSummaryJson;
   const formClaimData = effectiveClaimData(formSummary);
   const formDataEdited = !!formSummary?.form_data;
+  // Who a demand form (third_party_report) is addressed to — same rule as generation.
+  const demandAddresseeKey = demandAddressee(
+    ((claim as Record<string, unknown>).at_fault_insurer as string | null) ?? null,
+    formClaimData,
+  );
 
   // Compute the dynamic checklist on the server — pure function, no I/O.
   const flags = {
@@ -637,6 +642,8 @@ export default async function ClaimDetailPage({
 
               {claim.claim_type === "third_party_report" && (
                 <DemandFormPanel
+                  // Remount when the resolved addressee changes so the select re-prefills.
+                  key={demandAddresseeKey ?? ""}
                   claimId={claim.id}
                   latest={
                     demandFormRows[0]
@@ -647,12 +654,8 @@ export default async function ClaimDetailPage({
                       : null
                   }
                   senderMissing={!agentRow?.name?.trim()}
-                  addresseeResolved={
-                    demandAddressee(
-                      ((claim as Record<string, unknown>).at_fault_insurer as string | null) ?? null,
-                      formClaimData,
-                    ) !== null
-                  }
+                  addresseeKey={demandAddresseeKey}
+                  hasUploadedDemand={(rows ?? []).some((r) => r.type === "demand_form")}
                   insurerOptions={Object.entries(INSURER_DIRECTORY).map(([key, e]) => ({
                     key,
                     label: e.label,

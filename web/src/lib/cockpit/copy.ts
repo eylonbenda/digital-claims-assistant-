@@ -47,6 +47,9 @@ export const DEMAND_COPY = {
   senderMissingLink: "השלם פרטי עסק",
   insurerPrompt: "המבטחת לא זוהתה — בחר למי לפנות",
   insurerPlaceholder: "בחר מבטחת…",
+  insurerLabel: "הדרישה מופנית אל",
+  insurerChanged: "המבטחת שונתה — צור מחדש כדי לעדכן את הטופס",
+  uploadedWins: "בתיק יש טופס דרישה שהועלה — הוא שיצורף להגשה למבטחת, לא הטופס שנוצר כאן",
   errors: {
     400: "המבטחת שנבחרה אינה תקינה",
     409: "הטופס זמין רק בתביעת צד ג׳ (דוח פרטי)",

@@ -9,19 +9,25 @@ export default function DemandFormPanel({
   claimId,
   latest,
   senderMissing,
-  addresseeResolved,
+  addresseeKey,
+  hasUploadedDemand,
   insurerOptions,
 }: {
   claimId: string;
   latest: { url: string | null; createdAt: string } | null;
   senderMissing: boolean;
-  addresseeResolved: boolean;
+  // The insurer the demand is currently addressed to (directory key), or null when unresolved.
+  addresseeKey: string | null;
+  // An uploaded demand_form document exists — it is the one the submission sends.
+  hasUploadedDemand: boolean;
   insurerOptions: { key: string; label: string }[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [insurer, setInsurer] = useState("");
+  // Always editable: a resolved addressee can still be wrong, and this is the last
+  // chance to correct it before the demand goes out.
+  const [insurer, setInsurer] = useState(addresseeKey ?? "");
 
   async function generate() {
     setBusy(true);
@@ -30,7 +36,8 @@ export default function DemandFormPanel({
       const res = await fetch(`/api/claims/${claimId}/demand-form`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(!addresseeResolved && insurer ? { at_fault_insurer: insurer } : {}),
+        // Only a changed choice is persisted (the route writes it to claims.at_fault_insurer).
+        body: JSON.stringify(insurer && insurer !== addresseeKey ? { at_fault_insurer: insurer } : {}),
       });
       if (!res.ok) {
         setError(C.errors[res.status] ?? C.errorFallback);
@@ -77,22 +84,27 @@ export default function DemandFormPanel({
         </div>
       )}
 
-      {!addresseeResolved && (
-        <label className="block">
-          <span className="text-xs text-zinc-500">{C.insurerPrompt}</span>
-          <select
-            value={insurer}
-            onChange={(e) => setInsurer(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-sm"
-          >
-            <option value="">{C.insurerPlaceholder}</option>
-            {insurerOptions.map((o) => (
-              <option key={o.key} value={o.key}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
+      {hasUploadedDemand && (
+        <div className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">{C.uploadedWins}</div>
+      )}
+
+      <label className="block">
+        <span className="text-xs text-zinc-500">{addresseeKey ? C.insurerLabel : C.insurerPrompt}</span>
+        <select
+          value={insurer}
+          onChange={(e) => setInsurer(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-sm"
+        >
+          {!addresseeKey && <option value="">{C.insurerPlaceholder}</option>}
+          {insurerOptions.map((o) => (
+            <option key={o.key} value={o.key}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {addresseeKey && insurer !== addresseeKey && (
+        <p className="text-xs text-amber-700">{C.insurerChanged}</p>
       )}
 
       {error && <p className="text-xs text-red-600">{error}</p>}
