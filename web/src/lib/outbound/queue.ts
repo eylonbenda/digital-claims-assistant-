@@ -81,6 +81,20 @@ export function buildQueue(input: {
       continue;
     }
 
+    const ctx = {
+      firstName: c.client_name?.trim().split(/s+/)[0] ?? null,
+      blockingLabels: c.blocking_labels,
+      missingDocLabels: c.missing_doc_labels,
+      uploadUrl: `${origin}/c/${c.access_token}`,
+    };
+    if (rule.requiresLabels && rule.labels(ctx).length === 0) {
+      doToday.push({
+        claim_id: c.claim_id, client_name: c.client_name, title: t.title,
+        due_at: t.due_at, overdue_days: overdueDays(t.due_at!), escalation: false,
+      });
+      continue;
+    }
+
     const pair = evByPair.get(`${c.claim_id} ${t.key}`) ?? [];
 
     // Give-up: N sends with no document arriving since → phone-call escalation.
@@ -106,12 +120,6 @@ export function buildQueue(input: {
       continue;
     }
 
-    const ctx = {
-      firstName: c.client_name?.trim().split(/\s+/)[0] ?? null,
-      blockingLabels: c.blocking_labels,
-      missingDocLabels: c.missing_doc_labels,
-      uploadUrl: `${origin}/c/${c.access_token}`,
-    };
     const body = rule.build(ctx);
     send.push({
       claim_id: c.claim_id, task_id: t.id, task_key: t.key!,
