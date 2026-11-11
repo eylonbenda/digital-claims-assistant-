@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeChecklist, chaseableLabels, chaseItemLabels, satisfiedDocTypes, type ClaimFlags } from "./checklist";
+import { computeChecklist, chaseableLabels, chaseItemLabels, chaseItems, clientRequestedItems, missingLateDocItems, satisfiedDocTypes, type ClaimFlags } from "./checklist";
 
 const NO_FLAGS: ClaimFlags = {
   theft: false, lien: false, business_use: false,
@@ -124,11 +124,7 @@ describe("computeChecklist — third_party_report", () => {
   it("marks demand_form as not client-suppliable — the agent drafts and sends this demand letter, not the client", () => {
     const items = computeChecklist("third_party_report", new Set(), false, {}, NO_FLAGS);
     expect(items.find((i) => i.key === "demand_form")?.clientSuppliable).toBe(false);
-    // appraiser_report stays client-suppliable: on third_party_report the client
-    // commissions and pays the private appraiser and is exactly who holds and
-    // forwards the report (field absent = client-suppliable).
-    expect(items.find((i) => i.key === "appraiser_report")?.clientSuppliable).toBeUndefined();
-    // Ordinary client-photographed docs are unaffected too.
+    // Ordinary client-photographed docs are unaffected.
     expect(items.find((i) => i.key === "car_photo")?.clientSuppliable).toBeUndefined();
   });
 });
@@ -144,8 +140,16 @@ describe("chaseableLabels", () => {
     ).toEqual([]);
   });
 
-  it("keeps appraiser_report — the client commissions and holds the private appraiser's report", () => {
-    expect(chaseableLabels([{ kind: "doc", label: "דוח שמאי" }])).toEqual(["דוח שמאי"]);
+  it("never asks the client for repair-side docs — the agent gets them from the garage / appraiser", () => {
+    const REPAIR_SIDE = ["appraiser_report", "assessor_fee_invoice", "assessor_fee_receipt", "garage_invoice", "repair_receipt"];
+    for (const track of ["own_policy", "third_party_report"]) {
+      const items = computeChecklist(track, new Set(), false, {}, NO_FLAGS);
+      const asked = [...chaseItems(items), ...missingLateDocItems(items), ...clientRequestedItems(items)];
+      for (const k of REPAIR_SIDE) expect(asked.map((i) => i.key), `${track} ${k}`).not.toContain(k);
+    }
+    // Still tracked — and the invoice + appraiser report still gate submission.
+    const tp = computeChecklist("third_party_report", new Set(), false, {}, NO_FLAGS);
+    expect(blockingKeys(tp)).toEqual(expect.arrayContaining(["appraiser_report", "garage_invoice"]));
   });
 
   it("excludes form and milestone kinds regardless of clientSuppliable", () => {

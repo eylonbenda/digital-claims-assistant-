@@ -40,16 +40,18 @@ describe("followupFields covers every chased document", () => {
     }
   });
 
-  it("offers the post-repair docs the private-report chase asks for", () => {
+  it("offers the start-of-claim docs but not the repair-side ones the agent sources", () => {
     expect(types("third_party_report")).toEqual(
-      expect.arrayContaining([
-        "no_claim_confirmation", "insurance_history", "appraiser_report", "garage_invoice",
-        "repair_receipt", "assessor_fee_invoice", "assessor_fee_receipt",
-      ]),
+      expect.arrayContaining(["no_claim_confirmation", "insurance_history"]),
     );
     expect(types("own_policy")).toEqual(
-      expect.arrayContaining(["drivers_license", "vehicle_reg", "appraiser_report", "garage_invoice", "bank_details"]),
+      expect.arrayContaining(["drivers_license", "vehicle_reg", "bank_details"]),
     );
+    for (const t of ["appraiser_report", "garage_invoice", "repair_receipt", "assessor_fee_invoice", "assessor_fee_receipt"]) {
+      expect(types("third_party_report")).not.toContain(t);
+      expect(types("own_policy")).not.toContain(t);
+      expect(CLIENT_UPLOAD_DOC_TYPES).not.toContain(t);
+    }
   });
 
   it("swaps אישור אי-הגשה for אישור הפסדים once the client's own policy was activated", () => {
