@@ -9,13 +9,24 @@ import type { DemandDoc } from "./data";
 
 const W = 595.28;
 const H = 841.89;
-const MARGIN = 50;
+export const MARGIN = 50;
 const RIGHT = W - MARGIN;
 const WIDTH = W - 2 * MARGIN;
 const MIN_SIZE = 8;
 const LABEL_GAP = 6;
 
 type Font = Awaited<ReturnType<PDFDocument["embedFont"]>>;
+// Measuring with the non-subset font is slow; memoise per font/size/text.
+const widthMemo = new WeakMap<object, Map<string, number>>();
+function widthOf(font: Font, text: string, size: number): number {
+  let m = widthMemo.get(font);
+  if (!m) widthMemo.set(font, (m = new Map()));
+  const k = size + "|" + text;
+  let w = m.get(k);
+  if (w === undefined) m.set(k, (w = font.widthOfTextAtSize(text, size)));
+  return w;
+}
+
 type Item =
   | { kind: "gap"; h: number }
   | { kind: "text"; text: string; scale: number; rule?: boolean }
@@ -25,11 +36,11 @@ type Item =
 // O(words x line length)); clip() afterwards guarantees no line exceeds the width.
 function wrap(text: string, width: number, size: number, font: Font): string[] {
   const lines: string[] = [];
-  const space = font.widthOfTextAtSize(" ", size);
+  const space = widthOf(font, " ", size);
   let line = "";
   let lineW = 0;
-  for (const word of text.split(/s+/).filter(Boolean)) {
-    const w = font.widthOfTextAtSize(word, size);
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const w = widthOf(font, word, size);
     if (line && lineW + space + w > width) {
       lines.push(line);
       line = word;
@@ -45,12 +56,12 @@ function wrap(text: string, width: number, size: number, font: Font): string[] {
 
 // Truncate with "…" so the last line fits `width`.
 function clip(line: string, width: number, size: number, font: Font): string {
-  if (font.widthOfTextAtSize(line, size) <= width) return line;
+  if (widthOf(font, line, size) <= width) return line;
   let lo = 0;
   let hi = line.length;
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2);
-    if (font.widthOfTextAtSize(line.slice(0, mid) + "…", size) <= width) lo = mid;
+    if (widthOf(font, line.slice(0, mid) + "…", size) <= width) lo = mid;
     else hi = mid - 1;
   }
   return line.slice(0, lo) + "…";
@@ -140,7 +151,7 @@ export async function renderDemandPdfDebug(
         });
       } else {
         const labelText = it.label + ":";
-        const lw = font.widthOfTextAtSize(labelText, body);
+        const lw = widthOf(font, labelText, body);
         const vw = WIDTH - lw - LABEL_GAP;
         let lines = it.value ? wrapCached(idx, it.value, vw, body) : [];
         rowLines.set(idx, lines.length);
