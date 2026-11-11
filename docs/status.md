@@ -434,3 +434,10 @@ cd web ; npm run dev
 - **`composeSubmission` now attaches every checklist doc on file, not just mandatory ones** — optional docs the agent uploaded (e.g. `bank_details`, now optional) were silently dropped from the insurer email before.
 - `tasks/templates.ts`'s `collect_private_report_docs` title updated (dropped the now-stale "אישור אי-הגשה, עבר ביטוחי" — those are collected at claim start, not after the repair).
 - Unit-tested: `checklist.test.ts`, `followup-fields.test.ts` (new), `submission.test.ts`.
+
+### Done since last sync (2026-11-11, `feat/demand-form` — demand form / טופס דרישה)
+- **Generated demand form for `third_party_report`.** Stored in `generated_forms` with `kind = 'demand_form'`; readers distinguish it from `accident_notice` via `web/src/lib/forms/kinds.ts`. Pure builder `lib/demand/data.ts`, renderer `render.ts`, generation `generate.ts` (+ `inputs.ts`), sample script `web/scripts/demand.ts`. Auto-generated in `after()` on track confirm; on demand via `POST /api/claims/[id]/demand-form`.
+- Checklist `demand_form` item is satisfied by an uploaded **or** generated form; submission attaches the uploaded one if any, else the latest generated ("טופס דרישה").
+- Sender = `agents.name/phone/email`, editable in "פרטי העסק" on `/dashboard` (`GET/PATCH /api/agents/me`) — **fill it in prod after deploy**.
+- New editor fields: policy number, insurance type, police involvement, appraiser, insurer claim number, model code, third-party ID. `setPath` moved to `formfill/set-path.ts`; `validatePhone` to `validation/phone.ts`.
+- **No migration.** Pending prod check: confirm `generated_forms.kind` has no CHECK constraint (otherwise `'demand_form'` inserts fail).
