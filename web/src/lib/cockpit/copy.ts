@@ -43,6 +43,7 @@ export const DEMAND_COPY = {
   regenerate: "צור מחדש",
   pending: "יוצר…",
   open: "פתח / הורד ↗",
+  linkUnavailable: "קישור לא זמין",
   senderMissing: "פרטי העסק חסרים — הטופס ייצא בלי שולח",
   senderMissingLink: "השלם פרטי עסק",
   insurerPrompt: "המבטחת לא זוהתה — בחר למי לפנות",

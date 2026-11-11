@@ -2,6 +2,7 @@
 export const COPY = {
   title: "דרישה בשם המבוטח",
   addresseePrefix: "לכבוד",
+  datePrefix: "תאריך:",
   sections: {
     vehicle: "רכב המבוטח",
     policy: "פוליסה",

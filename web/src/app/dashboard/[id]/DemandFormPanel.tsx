@@ -79,7 +79,7 @@ export default function DemandFormPanel({
               {C.open}
             </a>
           ) : (
-            <span className="text-xs text-red-500">קישור לא זמין</span>
+            <span className="text-xs text-red-500">{C.linkUnavailable}</span>
           )}
         </div>
       )}

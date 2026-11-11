@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { ASSETS, drawRightAnchored } from "../formfill/engine";
 import type { DemandDoc } from "./data";
+import { COPY } from "./copy";
 
 const W = 595.28;
 const H = 841.89;
@@ -96,9 +97,9 @@ export async function renderDemandPdfDebug(
   if (doc.sender.phone) text(doc.sender.phone);
   if (doc.sender.email) text(doc.sender.email);
   gap(10);
-  text(`תאריך: ${doc.date}`);
+  text(`${COPY.datePrefix} ${doc.date}`);
   gap(8);
-  text("לכבוד");
+  text(COPY.addresseePrefix);
   text(doc.addressee || "________________");
   gap(14);
   items.push({ kind: "text", text: doc.title, scale: 1.7, rule: true });
