@@ -34,8 +34,10 @@ export function composeSubmission(input: {
   checklist: ComputedItem[];
   docs: { type: string; storage_path: string }[];
   forms: { insurer: string | null; storage_path: string }[];
+  // Generated demand forms (טופס דרישה), newest first.
+  demandForms: { storage_path: string }[];
 }): Submission | null {
-  const { claim, checklist, docs, forms } = input;
+  const { claim, checklist, docs, forms, demandForms } = input;
   if (claim.claimType === "unknown") return null;
 
   // matchInsurer accepts both canonical keys and Hebrew labels, so this covers
@@ -60,15 +62,20 @@ export function composeSubmission(input: {
     list.push(d.storage_path);
     byType.set(d.type, list);
   }
+  let hasUploadedDemand = false;
   for (const item of checklist) {
     // Optional docs count too: if it's on file, someone meant the insurer to see it.
     if (item.kind !== "doc" || !item.docType || !item.done) continue;
     const paths = byType.get(item.docType) ?? [];
+    if (item.docType === "demand_form" && paths.length) hasUploadedDemand = true;
     paths.forEach((path, i) => {
       const label = paths.length > 1 ? `${item.label} (${i + 1}/${paths.length})` : item.label;
       attachments.push({ label, storagePath: path });
     });
   }
+  // An uploaded demand form (e.g. from Libra) wins; otherwise attach the newest generated one.
+  const demand = demandForms[0];
+  if (!hasUploadedDemand && demand) attachments.push({ label: "טופס דרישה", storagePath: demand.storage_path });
 
   return {
     insurerKey: insurerKey ?? null,

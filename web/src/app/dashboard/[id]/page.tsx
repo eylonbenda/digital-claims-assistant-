@@ -199,9 +199,10 @@ export default async function ClaimDetailPage({
     policy_activated:     !!(claim as Record<string, unknown>).policy_activated,
     garage_network_rider: !!(claim as Record<string, unknown>).garage_network_rider,
   };
-  // generated_forms holds more than the accident notice: only that kind feeds the form list,
-  // hasStoredForm and composeSubmission (Task 7 reads kind === FORM_KIND.demand for the demand form); a demand form instead counts as the demand_form doc.
+  // generated_forms holds more than the accident notice: only that kind feeds the form list and hasStoredForm.
+  // Demand forms are attached to the submission and counted as the demand_form doc instead.
   const accidentFormRows = (formRows ?? []).filter((r) => r.kind === FORM_KIND.accidentNotice);
+  const demandFormRows = (formRows ?? []).filter((r) => r.kind === FORM_KIND.demand);
   const facts = formFacts((formRows ?? []).map((r) => r.kind as string));
   const uploadedDocTypes = new Set([
     ...satisfiedDocTypes(
@@ -344,6 +345,7 @@ export default async function ClaimDetailPage({
     checklist: checklistItems,
     docs: (rows ?? []).map((r) => ({ type: r.type as string, storage_path: r.storage_path })),
     forms: accidentFormRows.map((r) => ({ insurer: r.insurer, storage_path: r.storage_path })),
+    demandForms: demandFormRows.map((r) => ({ storage_path: r.storage_path })),
   });
   const submissionView: SubmissionView | null =
     submission && !handlingEffective

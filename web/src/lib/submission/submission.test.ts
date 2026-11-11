@@ -103,12 +103,13 @@ describe("composeSubmission", () => {
       checklist,
       docs,
       forms,
+      demandForms: [],
     });
     expect(r).toBeNull();
   });
 
   test("insurerKey resolves but recipient stays null while unverified", () => {
-    const r = composeSubmission({ claim: CLAIM, checklist, docs, forms });
+    const r = composeSubmission({ claim: CLAIM, checklist, docs, forms, demandForms: [] });
     if (!r) throw new Error("expected submission");
     expect(r.insurerKey).toBe("phoenix");
     expect(r.recipient).toBeNull();
@@ -116,7 +117,7 @@ describe("composeSubmission", () => {
   });
 
   test("attachments = generated form + uploaded mandatory docs with Hebrew labels", () => {
-    const r = composeSubmission({ claim: CLAIM, checklist, docs, forms });
+    const r = composeSubmission({ claim: CLAIM, checklist, docs, forms, demandForms: [] });
     if (!r) throw new Error("expected submission");
     expect(r.attachments).toEqual([
       { label: "טופס הודעה על תאונה", storagePath: "c/1/form.pdf" },
@@ -138,6 +139,7 @@ describe("composeSubmission — optional doc types", () => {
       checklist: [optional(true)],
       docs: [{ type: "bank_details", storage_path: "c/1/bank.pdf" }],
       forms: [],
+      demandForms: [],
     });
     if (!r) throw new Error("expected submission");
     expect(r.attachments).toEqual([{ label: "פרטי חשבון בנק", storagePath: "c/1/bank.pdf" }]);
@@ -145,7 +147,7 @@ describe("composeSubmission — optional doc types", () => {
   });
 
   test("an optional doc that was never uploaded is not listed", () => {
-    const r = composeSubmission({ claim: CLAIM, checklist: [optional(false)], docs: [], forms: [] });
+    const r = composeSubmission({ claim: CLAIM, checklist: [optional(false)], docs: [], forms: [], demandForms: [] });
     if (!r) throw new Error("expected submission");
     expect(r.attachments).toEqual([]);
   });
@@ -160,11 +162,41 @@ describe("composeSubmission — multi-file doc types", () => {
       { type: "car_photo", storage_path: "c/1/p1.jpg" },
       { type: "car_photo", storage_path: "c/1/p2.jpg" },
     ];
-    const r = composeSubmission({ claim: CLAIM, checklist: checklist2, docs: docs2, forms: [] });
+    const r = composeSubmission({ claim: CLAIM, checklist: checklist2, docs: docs2, forms: [], demandForms: [] });
     if (!r) throw new Error("expected submission");
     expect(r.attachments).toEqual([
       { label: "תמונות נזק (1/2)", storagePath: "c/1/p1.jpg" },
       { label: "תמונות נזק (2/2)", storagePath: "c/1/p2.jpg" },
     ]);
+  });
+});
+
+describe("composeSubmission — demand form", () => {
+  const checklist: ComputedItem[] = [doc("demand_form", "דרישה מהמבטח", "demand_form")];
+
+  test("a generated demand form is attached when none was uploaded", () => {
+    const r = composeSubmission({
+      claim: CLAIM,
+      checklist,
+      docs: [],
+      forms: [],
+      demandForms: [{ storage_path: "c/1/demand.pdf" }],
+    });
+    if (!r) throw new Error("expected submission");
+    expect(r.attachments).toContainEqual({ label: "טופס דרישה", storagePath: "c/1/demand.pdf" });
+  });
+
+  test("an uploaded demand form wins over a generated one", () => {
+    const r = composeSubmission({
+      claim: CLAIM,
+      checklist,
+      docs: [{ type: "demand_form", storage_path: "c/1/libra.pdf" }],
+      forms: [],
+      demandForms: [{ storage_path: "c/1/demand.pdf" }],
+    });
+    if (!r) throw new Error("expected submission");
+    const paths = r.attachments.map((a) => a.storagePath);
+    expect(paths).toContain("c/1/libra.pdf");
+    expect(paths).not.toContain("c/1/demand.pdf");
   });
 });
