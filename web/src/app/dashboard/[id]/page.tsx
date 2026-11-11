@@ -648,7 +648,7 @@ export default async function ClaimDetailPage({
               )}
             </>
           }
-          files={<ClaimDocuments docs={docs} />}
+          files={<ClaimDocuments claimId={claim.id} docs={docs} closed={claim.status === "closed"} />}
         />
       </main>
     </div>

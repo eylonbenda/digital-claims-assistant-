@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { DOC_OPTIONS } from "./AgentDocUpload";
 
 export type DocView = {
   id: string;
@@ -42,7 +44,15 @@ function isImage(mime: string | null) {
   return !!mime && mime.startsWith("image/");
 }
 
-export default function ClaimDocuments({ docs }: { docs: DocView[] }) {
+export default function ClaimDocuments({
+  claimId,
+  docs,
+  closed = false,
+}: {
+  claimId: string;
+  docs: DocView[];
+  closed?: boolean;
+}) {
   const [zoom, setZoom] = useState<DocView | null>(null);
 
   if (docs.length === 0) {
@@ -81,7 +91,10 @@ export default function ClaimDocuments({ docs }: { docs: DocView[] }) {
             </h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {items.map((d) => (
-                <DocCard key={d.id} doc={d} onZoom={() => setZoom(d)} />
+                <div key={d.id} className="space-y-1">
+                  <DocCard doc={d} onZoom={() => setZoom(d)} />
+                  {!closed && <DocActions claimId={claimId} doc={d} />}
+                </div>
               ))}
             </div>
           </div>
@@ -125,7 +138,7 @@ function DocCard({ doc, onZoom }: { doc: DocView; onZoom: () => void }) {
       <button
         type="button"
         onClick={onZoom}
-        className="group relative aspect-square overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100"
+        className="group relative block aspect-square w-full overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100"
         title={`הועלה ${date}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -151,5 +164,68 @@ function DocCard({ doc, onZoom }: { doc: DocView; onZoom: () => void }) {
       <span className="text-2xl">📄</span>
       <span className="text-xs text-blue-600">פתח PDF</span>
     </a>
+  );
+}
+
+// Fix a mistaken upload: re-file it under the right type, or delete it.
+function DocActions({ claimId, doc }: { claimId: string; doc: DocView }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const url = `/api/claims/${claimId}/documents/${doc.id}`;
+  // A type outside the agent list (shouldn't happen) still shows as selected.
+  const options = DOC_OPTIONS.some((o) => o.type === doc.type)
+    ? DOC_OPTIONS
+    : [{ type: doc.type, label: DOC_META.find((m) => m.type === doc.type)?.label ?? doc.type }, ...DOC_OPTIONS];
+
+  async function call(init: RequestInit) {
+    setBusy(true);
+    setError(null);
+    const res = await fetch(url, init);
+    const json = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) setError(json.error ?? "שגיאה");
+    else router.refresh();
+  }
+
+  function retype(type: string) {
+    if (type === doc.type) return;
+    call({ method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type }) });
+  }
+
+  function remove() {
+    if (!window.confirm("למחוק את הקובץ מהתיק? אי אפשר לשחזר אותו.")) return;
+    call({ method: "DELETE" });
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-1">
+        <select
+          value={doc.type}
+          disabled={busy}
+          onChange={(e) => retype(e.target.value)}
+          aria-label="סוג המסמך"
+          className="min-w-0 flex-1 rounded border border-zinc-200 bg-white px-1 py-0.5 text-xs text-zinc-600 disabled:opacity-50"
+        >
+          {options.map((o) => (
+            <option key={o.type} value={o.type}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={remove}
+          disabled={busy}
+          title="מחק קובץ"
+          aria-label="מחק קובץ"
+          className="rounded px-1.5 py-0.5 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+        >
+          מחק
+        </button>
+      </div>
+      {error && <p className="mt-0.5 text-xs text-red-600">{error}</p>}
+    </div>
   );
 }

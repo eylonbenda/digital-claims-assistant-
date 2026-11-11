@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const DOC_OPTIONS: { type: string; label: string }[] = [
+// Also the re-file options on each card in ClaimDocuments.
+export const DOC_OPTIONS: { type: string; label: string }[] = [
   { type: "appraiser_report",      label: "דוח שמאי" },
   { type: "garage_invoice",        label: "חשבונית תיקון" },
   { type: "repair_receipt",        label: "קבלה על תשלום" },
