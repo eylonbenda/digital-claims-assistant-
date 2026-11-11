@@ -61,6 +61,7 @@ export interface ClaimData {
   agent_name?: string;
   policy_number?: string;
   insurance_type?: InsuranceType; // סוג ביטוח
+  tp_claim_number?: string; // insurer claim number (demand form, typed by hand)
   claim_type?: ClaimType;
   fault?: Fault; // מי אשם — collect always
 
@@ -103,6 +104,7 @@ export interface ClaimData {
     year?: string;
     type?: VehicleType;
     odometer?: string; // מד קילומטר
+    model_code?: string; // model code (demand form, typed by hand)
   };
 
   accident?: {
