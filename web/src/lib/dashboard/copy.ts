@@ -191,3 +191,16 @@ export function clientNameLabel(name: string | null | undefined): string {
 }
 // Relative day label for the activity column ("היום" / "אתמול" / "לפני N ימים").
 export { agoHe as activityAgo };
+
+// "פרטי העסק" — the sender printed on the demand form.
+export const BUSINESS = {
+  title: "פרטי העסק",
+  hint: "מודפסים ככותרת (שולח) בטופס הדרישה",
+  name: "שם העסק",
+  phone: "טלפון",
+  email: 'דוא"ל',
+  save: "שמירה",
+  saving: "שומר…",
+  saved: "נשמר",
+  genericError: "השמירה נכשלה, נסו שוב",
+} as const;

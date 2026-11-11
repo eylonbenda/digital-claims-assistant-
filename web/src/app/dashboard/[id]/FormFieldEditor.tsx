@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ClaimData } from "@/lib/formfill/types";
 import { MAX_THIRD_PARTIES } from "@/lib/collection/claim-state";
+import { validatePhone } from "@/lib/validation/phone";
 
 // ── immutable nested get/set by dot-path (supports numeric keys → arrays) ────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,11 +59,6 @@ function validatePlate(v: string): string | null {
   const d = v.replace(/\D/g, "");
   if (d.length === 0) return null;
   return d.length === 7 || d.length === 8 ? null : "מספר רישוי: 7–8 ספרות";
-}
-function validatePhone(v: string): string | null {
-  const d = v.replace(/\D/g, "");
-  if (d.length === 0) return null;
-  return d.length === 9 || d.length === 10 ? null : "מספר טלפון לא תקין";
 }
 // Dates on an accident notice can't be in the future.
 function validatePastDate(v: string): string | null {
