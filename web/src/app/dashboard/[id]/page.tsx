@@ -18,6 +18,9 @@ import { templates } from "@/lib/formfill";
 import ClaimDocuments, { type DocView } from "./ClaimDocuments";
 import FormGenerator, { type InsurerOption } from "./FormGenerator";
 import FormFieldEditor from "./FormFieldEditor";
+import DemandFormPanel from "./DemandFormPanel";
+import { resolveAddressee } from "@/lib/demand/data";
+import { INSURER_DIRECTORY } from "@/lib/submission/directory";
 import ChecklistPanel from "./ChecklistPanel";
 import AgentDocUpload from "./AgentDocUpload";
 import ClaimTypeConfirm from "./ClaimTypeConfirm";
@@ -631,6 +634,31 @@ export default async function ClaimDetailPage({
                   defaultInsurer={claim.policy_insurer}
                 />
               </section>
+
+              {claim.claim_type === "third_party_report" && (
+                <DemandFormPanel
+                  claimId={claim.id}
+                  latest={
+                    demandFormRows[0]
+                      ? {
+                          url: urlByPath.get(demandFormRows[0].storage_path) ?? null,
+                          createdAt: demandFormRows[0].created_at,
+                        }
+                      : null
+                  }
+                  senderMissing={!agentRow?.name?.trim()}
+                  addresseeResolved={
+                    resolveAddressee(
+                      ((claim as Record<string, unknown>).at_fault_insurer as string | null) ?? null,
+                      (tpRows ?? []).map((t) => (t.insurer as string | null) ?? null),
+                    ) !== null
+                  }
+                  insurerOptions={Object.entries(INSURER_DIRECTORY).map(([key, e]) => ({
+                    key,
+                    label: e.label,
+                  }))}
+                />
+              )}
 
               {formClaimData && (
                 <section className="rounded-2xl border border-zinc-200 bg-white p-5">

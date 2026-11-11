@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ClaimData } from "@/lib/formfill/types";
 import { MAX_THIRD_PARTIES } from "@/lib/collection/claim-state";
+import { setPath } from "@/lib/formfill/set-path";
 import { validatePhone } from "@/lib/validation/phone";
 
 // ── immutable nested get/set by dot-path (supports numeric keys → arrays) ────────
@@ -12,31 +13,18 @@ function getPath(obj: any, path: string): string {
   const v = path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
   return v == null ? "" : String(v);
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function setPath(obj: any, path: string, value: string): any {
-  const keys = path.split(".");
-  const root = Array.isArray(obj) ? [...obj] : { ...(obj ?? {}) };
-  let cur = root;
-  for (let i = 0; i < keys.length - 1; i++) {
-    const k = keys[i];
-    const nextIsIndex = /^\d+$/.test(keys[i + 1]);
-    const existing = cur[k];
-    cur[k] =
-      existing != null
-        ? Array.isArray(existing)
-          ? [...existing]
-          : { ...existing }
-        : nextIsIndex
-          ? []
-          : {};
-    cur = cur[k];
-  }
-  cur[keys[keys.length - 1]] = value === "" ? undefined : value;
-  return root;
-}
 
 type Validator = (v: string) => string | null; // returns Hebrew error, or null if ok
-type FieldDef = { path: string; label: string; type?: string; validate?: Validator };
+type FieldDef = {
+  path: string;
+  label: string;
+  type?: string;
+  validate?: Validator;
+  // Renders a <select>; "" is the "not set" option (removes the key).
+  options?: { value: string; label: string }[];
+  // Select values "true"/"false" are written as booleans.
+  bool?: boolean;
+};
 // tpIndex: a third-party vehicle section (third_parties[tpIndex]) — one per vehicle.
 type Section = { title: string; fields: FieldDef[]; tpOnly?: boolean; tpIndex?: number };
 
@@ -105,6 +93,7 @@ const SECTIONS: Section[] = [
       { path: "vehicle.plate", label: "מספר רישוי", validate: validatePlate },
       { path: "vehicle.manufacturer", label: "יצרן" },
       { path: "vehicle.model", label: "דגם" },
+      { path: "vehicle.model_code", label: "קוד דגם" },
       { path: "vehicle.year", label: "שנת ייצור" },
       { path: "vehicle.odometer", label: "מד ק״מ" },
     ],
@@ -117,6 +106,39 @@ const SECTIONS: Section[] = [
       { path: "accident.location", label: "מיקום" },
       { path: "accident.description", label: "תיאור" },
       { path: "accident.passengers", label: "נוסעים" },
+      {
+        path: "accident.police.notified",
+        label: "דווח למשטרה",
+        bool: true,
+        options: [
+          { value: "", label: "לא ידוע" },
+          { value: "true", label: "כן" },
+          { value: "false", label: "לא" },
+        ],
+      },
+    ],
+  },
+  {
+    title: "פוליסה",
+    fields: [
+      { path: "policy_number", label: "מספר פוליסה" },
+      {
+        path: "insurance_type",
+        label: "סוג ביטוח",
+        options: [
+          { value: "", label: "לא ידוע" },
+          { value: "comprehensive", label: "מקיף" },
+          { value: "mandatory", label: "חובה" },
+          { value: "third_party", label: "צד ג'" },
+        ],
+      },
+    ],
+  },
+  {
+    title: "תביעה",
+    fields: [
+      { path: "assessor_name", label: "שמאי" },
+      { path: "tp_claim_number", label: "מספר תביעה אצל המבטחת" },
     ],
   },
   {
@@ -140,6 +162,7 @@ function tpSection(i: number, count: number): Section {
       { path: `${p}.driver_name`, label: "שם הנהג" },
       { path: `${p}.phone`, label: "טלפון", validate: validatePhone },
       { path: `${p}.vehicle_plate`, label: "מספר רישוי", validate: validatePlate },
+      { path: `${p}.id_number`, label: "תעודת זהות", validate: validateIdNumber },
       { path: `${p}.insurer`, label: "חברת ביטוח" },
       { path: `${p}.policy_number`, label: "מספר פוליסה" },
       { path: `${p}.damage_description`, label: "תיאור הנזק" },
@@ -170,8 +193,9 @@ export default function FormFieldEditor({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  function update(path: string, value: string) {
-    setData((d) => setPath(d, path, value));
+  function update(path: string, value: string, bool?: boolean) {
+    const v = bool && value !== "" ? value === "true" : value;
+    setData((d) => setPath(d, path, v));
     setSaved(false);
   }
 
@@ -270,19 +294,39 @@ export default function FormFieldEditor({
                 return (
                   <label key={f.path} className="block">
                     <span className="text-xs text-zinc-500">{f.label}</span>
-                    <input
-                      type={f.type ?? "text"}
-                      value={value}
-                      onChange={(e) => update(f.path, e.target.value)}
-                      aria-invalid={!!err}
-                      className={`mt-1 w-full rounded-lg border px-2 py-1.5 text-sm outline-none focus:border-blue-500 ${
+                    {f.options ? (
+                      <select
+                        value={value}
+                        onChange={(e) => update(f.path, e.target.value, f.bool)}
+                        className={`mt-1 w-full rounded-lg border px-2 py-1.5 text-sm outline-none focus:border-blue-500 ${
                         err
                           ? "border-red-400 bg-red-50"
                           : empty
                             ? "border-amber-300 bg-amber-50"
                             : "border-zinc-300"
                       }`}
-                    />
+                      >
+                        {f.options.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={f.type ?? "text"}
+                        value={value}
+                        onChange={(e) => update(f.path, e.target.value)}
+                        aria-invalid={!!err}
+                        className={`mt-1 w-full rounded-lg border px-2 py-1.5 text-sm outline-none focus:border-blue-500 ${
+                        err
+                          ? "border-red-400 bg-red-50"
+                          : empty
+                            ? "border-amber-300 bg-amber-50"
+                            : "border-zinc-300"
+                      }`}
+                      />
+                    )}
                     {err && <span className="mt-1 block text-xs text-red-600">{err}</span>}
                   </label>
                 );

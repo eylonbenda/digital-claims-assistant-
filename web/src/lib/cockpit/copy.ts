@@ -36,3 +36,21 @@ export const UPDATE_HANDLING_LINE = "לעדכן סטטוס מול המבטחת";
 export const REMINDER_LABEL = "💬 שלח תזכורת ללקוח ↗";
 export const REMINDER_FAILED = "הרישום נכשל — נסה שוב";
 export const REMINDER_NO_PHONE = "מספר טלפון חסר או לא תקין";
+
+export const DEMAND_COPY = {
+  title: "טופס דרישה למבטחת",
+  create: "צור טופס דרישה",
+  regenerate: "צור מחדש",
+  pending: "יוצר…",
+  open: "פתח / הורד ↗",
+  senderMissing: "פרטי העסק חסרים — הטופס ייצא בלי שולח",
+  senderMissingLink: "השלם פרטי עסק",
+  insurerPrompt: "המבטחת לא זוהתה — בחר למי לפנות",
+  insurerPlaceholder: "בחר מבטחת…",
+  errors: {
+    400: "המבטחת שנבחרה אינה תקינה",
+    409: "הטופס זמין רק בתביעת צד ג׳ (דוח פרטי)",
+    500: "יצירת הטופס נכשלה — נסה שוב",
+  } as Record<number, string>,
+  errorFallback: "יצירת הטופס נכשלה — נסה שוב",
+} as const;
