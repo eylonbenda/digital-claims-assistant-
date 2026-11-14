@@ -24,7 +24,7 @@ import { INSURER_DIRECTORY } from "@/lib/submission/directory";
 import ChecklistPanel from "./ChecklistPanel";
 import AgentDocUpload from "./AgentDocUpload";
 import ClaimTypeConfirm from "./ClaimTypeConfirm";
-import CockpitTabs from "./CockpitTabs";
+import CockpitTabs, { GoToTab } from "./CockpitTabs";
 import NotesPanel, { type NoteView } from "./NotesPanel";
 import TasksPanel, { type TaskView } from "./TasksPanel";
 import { deriveCockpit, type TabKey } from "@/lib/cockpit/derive";
@@ -443,57 +443,94 @@ export default async function ClaimDetailPage({
           initialTab={initialTab}
           overview={
             <>
-              <section className="rounded-2xl border border-zinc-200 bg-white p-6">
-                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
-                  <div>
-                    <dt className="text-xs text-zinc-400">מסלול</dt>
-                    <dd className="mt-0.5 font-medium text-zinc-800">
-                      {TYPE_LABEL[claim.claim_type] ?? claim.claim_type}
-                      {confirmed && <span className="mr-1 text-green-600">✓</span>}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-zinc-400">מבטח הלקוח</dt>
-                    <dd className="mt-0.5 font-medium text-zinc-800">
-                      {claim.policy_insurer
-                        ? INSURER_LABEL[claim.policy_insurer] ?? claim.policy_insurer
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-zinc-400">מסמכים בתיק</dt>
-                    <dd className="mt-0.5 font-medium text-zinc-800">{docs.length}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-zinc-400">עדכון אחרון בתיק</dt>
-                    <dd
-                      className={`mt-0.5 font-medium ${
-                        daysSinceActivity !== null && daysSinceActivity >= 4
-                          ? "text-amber-700"
-                          : "text-zinc-800"
-                      }`}
-                    >
-                      {daysSinceActivity === null
-                        ? "—"
-                        : daysSinceActivity === 0
-                          ? "היום"
-                          : `לפני ${daysSinceActivity} ימים`}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-zinc-400">מוכנות</dt>
-                    <dd className="mt-0.5 font-medium text-zinc-800">
-                      {checklistItems.filter((i) => i.done).length}/{checklistItems.length}{" "}
-                      פריטים
-                      {blockingMissing.length > 0 && (
-                        <span className="mt-0.5 block text-xs font-normal text-amber-700">
-                          חסרים: {blockingMissing.map((b) => b.label).join(", ")}
-                        </span>
-                      )}
-                    </dd>
-                  </div>
-                </dl>
-              </section>
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+              {/* Side rail: the claim at a glance. First in the DOM so it leads on
+                  narrow screens; placed after the main column on wide ones. */}
+              <aside className="space-y-6 lg:order-last">
+                <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+                  <h2 className="mb-1 text-base font-bold text-zinc-900">פרטי תיק</h2>
+                  <dl className="divide-y divide-zinc-100 text-sm">
+                    <div className="flex items-baseline justify-between gap-4 py-2.5">
+                      <dt className="shrink-0 text-zinc-500">מסלול</dt>
+                      <dd className="font-medium text-zinc-800">
+                        {TYPE_LABEL[claim.claim_type] ?? claim.claim_type}
+                        {confirmed && <span className="mr-1 text-green-600">✓</span>}
+                      </dd>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-4 py-2.5">
+                      <dt className="shrink-0 text-zinc-500">מבטח הלקוח</dt>
+                      <dd className="font-medium text-zinc-800">
+                        {claim.policy_insurer
+                          ? INSURER_LABEL[claim.policy_insurer] ?? claim.policy_insurer
+                          : "—"}
+                      </dd>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-4 py-2.5">
+                      <dt className="shrink-0 text-zinc-500">מסמכים בתיק</dt>
+                      <dd className="font-medium text-zinc-800">{docs.length}</dd>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-4 py-2.5">
+                      <dt className="shrink-0 text-zinc-500">עדכון אחרון</dt>
+                      <dd className={`font-medium ${
+                          daysSinceActivity !== null && daysSinceActivity >= 4
+                            ? "text-amber-700"
+                            : "text-zinc-800"
+                        }`}>
+                        {daysSinceActivity === null
+                          ? "—"
+                          : daysSinceActivity === 0
+                            ? "היום"
+                            : `לפני ${daysSinceActivity} ימים`}
+                      </dd>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-4 py-2.5">
+                      <dt className="shrink-0 text-zinc-500">מוכנות</dt>
+                      <dd className="font-medium text-zinc-800">
+                        {checklistItems.filter((i) => i.done).length}/{checklistItems.length} פריטים
+                      </dd>
+                    </div>
+                  </dl>
+                  {blockingMissing.length > 0 && (
+                    <p className="mt-2 text-xs text-amber-700">
+                      חסרים: {blockingMissing.map((b) => b.label).join(", ")}
+                    </p>
+                  )}
+                </section>
+
+                <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+                  <h2 className="mb-1 text-base font-bold text-zinc-900">
+                    משימות פתוחות
+                    {openTasks.length > 0 && (
+                      <span className="mr-1 text-sm font-normal text-zinc-400">({openTasks.length})</span>
+                    )}
+                  </h2>
+                  {openTasks.length === 0 ? (
+                    <p className="py-2 text-sm text-zinc-500">אין משימות פתוחות.</p>
+                  ) : (
+                    <ul className="divide-y divide-zinc-100 text-sm">
+                      {openTasks.slice(0, 4).map((t) => (
+                        <li key={t.id} className="py-2.5">
+                          <p className="text-zinc-800">{t.title}</p>
+                          {t.due_at && (
+                            <p
+                              className={`mt-0.5 text-xs ${
+                                new Date(t.due_at).getTime() < now ? "text-amber-700" : "text-zinc-500"
+                              }`}
+                            >
+                              עד {new Date(t.due_at).toLocaleDateString("he-IL")}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <GoToTab tab="work" className="mt-2 text-sm font-medium text-brand hover:underline">
+                    לכל המשימות והמסמכים
+                  </GoToTab>
+                </section>
+              </aside>
+
+              <div className="min-w-0 space-y-6">
 
               {classification && (
                 <section>
@@ -540,6 +577,8 @@ export default async function ClaimDetailPage({
                 </h2>
                 <NotesPanel claimId={claim.id} notes={notes} />
               </section>
+              </div>
+              </div>
             </>
           }
           work={

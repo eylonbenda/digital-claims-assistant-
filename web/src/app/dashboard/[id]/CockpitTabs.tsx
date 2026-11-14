@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import type { Badges, TabKey } from "@/lib/cockpit/derive";
 import CockpitHeader, { type CockpitHeaderProps } from "./CockpitHeader";
 
@@ -13,6 +13,18 @@ export type CockpitTabsProps = {
   form: ReactNode;
   files: ReactNode;
 };
+
+// Lets server-rendered pane content switch tabs without a page load.
+const NavigateContext = createContext<((tab: TabKey) => void) | null>(null);
+
+export function GoToTab({ tab, className, children }: { tab: TabKey; className?: string; children: ReactNode }) {
+  const navigate = useContext(NavigateContext);
+  return (
+    <button type="button" onClick={() => navigate?.(tab)} className={className}>
+      {children}
+    </button>
+  );
+}
 
 const TAB_LABEL: Record<TabKey, string> = {
   overview: "סקירה",
@@ -70,13 +82,15 @@ export default function CockpitTabs(p: CockpitTabsProps) {
           </button>
         ))}
       </div>
-      <div id="cockpit-panes">
-        {TAB_ORDER.map((key) => (
-          <div key={key} role="tabpanel" className={tab === key ? "space-y-6" : "hidden"}>
-            {panes[key]}
-          </div>
-        ))}
-      </div>
+      <NavigateContext.Provider value={navigate}>
+        <div id="cockpit-panes">
+          {TAB_ORDER.map((key) => (
+            <div key={key} role="tabpanel" className={tab === key ? "space-y-6" : "hidden"}>
+              {panes[key]}
+            </div>
+          ))}
+        </div>
+      </NavigateContext.Provider>
     </div>
   );
 }

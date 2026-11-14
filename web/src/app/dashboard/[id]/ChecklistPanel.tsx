@@ -122,7 +122,7 @@ function SectionGroup({
           {done}/{items.length}
         </span>
       </div>
-      <ul className="divide-y divide-zinc-50">
+      <ul className="divide-y divide-zinc-100">
         {items.map((item) => (
           <ChecklistRow
             key={item.key}
@@ -154,30 +154,48 @@ function ChecklistRow({
 }) {
   const isMilestone = item.kind === "milestone" && !isSystemMilestone(item.key);
 
-  const statusIcon = item.done
-    ? "✅"
+  // Status tile: green check when done, red when a blocking item is missing,
+  // neutral otherwise. A document shows a page glyph, a milestone a flag.
+  const tileTone = item.done
+    ? "bg-emerald-50 text-emerald-700"
     : item.blocking
-      ? "🔴"
-      : "⬜";
+      ? "bg-red-50 text-red-600"
+      : "bg-zinc-100 text-zinc-500";
+  const tile = (
+    <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${tileTone}`}>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {item.done ? (
+          <path d="m5 12.5 4.5 4.5L19 7.5" />
+        ) : item.kind === "milestone" ? (
+          <path d="M6 21V4h11l-2 4 2 4H6" />
+        ) : (
+          <>
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
+            <path d="M14 3v5h5" />
+          </>
+        )}
+      </svg>
+    </span>
+  );
 
   return (
-    <li className="flex items-start gap-3 px-4 py-3">
+    <li className="flex items-center gap-3 px-4 py-3">
       {isMilestone ? (
         <button
           type="button"
           onClick={() => onToggle(item.key, !item.done)}
           disabled={isPending}
-          className="mt-0.5 shrink-0 text-lg leading-none disabled:opacity-50"
+          className="shrink-0 rounded-lg hover:ring-2 hover:ring-zinc-200 disabled:opacity-50"
           aria-label={item.done ? "סמן כלא הושלם" : "סמן כהושלם"}
         >
-          {statusIcon}
+          {tile}
         </button>
       ) : (
-        <span className="mt-0.5 shrink-0 text-lg leading-none">{statusIcon}</span>
+        <span className="shrink-0">{tile}</span>
       )}
 
       <div className="flex-1 min-w-0">
-        <span className={`text-sm ${item.done ? "text-zinc-400 line-through" : "text-zinc-800"}`}>
+        <span className={`text-sm ${item.done ? "text-zinc-500" : "font-medium text-zinc-800"}`}>
           {item.label}
         </span>
         {item.note && (
