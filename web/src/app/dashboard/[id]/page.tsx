@@ -408,17 +408,13 @@ export default async function ClaimDetailPage({
   );
 
   return (
-    <div className="min-h-screen bg-zinc-50" dir="rtl">
-      <header className="border-b border-zinc-200 bg-white px-6 py-4">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <Link href="/dashboard" className="text-sm text-blue-600 hover:underline">
-            ← חזרה לתביעות
-          </Link>
-          <span className="text-sm text-zinc-500">{user.email}</span>
-        </div>
-      </header>
-
       <main className="mx-auto max-w-6xl p-6">
+        <Link
+          href="/dashboard"
+          className="mb-4 inline-block text-sm font-medium text-brand hover:underline"
+        >
+          → חזרה לתביעות
+        </Link>
         <CockpitTabs
           header={{
             claimId: claim.id,
@@ -692,6 +688,5 @@ export default async function ClaimDetailPage({
           files={<ClaimDocuments claimId={claim.id} docs={docs} closed={claim.status === "closed"} />}
         />
       </main>
-    </div>
   );
 }
