@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/claims/[id]/form/[insurer]": ["./src/lib/formfill/assets/**"],
     "/api/claims/submit": ["./src/lib/formfill/assets/**"],
+    "/api/claims/[id]/demand-form": ["./src/lib/formfill/assets/**"],
+    "/api/claims/[id]/classify": ["./src/lib/formfill/assets/**"],
   },
 };
 

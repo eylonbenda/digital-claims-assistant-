@@ -449,6 +449,13 @@ cd web ; npm run dev
 - **`collect_private_report_docs` now has nothing left to chase the client for** (its body used `missingLateDocItems`, now empty for `third_party_report` unless `policy_activated`, where `loss_confirmation` remains), so the rule gains `requiresLabels: true` (`web/src/lib/outbound/rules.ts`). `buildQueue` (`queue.ts`) checks this before the existing give-up/cooldown logic: an empty label set routes the row straight to `doToday` as the agent's own task instead of the `send` lane — it never fires an empty WhatsApp message. `tasks/templates.ts`'s title for the task now says so explicitly ("...מהמוסך / השמאי").
 - Unit-tested: `checklist.test.ts`, `followup-fields.test.ts`, `queue.test.ts` (new case: empty labels → `doToday`, not `send`).
 
+### Done since last sync (2026-11-11, `feat/demand-form` — demand form / טופס דרישה)
+- **Generated demand form for `third_party_report`.** Stored in `generated_forms` with `kind = 'demand_form'`; readers distinguish it from `accident_notice` via `web/src/lib/forms/kinds.ts`. Pure builder `lib/demand/data.ts`, renderer `render.ts`, generation `generate.ts` (+ `inputs.ts`), sample script `web/scripts/demand.ts`. Auto-generated in `after()` on track confirm; on demand via `POST /api/claims/[id]/demand-form`.
+- Checklist `demand_form` item is satisfied by an uploaded **or** generated form; submission attaches the uploaded one if any, else the latest generated ("טופס דרישה").
+- Sender = `agents.name/phone/email`, editable in "פרטי העסק" on `/dashboard` (`GET/PATCH /api/agents/me`) — **fill it in prod after deploy**.
+- New editor fields: policy number, insurance type, police involvement, appraiser, insurer claim number, model code, third-party ID. `setPath` moved to `formfill/set-path.ts`; `validatePhone` to `validation/phone.ts`.
+- **No migration.** Pending prod check: confirm `generated_forms.kind` has no CHECK constraint (otherwise `'demand_form'` inserts fail).
+
 ### Done since last sync (2026-11-11, PR #105 — delete or re-file an uploaded document from the cockpit)
 - **No migration.**
 - **A file uploaded by mistake can now be fixed from the cockpit.** New `DELETE`/`PATCH /api/claims/[id]/documents/[docId]`: `DELETE` removes the `claim_documents` row then the Storage object (row first, so a failed object delete never leaves a row pointing at nothing — the orphan blob is the safe failure mode) and logs `document_deleted`; `PATCH { type }` re-files it under any `AGENT_DOC_TYPES` type, logs `document_retyped`, and re-runs the task engine as `doc_uploaded` for the new type. Ownership check is via the RLS-scoped auth client (another agent's doc reads as `404`); a closed claim gets `409` on either verb.

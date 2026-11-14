@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import NewClaimForm from "./NewClaimForm";
+import BusinessDetails from "./BusinessDetails";
 import ClaimsList from "./ClaimsList";
 import BriefAutoRefresh from "./BriefAutoRefresh";
 import { composeDashboard } from "@/lib/dashboard/compose";
@@ -87,6 +88,13 @@ export default async function DashboardPage() {
     queue = null;
     awaitingRanking = false;
   }
+
+  // Business details (sender on the demand form). Own row via RLS.
+  const { data: me } = await supabase
+    .from("agents")
+    .select("name, phone, email")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
 
   const { data: claims } = await supabase
     .from("claims")
@@ -182,6 +190,10 @@ export default async function DashboardPage() {
           <h2 className="text-xl font-semibold text-zinc-900">תביעות</h2>
           <NewClaimForm />
         </div>
+
+        <BusinessDetails
+          initial={{ name: me?.name ?? null, phone: me?.phone ?? null, email: me?.email ?? null }}
+        />
 
         <ClaimsList
           rows={rows}

@@ -1,7 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { runEngine } from "@/lib/tasks/runner";
-import { serverError } from "@/lib/observability/report";
+import { reportError, serverError } from "@/lib/observability/report";
+import { after } from "next/server";
+import { generateDemandForm } from "@/lib/demand/generate";
+import { DEMAND_TRACK } from "@/lib/demand/inputs";
+
+export const runtime = "nodejs"; // the background demand-form render reads the Hebrew font from disk
+// Bounds the post-response demand-form generation (after()).
+export const maxDuration = 60;
 
 const VALID_TYPES = new Set([
   "own_policy",
@@ -55,6 +62,18 @@ export async function PATCH(
 
   // Reactive task engine: spawn track tasks + advance status (forward-only).
   const engine = await runEngine(id, { type: "track_confirmed" });
+
+  // Draft the demand form in the background once the track is confirmed as a
+  // third-party report (spec Decision 5). Best-effort: never fails the classify call.
+  if (claimType === DEMAND_TRACK) {
+    after(async () => {
+      try {
+        await generateDemandForm(id);
+      } catch (e) {
+        await reportError("/api/claims/[id]/classify", e, { claimId: id, step: "demand form" });
+      }
+    });
+  }
 
   return Response.json({
     ok: true,

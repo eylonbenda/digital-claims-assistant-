@@ -104,7 +104,8 @@ tasks           (id, claim_id → claims, title, track, status,
                  -- partial unique index: at most one OPEN template task per (claim, key)
 generated_forms (id, claim_id → claims, kind, insurer, storage_path, created_at)
                  -- kind: accident_notice (הודעה על תאונה)
-                 --       | demand_letter (מכתב דרישה — required for TP route)
+                 --       | demand_form (טופס דרישה — generated for third_party_report only,
+                 --         one per claim, insurer null; see lib/demand/)
                  --       | submission_packet (תיק הגשה — full doc bundle)
                  -- insurer: migdal | menora | hachshara | ... (which template was filled)
 claim_notes     (id, claim_id → claims, body, created_at)

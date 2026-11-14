@@ -18,6 +18,9 @@ import { templates } from "@/lib/formfill";
 import ClaimDocuments, { type DocView } from "./ClaimDocuments";
 import FormGenerator, { type InsurerOption } from "./FormGenerator";
 import FormFieldEditor from "./FormFieldEditor";
+import DemandFormPanel from "./DemandFormPanel";
+import { demandAddressee } from "@/lib/demand/inputs";
+import { INSURER_DIRECTORY } from "@/lib/submission/directory";
 import ChecklistPanel from "./ChecklistPanel";
 import AgentDocUpload from "./AgentDocUpload";
 import ClaimTypeConfirm from "./ClaimTypeConfirm";
@@ -27,6 +30,7 @@ import TasksPanel, { type TaskView } from "./TasksPanel";
 import { deriveCockpit, type TabKey } from "@/lib/cockpit/derive";
 import { effectiveHandling } from "@/lib/handling/effective";
 import { loadQueue } from "@/lib/outbound/load";
+import { formFacts, FORM_KIND } from "@/lib/forms/kinds";
 import { composeSubmission } from "@/lib/submission/compose";
 import SubmissionPanel, { type SubmissionView } from "./SubmissionPanel";
 
@@ -137,7 +141,7 @@ export default async function ClaimDetailPage({
       .order("uploaded_at", { ascending: true }),
     supabase
       .from("generated_forms")
-      .select("id, insurer, storage_path, created_at")
+      .select("id, insurer, storage_path, created_at, kind")
       .eq("claim_id", id)
       .order("created_at", { ascending: false }),
     supabase
@@ -189,6 +193,11 @@ export default async function ClaimDetailPage({
   const formSummary = claim.summary_json as ClaimSummaryJson;
   const formClaimData = effectiveClaimData(formSummary);
   const formDataEdited = !!formSummary?.form_data;
+  // Who a demand form (third_party_report) is addressed to — same rule as generation.
+  const demandAddresseeKey = demandAddressee(
+    ((claim as Record<string, unknown>).at_fault_insurer as string | null) ?? null,
+    formClaimData,
+  );
 
   // Compute the dynamic checklist on the server — pure function, no I/O.
   const flags = {
@@ -198,10 +207,18 @@ export default async function ClaimDetailPage({
     policy_activated:     !!(claim as Record<string, unknown>).policy_activated,
     garage_network_rider: !!(claim as Record<string, unknown>).garage_network_rider,
   };
-  const uploadedDocTypes = satisfiedDocTypes(
-    (rows ?? []).map((r) => ({ type: r.type as string })),
-    claim.created_at,
-  );
+  // generated_forms holds more than the accident notice: only that kind feeds the form list and hasStoredForm.
+  // Demand forms are attached to the submission and counted as the demand_form doc instead.
+  const accidentFormRows = (formRows ?? []).filter((r) => r.kind === FORM_KIND.accidentNotice);
+  const demandFormRows = (formRows ?? []).filter((r) => r.kind === FORM_KIND.demand);
+  const facts = formFacts((formRows ?? []).map((r) => r.kind as string));
+  const uploadedDocTypes = new Set([
+    ...satisfiedDocTypes(
+      (rows ?? []).map((r) => ({ type: r.type as string })),
+      claim.created_at,
+    ),
+    ...facts.generatedDocTypes,
+  ]);
   const checklistState = ((claim as Record<string, unknown>).checklist_state as Record<string, boolean> | null) ?? {};
   // What the claimant said they'd send later (wizard `docsDeferred`), so a missing
   // blocking document reads as "the client will send it" rather than an unexplained
@@ -214,7 +231,7 @@ export default async function ClaimDetailPage({
   const checklistItems = computeChecklist(
     claim.claim_type,
     uploadedDocTypes,
-    (formRows ?? []).length > 0,
+    facts.hasAccidentNotice,
     checklistState,
     flags,
     deferredDocTypes,
@@ -248,7 +265,7 @@ export default async function ClaimDetailPage({
         url: urlByPath.get(r.storage_path) ?? null,
       });
     }
-    for (const r of formRows ?? []) {
+    for (const r of accidentFormRows) {
       forms.push({
         id: r.id,
         insurer: r.insurer,
@@ -335,7 +352,8 @@ export default async function ClaimDetailPage({
     },
     checklist: checklistItems,
     docs: (rows ?? []).map((r) => ({ type: r.type as string, storage_path: r.storage_path })),
-    forms: (formRows ?? []).map((r) => ({ insurer: r.insurer, storage_path: r.storage_path })),
+    forms: accidentFormRows.map((r) => ({ insurer: r.insurer, storage_path: r.storage_path })),
+    demandForms: demandFormRows.map((r) => ({ storage_path: r.storage_path })),
   });
   const submissionView: SubmissionView | null =
     submission && !handlingEffective
@@ -621,6 +639,29 @@ export default async function ClaimDetailPage({
                   defaultInsurer={claim.policy_insurer}
                 />
               </section>
+
+              {claim.claim_type === "third_party_report" && (
+                <DemandFormPanel
+                  // Remount when the resolved addressee changes so the select re-prefills.
+                  key={demandAddresseeKey ?? ""}
+                  claimId={claim.id}
+                  latest={
+                    demandFormRows[0]
+                      ? {
+                          url: urlByPath.get(demandFormRows[0].storage_path) ?? null,
+                          createdAt: demandFormRows[0].created_at,
+                        }
+                      : null
+                  }
+                  senderMissing={!agentRow?.name?.trim()}
+                  addresseeKey={demandAddresseeKey}
+                  hasUploadedDemand={(rows ?? []).some((r) => r.type === "demand_form")}
+                  insurerOptions={Object.entries(INSURER_DIRECTORY).map(([key, e]) => ({
+                    key,
+                    label: e.label,
+                  }))}
+                />
+              )}
 
               {formClaimData && (
                 <section className="rounded-2xl border border-zinc-200 bg-white p-5">

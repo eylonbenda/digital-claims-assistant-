@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { satisfiedDocTypes } from "@/lib/claims/checklist";
+import { formFacts } from "@/lib/forms/kinds";
 import { buildFactSheet, type BriefClaimRow, type FactSheet } from "./facts";
 import { rankClaims, fallbackTier, TIER_ORDER, type RankSignal, type Tier } from "./rank";
 
@@ -102,7 +103,7 @@ export async function getOrCreateBrief(
     const [{ data: tasks }, { data: docs }, { data: forms }, { data: notes }] = await Promise.all([
       svc.from("tasks").select("claim_id, title, due_at, status").in("claim_id", ids).neq("status", "done"),
       svc.from("claim_documents").select("claim_id, type, uploaded_at").in("claim_id", ids),
-      svc.from("generated_forms").select("claim_id, created_at").in("claim_id", ids),
+      svc.from("generated_forms").select("claim_id, created_at, kind").in("claim_id", ids),
       svc.from("claim_notes").select("claim_id, created_at").in("claim_id", ids),
     ]);
 
@@ -122,6 +123,7 @@ export async function getOrCreateBrief(
 
     const sheets: FactSheet[] = claims.map((c) => {
       const claimDocs = docsBy.get(c.id) ?? [];
+      const facts = formFacts((formsBy.get(c.id) ?? []).map((f) => f.kind as string));
       const activityTimes = [
         c.submitted_at,
         ...claimDocs.map((d) => d.uploaded_at as string),
@@ -147,11 +149,14 @@ export async function getOrCreateBrief(
         {
           claim: row,
           openTasks: (tasksBy.get(c.id) ?? []).map((t) => ({ title: t.title as string, due_at: t.due_at as string | null })),
-          docTypes: satisfiedDocTypes(
-            claimDocs.map((d) => ({ type: d.type as string })),
-            c.created_at as string,
-          ),
-          hasForm: (formsBy.get(c.id) ?? []).length > 0,
+          docTypes: new Set([
+            ...satisfiedDocTypes(
+              claimDocs.map((d) => ({ type: d.type as string })),
+              c.created_at as string,
+            ),
+            ...facts.generatedDocTypes,
+          ]),
+          hasForm: facts.hasAccidentNotice,
           lastActivityAt,
         },
         now,

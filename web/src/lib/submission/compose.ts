@@ -34,8 +34,10 @@ export function composeSubmission(input: {
   checklist: ComputedItem[];
   docs: { type: string; storage_path: string }[];
   forms: { insurer: string | null; storage_path: string }[];
+  // Generated demand forms (טופס דרישה), newest first.
+  demandForms: { storage_path: string }[];
 }): Submission | null {
-  const { claim, checklist, docs, forms } = input;
+  const { claim, checklist, docs, forms, demandForms } = input;
   if (claim.claimType === "unknown") return null;
 
   // matchInsurer accepts both canonical keys and Hebrew labels, so this covers
@@ -69,6 +71,13 @@ export function composeSubmission(input: {
       attachments.push({ label, storagePath: path });
     });
   }
+  // The generated demand form belongs to the third_party_report track only — the
+  // classification is revisable, so a form generated before a track change must not
+  // ride along on another track's submission. An uploaded demand form (e.g. from
+  // Libra) wins; otherwise attach the newest generated one.
+  const hasUploadedDemand = docs.some((d) => d.type === "demand_form");
+  const demand = demandForms[0];
+  if (claim.claimType === "third_party_report" && !hasUploadedDemand && demand) attachments.push({ label: "טופס דרישה", storagePath: demand.storage_path });
 
   return {
     insurerKey: insurerKey ?? null,
