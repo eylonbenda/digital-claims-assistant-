@@ -314,8 +314,9 @@ export default async function ClaimDetailPage({
     : null;
 
   const confirmed = claim.claim_type !== "unknown";
-  const classificationNeedsAttention =
-    !confirmed || !!classification?.needsAgentChoice || classification?.confidence === "low";
+  // A confirmed track is a made decision: the proposal (and its confidence) stops
+  // asking for attention, and the overview shows only a way to change it.
+  const classificationNeedsAttention = !confirmed;
 
   // Insurer options for manual fill — derived from the template registry.
   const insurerOptions: InsurerOption[] = Object.keys(templates).map((key) => ({
@@ -532,39 +533,36 @@ export default async function ClaimDetailPage({
 
               <div className="min-w-0 space-y-6">
 
-              {classification && (
+              {classification && !confirmed && (
                 <section>
-                  {/* Confirmed + uncontested → collapse to a one-liner; the header
-                      already shows the next action. Open when a decision is pending. */}
-                  <details open={classificationNeedsAttention}>
-                    <summary className="mb-3 flex cursor-pointer list-none items-center gap-2 text-lg font-semibold text-zinc-900 marker:content-none">
-                      סיווג התביעה
-                      {!classificationNeedsAttention && (
-                        <span className="text-sm font-normal text-zinc-400">
-                          — מאושר · פתח לפרטים / שינוי
-                        </span>
-                      )}
-                    </summary>
-
-                    {analysis && analysis.missing.length > 0 && (
-                      <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">
-                        <span className="font-medium text-amber-800">חסר / לא ברור:</span>
-                        <ul className="mr-4 mt-1 list-disc text-amber-700">
-                          {analysis.missing.map((m, i) => (
-                            <li key={i}>{m}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    <ClaimTypeConfirm
-                      claimId={claim.id}
-                      currentType={claim.claim_type}
-                      classification={classification}
-                    />
-                  </details>
+                  <h2 className="mb-3 text-lg font-semibold text-zinc-900">סיווג התביעה</h2>
+                  <ClaimTypeConfirm
+                    claimId={claim.id}
+                    currentType={claim.claim_type}
+                    classification={classification}
+                  />
+                  {/* Context for the decision, below it — the same list leads the
+                      form tab, where the fields are actually completed. */}
+                  {analysis && analysis.missing.length > 0 && (
+                    <div className="mt-3 rounded-xl border border-zinc-200 bg-white p-4 text-sm">
+                      <span className="font-medium text-zinc-800">חסר / לא ברור:</span>
+                      <ul className="mr-4 mt-1 list-disc text-zinc-600">
+                        {analysis.missing.map((m, i) => (
+                          <li key={i}>{m}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </section>
               )}
+
+              <ChecklistPanel
+                claimId={claim.id}
+                claimType={claim.claim_type}
+                initialItems={checklistItems}
+                docUrls={docUrlByType}
+                view="core"
+              />
 
               <section>
                 <h2 className="mb-3 text-lg font-semibold text-zinc-900">
@@ -577,6 +575,21 @@ export default async function ClaimDetailPage({
                 </h2>
                 <NotesPanel claimId={claim.id} notes={notes} />
               </section>
+
+              {classification && confirmed && (
+                <details>
+                  <summary className="inline-block cursor-pointer list-none rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 marker:content-none hover:bg-zinc-50">
+                    שינוי סיווג התביעה
+                  </summary>
+                  <div className="mt-3">
+                    <ClaimTypeConfirm
+                      claimId={claim.id}
+                      currentType={claim.claim_type}
+                      classification={classification}
+                    />
+                  </div>
+                </details>
+              )}
               </div>
               </div>
             </>
@@ -604,14 +617,12 @@ export default async function ClaimDetailPage({
               </section>
 
               <section>
-                <h2 className="mb-3 text-lg font-semibold text-zinc-900">
-                  רשימת מסמכים והתקדמות
-                </h2>
                 <ChecklistPanel
                   claimId={claim.id}
                   claimType={claim.claim_type}
                   initialItems={checklistItems}
                   docUrls={docUrlByType}
+                  view="rest"
                 />
               </section>
 

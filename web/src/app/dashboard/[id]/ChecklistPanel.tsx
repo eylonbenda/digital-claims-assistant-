@@ -12,17 +12,28 @@ type Props = {
   initialItems: ComputedItem[];
   // docType → signed URL for uploaded docs, so satisfied doc-items link to the file.
   docUrls?: Record<string, string>;
+  // "core": only the mandatory base documents, as one plain card (overview tab).
+  // "rest": everything else — later/conditional documents and milestones — folded
+  // behind a disclosure (work tab). Together the two views cover every item once.
+  view: "core" | "rest";
 };
 
-export default function ChecklistPanel({ claimId, claimType, initialItems, docUrls = {} }: Props) {
+const CORE_TITLE = "מסמכי חובה";
+const REST_TITLE = "מסמכים נוספים ואבני דרך";
+
+function isCore(item: ComputedItem): boolean {
+  return item.section === "base" && item.mandatory;
+}
+
+export default function ChecklistPanel({ claimId, claimType, initialItems, docUrls = {}, view }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   // Local optimistic state for milestone toggles only
   const [localState, setLocalState] = useState<Record<string, boolean>>({});
 
-  const items = initialItems.map((item) =>
-    item.key in localState ? { ...item, done: localState[item.key] } : item,
-  );
+  const items = initialItems
+    .filter((item) => (view === "core" ? isCore(item) : !isCore(item)))
+    .map((item) => (item.key in localState ? { ...item, done: localState[item.key] } : item));
 
   const sections = groupBySection(items);
   const blockingMissing = items.filter((i) => i.blocking && !i.done);
@@ -43,6 +54,22 @@ export default function ChecklistPanel({ claimId, claimType, initialItems, docUr
     startTransition(() => router.refresh());
   }
 
+  if (view === "core") {
+    // Unclassified: the document list depends on the track, and the classification
+    // prompt above it already says so.
+    if (claimType === "unknown" || items.length === 0) return null;
+    return (
+      <SectionGroup
+        section="base"
+        label={CORE_TITLE}
+        items={items}
+        isPending={isPending}
+        onToggle={toggleMilestone}
+        docUrls={docUrls}
+      />
+    );
+  }
+
   if (claimType === "unknown") {
     return (
       <p className="rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
@@ -51,9 +78,24 @@ export default function ChecklistPanel({ claimId, claimType, initialItems, docUr
     );
   }
 
+  if (items.length === 0) return null;
+
   return (
-    <div className="space-y-4">
-      {/* Claim-level progress over required items. */}
+    <details className="group rounded-xl border border-zinc-200 bg-white">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 marker:content-none">
+        <span className="text-sm font-semibold text-zinc-900">{REST_TITLE}</span>
+        <span className="flex items-center gap-3 text-xs text-zinc-500">
+          {blockingMissing.length > 0 && (
+            <span className="rounded bg-red-100 px-1.5 py-0.5 font-medium text-red-700">
+              {blockingMissing.length} חוסמים
+            </span>
+          )}
+          {items.filter((i) => i.done).length}/{items.length}
+          <span className="transition-transform group-open:rotate-180" aria-hidden="true">▾</span>
+        </span>
+      </summary>
+    <div className="space-y-4 border-t border-zinc-100 p-4">
+      {/* Progress over the required items in this view. */}
       <div>
         <div className="mb-1 flex items-center justify-between text-sm">
           <span className="font-medium text-zinc-700">התקדמות התיק</span>
@@ -94,6 +136,7 @@ export default function ChecklistPanel({ claimId, claimType, initialItems, docUr
         />
       ))}
     </div>
+    </details>
   );
 }
 
