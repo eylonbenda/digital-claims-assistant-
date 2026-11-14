@@ -33,3 +33,20 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+/* Agent dashboard palette. Inside the shell the neutral scale is re-pointed to a
+   cool slate that matches the shell tokens above, so every existing zinc-* utility
+   under /dashboard picks it up without touching the components. The landing page,
+   login and claimant wizard sit outside .app-shell and keep the stock zinc. */
+.app-shell {
+  --color-zinc-50: #f6f8fc;
+  --color-zinc-100: #eef1f6;
+  --color-zinc-200: #e7ebf1;
+  --color-zinc-300: #d3d9e3;
+  --color-zinc-400: #98a2b3;
+  --color-zinc-500: #677285;
+  --color-zinc-600: #556176;
+  --color-zinc-700: #3c4a60;
+  --color-zinc-800: #26344a;
+  --color-zinc-900: #182438;
+}

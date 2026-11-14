@@ -17,7 +17,7 @@ export default async function DashboardLayout({
   if (!user) redirect("/login");
 
   return (
-    <div className="min-h-screen bg-canvas text-ink lg:flex">
+    <div className="app-shell min-h-screen bg-canvas text-ink lg:flex">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-e border-line bg-white lg:flex">
         <Link href="/dashboard" className="px-5 pb-4 pt-5">
           <Image
