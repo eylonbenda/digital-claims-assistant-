@@ -53,7 +53,10 @@ export default async function DashboardLayout({
               className="h-7 w-auto"
             />
           </Link>
-          <LogoutButton />
+          <div className="flex items-center gap-2">
+            <SidebarNav compact />
+            <LogoutButton />
+          </div>
         </header>
         {children}
       </div>

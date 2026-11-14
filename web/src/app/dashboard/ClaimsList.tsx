@@ -55,17 +55,26 @@ function CopyLinkButton({ token }: { token: string }) {
       onClick={copy}
       title={COPY_LINK_LABEL}
       aria-label={COPY_LINK_LABEL}
-      className="relative z-10 rounded p-1 text-xs text-blue-600 hover:bg-zinc-100"
+      className="relative z-10 rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-brand"
     >
-      {copied ? "✓" : "🔗"}
+      {copied ? (
+        <span className="text-xs text-emerald-700">✓</span>
+      ) : (
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+          <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+        </svg>
+      )}
     </button>
   );
 }
 
 function Row({ row, now }: { row: ClaimRow; now: Date }) {
-  const lineColor = row.send ? "text-red-700" : row.needs_action ? "text-amber-800" : "text-zinc-500";
+  // One loud signal per row — the red dot. The next-step line is ink when the row
+  // needs the user and muted otherwise, not a second colour code.
+  const lineColor = row.send || row.needs_action ? "text-zinc-900" : "text-zinc-500";
   return (
-    <li className={`relative px-3 py-3 hover:bg-zinc-50 ${GRID}`}>
+    <li className={`relative px-4 py-3.5 hover:bg-zinc-50 ${GRID}`}>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-1">
           {row.needs_action && (
@@ -100,7 +109,7 @@ function Row({ row, now }: { row: ClaimRow; now: Date }) {
 
       <div className="col-span-2 min-w-0 md:col-span-1">
         <p className={`text-sm ${lineColor}`}>{row.action_line}</p>
-        {row.also_line && <p className="text-xs text-amber-800">{row.also_line}</p>}
+        {row.also_line && <p className="text-xs text-zinc-500">{row.also_line}</p>}
         {row.ai_line && <p className="text-xs text-zinc-400">{row.ai_line}</p>}
       </div>
 
@@ -114,33 +123,20 @@ function Row({ row, now }: { row: ClaimRow; now: Date }) {
 }
 
 export default function ClaimsList({
-  rows, greeting, dateLabel, nowIso, name,
+  rows, nowIso,
 }: {
   rows: ClaimRow[];
-  greeting: string;
-  dateLabel: string;
   // Server render time — keeps relative labels identical on SSR and hydration.
   nowIso: string;
-  name: string | null;
 }) {
   // The query is state only — names/phones must not land in the URL.
   const [query, setQuery] = useState("");
   const [stage, setStage] = useUrlStage();
   const [page, setPage] = useUrlPage("p");
 
-  const heading = (
-    <div className="mb-3">
-      <h2 className="text-lg font-bold text-zinc-900">
-        {greeting}{name ? `, ${name}` : ""} 👋{" "}
-        <span className="text-sm font-normal text-zinc-500">· {dateLabel}</span>
-      </h2>
-    </div>
-  );
-
   if (rows.length === 0) {
     return (
       <section dir="rtl" id="claims-list">
-        {heading}
         <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center">
           <p className="font-medium text-zinc-800">צור את התביעה הראשונה שלך</p>
           <p className="mt-1 text-sm text-zinc-500">
@@ -167,26 +163,25 @@ export default function ClaimsList({
 
   return (
     <section dir="rtl" id="claims-list">
-      {heading}
-
       <input
         value={query}
         onChange={(e) => { setQuery(e.target.value); setPage(1); }}
         placeholder={SEARCH_PLACEHOLDER}
-        className="mb-3 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+        className="mb-3 w-full rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none placeholder:text-zinc-400 focus:border-brand"
       />
 
       <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
         {CHIPS.map(({ key, label }) => {
           const active = stage === key;
           const tone = active
-            ? "border-zinc-900 bg-zinc-900 text-white"
-            : key === "needs_you"
-              ? "border-red-300 bg-red-50 text-red-700"
-              : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50";
+            ? "border-brand bg-brand text-white"
+            : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50";
           return (
             <button key={key} type="button" onClick={() => pickStage(key)} aria-pressed={active}
               className={`${chipBase} ${tone}`}>
+              {key === "needs_you" && (
+                <span className={`me-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${active ? "bg-white" : "bg-red-500"}`} />
+              )}
               {label}
               {key !== "closed" && ` · ${counts[key]}`}
             </button>
@@ -200,7 +195,7 @@ export default function ClaimsList({
         </p>
       ) : (
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          <div className={`hidden border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-500 md:grid ${GRID}`}>
+          <div className={`hidden border-b border-zinc-200 bg-zinc-50 px-4 py-2.5 text-xs font-medium text-zinc-500 md:grid ${GRID}`}>
             <span>{CLIENT_HEADER}</span>
             <span>{STAGE_HEADER}</span>
             <span>{NEXT_STEP_HEADER}</span>

@@ -46,15 +46,10 @@ export default function BusinessDetails({
     "mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-500";
 
   return (
-    <details
-      open={!initial.name?.trim()}
-      className="rounded-xl border border-zinc-200 bg-white p-4"
-    >
-      <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
-        {BUSINESS.title}
-      </summary>
-      <form onSubmit={save} className="mt-3 space-y-3">
-        <p className="text-xs text-zinc-500">{BUSINESS.hint}</p>
+    <section className="rounded-xl border border-zinc-200 bg-white p-5">
+      <h2 className="text-base font-bold text-zinc-900">{BUSINESS.title}</h2>
+      <p className="mt-0.5 text-xs text-zinc-500">{BUSINESS.hint}</p>
+      <form onSubmit={save} className="mt-4 space-y-3">
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block text-sm text-zinc-700">
             {BUSINESS.name}
@@ -99,6 +94,6 @@ export default function BusinessDetails({
           {saved && !error && <span className="text-sm text-emerald-700">{BUSINESS.saved}</span>}
         </div>
       </form>
-    </details>
+    </section>
   );
 }
