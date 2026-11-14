@@ -51,9 +51,15 @@ jobs:
           # Authenticate the `gh` CLI for posting the PR comment.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Bill doc-sync to the Max subscription, not the Console API balance.
+          # With anthropic_api_key this run was charged as Claude Code usage on the
+          # API key, which the subscription's promotional API credits don't cover,
+          # so it triggered auto-reload charges. Token comes from `claude setup-token`.
+          # Do NOT also pass anthropic_api_key — keep one auth path so billing is unambiguous.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # Model is pinned deliberately. Unpinned, the action uses its own default
+          # Model is pinned deliberately (originally for API cost; under the
+          # subscription it still keeps doc-sync light on usage limits). Unpinned, the action uses its own default
           # (currently Opus 5, $5/$25 per MTok) — which made doc-sync 76% of the
           # August API bill at ~$1.82/run across 14 runs. Sonnet 5 is $2/$10 for a
           # job that reconciles docs against a diff under a detailed skill spec.
