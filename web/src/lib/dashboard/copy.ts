@@ -203,4 +203,10 @@ export const BUSINESS = {
   saving: "שומר…",
   saved: "נשמר",
   genericError: "השמירה נכשלה, נסו שוב",
+  // List-page nudge shown only while the business name is still empty.
+  missingNote: "חסרים פרטי העסק — הם מודפסים ככותרת בטופס הדרישה.",
+  missingAction: "להשלמה",
 } as const;
+
+export const SETTINGS_TITLE = "הגדרות";
+export const CLAIMS_TITLE = "תביעות";

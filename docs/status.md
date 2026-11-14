@@ -452,7 +452,7 @@ cd web ; npm run dev
 ### Done since last sync (2026-11-11, `feat/demand-form` — demand form / טופס דרישה)
 - **Generated demand form for `third_party_report`.** Stored in `generated_forms` with `kind = 'demand_form'`; readers distinguish it from `accident_notice` via `web/src/lib/forms/kinds.ts`. Pure builder `lib/demand/data.ts`, renderer `render.ts`, generation `generate.ts` (+ `inputs.ts`), sample script `web/scripts/demand.ts`. Auto-generated in `after()` on track confirm; on demand via `POST /api/claims/[id]/demand-form`.
 - Checklist `demand_form` item is satisfied by an uploaded **or** generated form; submission attaches the uploaded one if any, else the latest generated ("טופס דרישה").
-- Sender = `agents.name/phone/email`, editable in "פרטי העסק" on `/dashboard` (`GET/PATCH /api/agents/me`) — **fill it in prod after deploy**.
+- Sender = `agents.name/phone/email`, editable on `/dashboard/settings` (`GET/PATCH /api/agents/me`) — **fill it in prod after deploy**.
 - New editor fields: policy number, insurance type, police involvement, appraiser, insurer claim number, model code, third-party ID. `setPath` moved to `formfill/set-path.ts`; `validatePhone` to `validation/phone.ts`.
 - **No migration.** Pending prod check: confirm `generated_forms.kind` has no CHECK constraint (otherwise `'demand_form'` inserts fail).
 
@@ -468,3 +468,11 @@ cd web ; npm run dev
 - **New shared shell for `/dashboard` + `/dashboard/[id]`:** `layout.tsx` renders a fixed sidebar (logo, `SidebarNav.tsx`, user email + logout) on wide screens, a slim top bar with logout on narrow ones; both pages dropped their own header/logout markup and now render only their `<main>`.
 - **UI body font switched from Geist to Heebo** (`next/font/google`, `hebrew`+`latin` subsets) in the root `layout.tsx` — Geist is latin-only, so Hebrew text fell back to a system font. `globals.css` also gains named palette tokens (`--color-canvas`/`ink`/`muted`/`line`/`brand`/`brand-soft`) used by the new shell.
 - This is UI chrome only — the Noto Sans Hebrew font used for *filled PDF forms* (`web/src/lib/formfill/assets/app-hebrew.ttf`) is unrelated and unchanged.
+
+### Done since last sync (2026-11-14, PR #108 — calmer claims list, settings page for business details)
+- **No migration.**
+- **Business details moved off the list page.** New `/dashboard/settings` (`web/src/app/dashboard/settings/page.tsx`) now owns `BusinessDetails.tsx` (plain `<section>`, no longer a collapsible `<details>`); `SidebarNav.tsx` gains a second entry ("הגדרות") and `isActive()` so `/dashboard/settings` doesn't also highlight "תביעות". `/dashboard` itself only shows a one-line nudge + link to settings while `agents.name` is still empty, and no longer queries `phone`/`email`.
+- **`SidebarNav` gains a `compact` prop** (icon-less horizontal row) and is now also mounted in the narrow-screen top bar in `layout.tsx`, next to the logout button.
+- **`ClaimsList.tsx` calmer visual pass:** the greeting/date heading moved into `page.tsx`'s own header (list no longer takes `greeting`/`dateLabel`/`name` props); row next-step color is now binary (ink when `send`/`needs_action`, muted otherwise) instead of a three-way red/amber/zinc code; the copy-link button is an SVG chain icon instead of a 🔗 emoji; the active "צריך אותך" chip and search/table styling moved to the `brand` token instead of ad-hoc red/zinc.
+- `web/src/lib/dashboard/copy.ts` gains `BUSINESS.missingNote`/`missingAction` and `SETTINGS_TITLE`/`CLAIMS_TITLE`.
+- `docs/app-map.md`, `docs/claim-management.md` updated: business details are now edited on `/dashboard/settings`, not inline on `/dashboard`.
