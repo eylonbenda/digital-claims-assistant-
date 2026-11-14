@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-11**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-14**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -462,3 +462,9 @@ cd web ; npm run dev
 - **`ClaimDocuments.tsx`** (קבצים tab) gains a type `<select>` (re-file) + **מחק** button (with `window.confirm`) per card, hidden when the claim is closed (`closed` prop, `page.tsx` passes `claim.status === "closed"`). `DOC_OPTIONS` is now exported from `AgentDocUpload.tsx` and shared.
 - **Known limit, not fixed here:** the engine is forward-only, so a chase task already completed by a now-deleted doc stays done; only the checklist item (a live derived view) flips back to missing.
 - Unit-tested: `route.test.ts` (new, for `/api/claims/[id]/documents/[docId]`) — 559/559 passing.
+
+### Done since last sync (2026-11-14, PR #107 — shared dashboard shell, Heebo font, palette tokens)
+- **No migration.** Presentation-only: `web/src/app/dashboard/layout.tsx` (new), `web/src/app/dashboard/SidebarNav.tsx` (new), `web/src/app/dashboard/page.tsx`, `web/src/app/dashboard/[id]/page.tsx`, `web/src/app/layout.tsx`, `web/src/app/globals.css`.
+- **New shared shell for `/dashboard` + `/dashboard/[id]`:** `layout.tsx` renders a fixed sidebar (logo, `SidebarNav.tsx`, user email + logout) on wide screens, a slim top bar with logout on narrow ones; both pages dropped their own header/logout markup and now render only their `<main>`.
+- **UI body font switched from Geist to Heebo** (`next/font/google`, `hebrew`+`latin` subsets) in the root `layout.tsx` — Geist is latin-only, so Hebrew text fell back to a system font. `globals.css` also gains named palette tokens (`--color-canvas`/`ink`/`muted`/`line`/`brand`/`brand-soft`) used by the new shell.
+- This is UI chrome only — the Noto Sans Hebrew font used for *filled PDF forms* (`web/src/lib/formfill/assets/app-hebrew.ttf`) is unrelated and unchanged.
