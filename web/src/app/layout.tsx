@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Heebo } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+// Heebo is a variable font with real Hebrew glyphs — the previous sans (Geist) is
+// latin-only, so every Hebrew string fell back to a system font.
+const heebo = Heebo({ variable: "--font-heebo", subsets: ["hebrew", "latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -25,7 +27,7 @@ export default function RootLayout({
     <html
       lang="he"
       dir="rtl"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${heebo.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
