@@ -65,6 +65,7 @@ export default function SubmissionPanel({ claimId, submission, insurers }: Props
   const [, startTransition] = useTransition();
   const [insurerKey, setInsurerKey] = useState(submission.insurerKey ?? "");
   const [recipient, setRecipient] = useState(submission.recipient ?? "");
+  const [demand, setDemand] = useState("");
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +76,22 @@ export default function SubmissionPanel({ claimId, submission, insurers }: Props
   async function confirmSent() {
     setBusy(true);
     setError(null);
+    // The amount first: a mistyped number should stop here, before the claim is
+    // marked sent. Left empty, nothing is recorded and it can be added later.
+    if (demand.trim()) {
+      const amountRes = await fetch(`/api/claims/${claimId}/amounts`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ demand_amount: demand }),
+      });
+      if (!amountRes.ok) {
+        const data = await amountRes.json().catch(() => null);
+        setError(data?.error ?? "שמירת הסכום נכשלה — נסו שוב");
+        setBusy(false);
+        setAsking(false);
+        return;
+      }
+    }
     const res = await fetch(`/api/claims/${claimId}/submission`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -164,6 +181,22 @@ export default function SubmissionPanel({ claimId, submission, insurers }: Props
               </li>
             ))}
           </ul>
+        </div>
+
+        <div className="max-w-xs">
+          <label htmlFor="sub-demand" className="mb-1 block text-xs font-medium text-zinc-500">
+            {C.demandLabel}
+          </label>
+          <input
+            id="sub-demand"
+            value={demand}
+            onChange={(e) => setDemand(e.target.value)}
+            inputMode="decimal"
+            dir="ltr"
+            placeholder="0"
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+          />
+          <p className="mt-1 text-xs text-zinc-400">{C.demandHint}</p>
         </div>
 
         {error && (

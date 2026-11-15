@@ -74,6 +74,9 @@ create table claims (
     )
   ),
   handling_status_changed_at timestamptz,
+  -- Money (migration 012): what was demanded from the insurer / what was paid. ILS, optional.
+  demand_amount numeric(12, 2) check (demand_amount is null or demand_amount >= 0),
+  paid_amount numeric(12, 2) check (paid_amount is null or paid_amount >= 0),
   created_at timestamptz not null default now(),
   submitted_at timestamptz,
   closed_at timestamptz
