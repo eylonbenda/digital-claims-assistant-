@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeChecklist, chaseableLabels, chaseItemLabels, chaseItems, clientRequestedItems, missingLateDocItems, satisfiedDocTypes, type ClaimFlags } from "./checklist";
+import { TP_LICENCE_FROM, computeChecklist, chaseableLabels, chaseItemLabels, chaseItems, clientRequestedItems, missingLateDocItems, satisfiedDocTypes, type ClaimFlags } from "./checklist";
 
 const NO_FLAGS: ClaimFlags = {
   theft: false, lien: false, business_use: false,
@@ -216,5 +216,37 @@ describe("computeChecklist — generated demand form", () => {
     const items = computeChecklist("third_party_report", new Set(["demand_form"]), false, {}, NO_FLAGS);
     expect(items.find((i) => i.key === "accident_form")?.done).toBe(false);
     expect(items.find((i) => i.key === "demand_form")?.done).toBe(true);
+  });
+});
+
+describe("computeChecklist — driving licence on the third-party tracks", () => {
+  const AFTER = "2026-11-20T08:00:00Z";
+  const BEFORE = "2026-11-01T08:00:00Z";
+  const tp = (track: string, createdAt?: string | null, docs: string[] = []) =>
+    computeChecklist(track, new Set(docs), false, {}, NO_FLAGS, undefined, createdAt);
+
+  it("lists it as a mandatory, non-blocking base document on claims opened from the cutoff", () => {
+    for (const track of ["third_party_report", "third_party_settlement"]) {
+      const item = tp(track, AFTER).find((i) => i.key === "drivers_license");
+      expect(item).toMatchObject({ mandatory: true, blocking: false, section: "base", done: false });
+    }
+    expect(tp("third_party_report", TP_LICENCE_FROM).some((i) => i.key === "drivers_license")).toBe(true);
+  });
+
+  it("leaves older claims, and callers that do not know the date, as they were", () => {
+    for (const createdAt of [BEFORE, null, undefined, "not-a-date"]) {
+      expect(tp("third_party_report", createdAt).some((i) => i.key === "drivers_license")).toBe(false);
+      expect(tp("third_party_settlement", createdAt).some((i) => i.key === "drivers_license")).toBe(false);
+    }
+  });
+
+  it("is chased on a new claim until the licence is on file", () => {
+    expect(chaseItemLabels(tp("third_party_report", AFTER))).toContain("רישיון נהיגה");
+    expect(chaseItemLabels(tp("third_party_report", AFTER, ["drivers_license"]))).not.toContain("רישיון נהיגה");
+    expect(chaseItemLabels(tp("third_party_report", BEFORE))).not.toContain("רישיון נהיגה");
+  });
+
+  it("does not change own_policy, where the licence has no cutoff", () => {
+    expect(tp("own_policy", null).find((i) => i.key === "drivers_license")).toMatchObject({ blocking: true });
   });
 });

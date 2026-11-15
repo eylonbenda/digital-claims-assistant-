@@ -20,6 +20,10 @@ export type ChecklistItemDef = {
   // (e.g. demand_form, a demand letter drafted by the agent) — chase messages must
   // never ask the client for something only the agent's side can produce.
   clientSuppliable?: boolean;
+  // ISO timestamp. The item exists only on claims opened at or after it — and not
+  // at all when the caller does not know when the claim was opened. For an item
+  // added to a track after claims on that track are already in flight.
+  appliesFrom?: string;
 };
 
 export type ClaimFlags = {
@@ -41,9 +45,19 @@ export const SECTION_LABELS: Record<ItemSection, string> = {
 
 // ─── per-track item configs ──────────────────────────────────────────────────
 
+// The licence item is satisfied by two uploads of one doc type (DOC_MIN_COUNT).
+const LICENCE_SIDES_NOTE = "שני הצדדים";
+
+// The third-party tracks list the driving licence only on claims opened from this
+// date. A mandatory base document keeps chase_missing_docs open (chaseItems), so
+// adding it to every open third-party claim at once would reopen that task and
+// propose a reminder on each one that lacks the licence — the same flood
+// BOTH_SIDES_LICENCE_FROM avoids. Older claims keep the checklist they had.
+export const TP_LICENCE_FROM = "2026-11-15T00:00:00Z";
+
 const OWN_POLICY: ChecklistItemDef[] = [
   { key: "accident_form",        label: "טופס הודעה על תאונה",              kind: "form",      mandatory: true,  blocking: true,  section: "base" },
-  { key: "drivers_license",      label: "רישיון נהיגה",                    kind: "doc",  docType: "drivers_license",      mandatory: true,  blocking: true,  section: "base" },
+  { key: "drivers_license",      label: "רישיון נהיגה",                    kind: "doc",  docType: "drivers_license",      mandatory: true,  blocking: true,  section: "base", note: LICENCE_SIDES_NOTE },
   { key: "vehicle_reg",          label: "רישיון רכב",                      kind: "doc",  docType: "vehicle_reg",          mandatory: true,  blocking: true,  section: "base" },
   { key: "car_photo",            label: "תמונות נזק",                      kind: "doc",  docType: "car_photo",            mandatory: true,  blocking: false, section: "base" },
   { key: "appraiser_report",     label: "דוח שמאי",                        kind: "doc",  docType: "appraiser_report",     mandatory: true,  blocking: false, section: "late", clientSuppliable: false },
@@ -60,6 +74,10 @@ const OWN_POLICY: ChecklistItemDef[] = [
 
 const THIRD_PARTY_REPORT: ChecklistItemDef[] = [
   { key: "accident_form",            label: "טופס הודעה על תאונה",                       kind: "form",      mandatory: true,  blocking: true,  section: "base" },
+  // Collected by the wizard on every track; listed here so the agent sees it, the
+  // chase asks for it and the submission packet carries it. Not gating submission
+  // (same standing as עבר ביטוחי). New claims only — see TP_LICENCE_FROM.
+  { key: "drivers_license",          label: "רישיון נהיגה",                            kind: "doc",  docType: "drivers_license",          mandatory: true,  blocking: false, section: "base", note: LICENCE_SIDES_NOTE, appliesFrom: TP_LICENCE_FROM },
   { key: "vehicle_reg",              label: "רישיון רכב",                               kind: "doc",  docType: "vehicle_reg",              mandatory: true,  blocking: true,  section: "base" },
   { key: "car_photo",                label: "תמונות נזק",                               kind: "doc",  docType: "car_photo",                mandatory: true,  blocking: true,  section: "base" },
   { key: "demand_form",              label: "מכתב דרישה",                               kind: "doc",  docType: "demand_form",              mandatory: true,  blocking: true,  section: "base", clientSuppliable: false },
@@ -88,6 +106,10 @@ const THIRD_PARTY_REPORT: ChecklistItemDef[] = [
 
 const THIRD_PARTY_SETTLEMENT: ChecklistItemDef[] = [
   { key: "accident_form",         label: "טופס הודעה על תאונה",         kind: "form",      mandatory: true,  blocking: true,  section: "base" },
+  // Collected by the wizard on every track; listed here so the agent sees it, the
+  // chase asks for it and the submission packet carries it. Not gating submission
+  // (same standing as עבר ביטוחי). New claims only — see TP_LICENCE_FROM.
+  { key: "drivers_license",       label: "רישיון נהיגה",                            kind: "doc",  docType: "drivers_license",       mandatory: true,  blocking: false, section: "base", note: LICENCE_SIDES_NOTE, appliesFrom: TP_LICENCE_FROM },
   { key: "vehicle_reg",           label: "רישיון רכב",                  kind: "doc",  docType: "vehicle_reg",           mandatory: true,  blocking: true,  section: "base" },
   { key: "car_photo",             label: "תמונות נזק",                  kind: "doc",  docType: "car_photo",             mandatory: true,  blocking: true,  section: "base" },
   { key: "no_claim_confirmation", label: "אישור אי-הגשת תביעה",        kind: "doc",  docType: "no_claim_confirmation", mandatory: true,  blocking: true,  section: "base" },
@@ -163,8 +185,13 @@ export function computeChecklist(
   checklistState: Record<string, boolean>,
   flags: ClaimFlags,
   deferredDocTypes: Set<string> = new Set(),
+  // claims.created_at — decides which date-gated items (appliesFrom) exist.
+  claimCreatedAt?: string | null,
 ): ComputedItem[] {
-  let items = [...(TRACK_ITEMS[claimType] ?? TRACK_ITEMS.unknown)];
+  const opened = claimCreatedAt ? Date.parse(claimCreatedAt) : NaN;
+  let items = (TRACK_ITEMS[claimType] ?? TRACK_ITEMS.unknown).filter(
+    (i) => !i.appliesFrom || opened >= Date.parse(i.appliesFrom),
+  );
 
   if (claimType === "third_party_report") {
     if (flags.policy_activated) {

@@ -236,6 +236,7 @@ export default async function ClaimDetailPage({
     checklistState,
     flags,
     deferredDocTypes,
+    claim.created_at,
   );
 
   // Ownership is already proven by the RLS queries above; the service client only
@@ -281,6 +282,9 @@ export default async function ClaimDetailPage({
   // write per type wins (= most recent upload).
   const docUrlByType: Record<string, string> = {};
   for (const d of docs) if (d.url) docUrlByType[d.type] = d.url;
+  // Files per type — the licence row shows "1 of 2" while one side is missing.
+  const docCountByType: Record<string, number> = {};
+  for (const r of rows ?? []) docCountByType[r.type] = (docCountByType[r.type] ?? 0) + 1;
 
   const statusBadge =
     STATUS_BADGE[claim.status] ?? "bg-zinc-100 text-zinc-600 ring-zinc-200";
@@ -540,6 +544,7 @@ export default async function ClaimDetailPage({
                 claimType={claim.claim_type}
                 initialItems={checklistItems}
                 docUrls={docUrlByType}
+                docCounts={docCountByType}
                 view="core"
               />
 
@@ -548,10 +553,18 @@ export default async function ClaimDetailPage({
                 claimType={claim.claim_type}
                 initialItems={checklistItems}
                 docUrls={docUrlByType}
+                docCounts={docCountByType}
                 view="rest"
               />
 
               <AgentDocUpload claimId={claim.id} />
+
+              <ChecklistPanel
+                claimId={claim.id}
+                claimType={claim.claim_type}
+                initialItems={checklistItems}
+                view="milestones"
+              />
 
               <section>
                 <h2 className="mb-3 text-lg font-semibold text-zinc-900">

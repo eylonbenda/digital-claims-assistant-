@@ -48,6 +48,7 @@ export function buildFactSheet(
 
   const checklist = computeChecklist(
     claim.claim_type, docTypes, hasForm, claim.checklist_state ?? {}, claim.flags,
+    undefined, claim.created_at,
   );
   const blockingLabels = checklist.filter((i) => i.blocking && !i.done).map((i) => i.label);
 
