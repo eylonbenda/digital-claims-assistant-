@@ -38,7 +38,8 @@ report → guided collection → AI summary + missing-info
 ## ⏭️ Out of MVP (phase 2+)
 - **Active** task workflow — **partly built**: the engine (`web/src/lib/tasks/`) spawns/completes per-track tasks and advances status on events, and the **outbound queue** (`web/src/lib/outbound/`, phase-2 step C1) now turns the due client-facing chases into an approval queue on the dashboard — one tap per `wa.me` send, every send *and* skip recorded. Still deferred: **unattended** auto-send (cron + BSP; the `auto` flag on each rule is the seam, gated on the skip rates the queue is now measuring), and outbound chasing of the garage / appraiser / insurer, who have no contact fields in the schema yet.
 - WhatsApp Business API (automated channel).
-- Document OCR, billing, multi-agency, subrogation track, payment tracking.
+- Document OCR, billing, multi-agency, subrogation track.
+- **Payment tracking** — partly built: optional `demand_amount`/`paid_amount` on the claim (migration `012`), surfaced as money-in-flight/received on `/dashboard/overview`. No invoicing or a payee-level reconciliation ledger (the `payments` table sketch in architecture.md §3 is still unbuilt).
 
 ## Candidates from 2026-06-29 research (not yet locked — validate before building)
 

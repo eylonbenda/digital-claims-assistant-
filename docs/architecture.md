@@ -51,6 +51,7 @@ claims          (id, agent_id → agents, client_name, client_phone,
                  decision_due_at,       -- sla_clock_started_at + 30 calendar days
                  limitation_deadline,   -- 3y own-policy (§31) | 7y TP property tort
                  handling_status, handling_status_changed_at,  -- post-send lifecycle (migration 011)
+                 demand_amount, paid_amount,  -- ILS, optional (migration 012)
                  summary_json, checklist_state, created_at, submitted_at, closed_at)
                  -- claim_type: own_policy | third_party_report
                  --           | third_party_settlement | unknown
@@ -59,6 +60,9 @@ claims          (id, agent_id → agents, client_name, client_phone,
                  -- handling_status: null (not sent) | sent | docs_requested
                  --   | approved_awaiting_payment | partial_paid | paid | rejected
                  --   | appeal | legal — evidence-gated transitions, see claim-management.md
+                 -- demand_amount/paid_amount: what was demanded from the insurer /
+                 --   what was paid, typed by hand; feed the money lines on
+                 --   /dashboard/overview (web/src/lib/handling/amounts.ts)
 claim_documents (id, claim_id → claims, type, storage_path,
                  mime, uploaded_at)
                  -- type: car_photo | drivers_license | vehicle_reg
