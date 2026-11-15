@@ -3,9 +3,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import SidebarNav from "./SidebarNav";
+import TopBar from "./TopBar";
 
-// Shared shell for every /dashboard route: a fixed sidebar (inline-start, i.e. the
-// right edge in RTL) on wide screens, collapsing to a slim top bar on narrow ones.
+// Shared shell for every /dashboard route: on wide screens a fixed sidebar
+// (inline-start, i.e. the right edge in RTL) and a top bar over the content; on
+// narrow ones a single compact header.
 // Pages render only their own <main>.
 export default async function DashboardLayout({
   children,
@@ -58,6 +60,7 @@ export default async function DashboardLayout({
             <LogoutButton />
           </div>
         </header>
+        <TopBar />
         {children}
       </div>
     </div>
