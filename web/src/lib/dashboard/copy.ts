@@ -211,3 +211,4 @@ export const BUSINESS = {
 export const SETTINGS_TITLE = "הגדרות";
 export const CLAIMS_TITLE = "תיקים";
 export const CLAIM_CRUMB = "פרטי תיק";
+export const OVERVIEW_TITLE = "סקירה";

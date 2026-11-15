@@ -23,6 +23,8 @@ import { demandAddressee } from "@/lib/demand/inputs";
 import { INSURER_DIRECTORY } from "@/lib/submission/directory";
 import ChecklistPanel from "./ChecklistPanel";
 import AgentDocUpload from "./AgentDocUpload";
+import AmountsCard from "./AmountsCard";
+import { toAmount } from "@/lib/handling/amounts";
 import ClaimTypeConfirm from "./ClaimTypeConfirm";
 import CockpitTabs from "./CockpitTabs";
 import NotesPanel, { type NoteView } from "./NotesPanel";
@@ -131,6 +133,25 @@ export default async function ClaimDetailPage({
     .single();
 
   if (!claim) notFound();
+
+  // Amounts are read on their own, best-effort: until migration 012 is applied the
+  // columns do not exist, and that must hide the card rather than break the page.
+  const { data: amountRow, error: amountErr } = await supabase
+    .from("claims")
+    .select("demand_amount, paid_amount")
+    .eq("id", id)
+    .maybeSingle();
+  if (amountErr) {
+    console.error(
+      `claim amounts read failed (${amountErr.message}) — card hidden. Check that migration 012_claim_amounts.sql has been applied to this database.`,
+    );
+  }
+  const amounts = amountErr
+    ? null
+    : {
+        demand_amount: toAmount(amountRow?.demand_amount),
+        paid_amount: toAmount(amountRow?.paid_amount),
+      };
 
   // RLS-scoped reads (claim_belongs_to_me): the claimant-uploaded docs, the
   // auto-generated accident-notice form(s), and the agent's notes.
@@ -503,6 +524,8 @@ export default async function ClaimDetailPage({
                     </p>
                   )}
                 </section>
+
+                {amounts && <AmountsCard claimId={claim.id} amounts={amounts} />}
 
                 <section>
                   <h2 className="mb-3 text-base font-bold text-zinc-900">

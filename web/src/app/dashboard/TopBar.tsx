@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CLAIMS_TITLE, CLAIM_CRUMB, SETTINGS_TITLE } from "@/lib/dashboard/copy";
+import { CLAIMS_TITLE, CLAIM_CRUMB, OVERVIEW_TITLE, SETTINGS_TITLE } from "@/lib/dashboard/copy";
 import NewClaimForm from "./NewClaimForm";
 
 type Crumb = { label: string; href?: string };
@@ -12,6 +12,7 @@ type Crumb = { label: string; href?: string };
 function crumbs(pathname: string): Crumb[] {
   if (pathname === "/dashboard") return [{ label: CLAIMS_TITLE }];
   if (pathname.startsWith("/dashboard/settings")) return [{ label: SETTINGS_TITLE }];
+  if (pathname.startsWith("/dashboard/overview")) return [{ label: OVERVIEW_TITLE }];
   return [{ label: CLAIMS_TITLE, href: "/dashboard" }, { label: CLAIM_CRUMB }];
 }
 

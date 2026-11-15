@@ -40,11 +40,13 @@ export default function HandlingDialog({ claimId, effective, onClose }: Props) {
   const [lawyerName, setLawyerName] = useState("");
   const [lawyerPhone, setLawyerPhone] = useState("");
   const [lawyerEmail, setLawyerEmail] = useState("");
+  const [paidAmount, setPaidAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const targets = HANDLING_STATUSES.filter((s) => canTransition(effective, s));
   const req = target && target !== "close" && target !== "revert" ? requirementFor(target) : {};
+  const takesPayment = target === "paid" || target === "partial_paid";
 
   async function submit() {
     setBusy(true);
@@ -64,6 +66,21 @@ export default function HandlingDialog({ claimId, effective, onClose }: Props) {
         if (!up.ok) {
           const j = await up.json().catch(() => ({}));
           setError((j as { error?: string }).error ?? "העלאת המסמך נכשלה");
+          setBusy(false);
+          return;
+        }
+      }
+
+      // Amount before the transition: a mistyped number stops here. Optional.
+      if (takesPayment && paidAmount.trim()) {
+        const amountRes = await fetch(`/api/claims/${claimId}/amounts`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paid_amount: paidAmount }),
+        });
+        if (!amountRes.ok) {
+          const j = await amountRes.json().catch(() => ({}));
+          setError((j as { error?: string }).error ?? "שמירת הסכום נכשלה");
           setBusy(false);
           return;
         }
@@ -176,6 +193,23 @@ export default function HandlingDialog({ claimId, effective, onClose }: Props) {
               type="file"
               accept=".jpg,.jpeg,.png,.heic,.pdf"
               className="w-full text-sm"
+            />
+          </div>
+        )}
+
+        {takesPayment && (
+          <div className="mb-3">
+            <label htmlFor="handling-paid" className="mb-1 block text-xs font-medium text-zinc-500">
+              {target === "partial_paid" ? "סה״כ שולם עד כה (₪) — רשות" : "סכום ששולם (₪) — רשות"}
+            </label>
+            <input
+              id="handling-paid"
+              value={paidAmount}
+              onChange={(e) => setPaidAmount(e.target.value)}
+              inputMode="decimal"
+              dir="ltr"
+              placeholder="0"
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
             />
           </div>
         )}

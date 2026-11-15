@@ -18,4 +18,6 @@ export const SUBMISSION_COPY = {
   confirmNo: "עדיין לא",
   sentToast: "התביעה סומנה כנשלחה",
   invalidRecipient: "כתובת הנמען אינה תקינה",
+  demandLabel: "סכום הדרישה (₪) — רשות",
+  demandHint: "משמש את עמוד הסקירה. אפשר להשלים גם אחר כך מעמוד התיק.",
 } as const;
