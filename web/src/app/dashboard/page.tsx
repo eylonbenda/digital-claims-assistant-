@@ -3,13 +3,13 @@ import { headers } from "next/headers";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import NewClaimForm from "./NewClaimForm";
-import BusinessDetails from "./BusinessDetails";
+import Link from "next/link";
 import ClaimsList from "./ClaimsList";
 import BriefAutoRefresh from "./BriefAutoRefresh";
 import { composeDashboard } from "@/lib/dashboard/compose";
 import RefreshOnFocus from "./RefreshOnFocus";
 import type { DraftLite } from "@/lib/dashboard/copy";
-import { greeting, hebDate } from "@/lib/dashboard/copy";
+import { BUSINESS, CLAIMS_TITLE, greeting, hebDate } from "@/lib/dashboard/copy";
 import { effectiveHandling } from "@/lib/handling/effective";
 import { INSURER_DIRECTORY } from "@/lib/submission/directory";
 import { briefEnabled } from "@/lib/dashboard/flags";
@@ -89,10 +89,11 @@ export default async function DashboardPage() {
     awaitingRanking = false;
   }
 
-  // Business details (sender on the demand form). Own row via RLS.
+  // Business name (sender on the demand form) — only to nudge when it is still
+  // empty; the form itself lives in /dashboard/settings. Own row via RLS.
   const { data: me } = await supabase
     .from("agents")
-    .select("name, phone, email")
+    .select("name")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -131,6 +132,7 @@ export default async function DashboardPage() {
   }
 
   const now = new Date();
+  const userName = user.email?.split("@")[0] ?? null;
   const rows = composeDashboard({
     claims: (claims ?? []).map((c) => ({
       id: c.id, client_name: c.client_name, claim_type: c.claim_type,
@@ -176,22 +178,27 @@ export default async function DashboardPage() {
       <RefreshOnFocus />
 
       <main className="mx-auto max-w-5xl space-y-6 p-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-extrabold text-ink">תביעות</h1>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-extrabold text-ink">{CLAIMS_TITLE}</h1>
+            <p className="mt-1 text-sm text-muted">
+              {greeting(now)}
+              {userName ? `, ${userName}` : ""} · {hebDate(now)}
+            </p>
+          </div>
           <NewClaimForm />
         </div>
 
-        <BusinessDetails
-          initial={{ name: me?.name ?? null, phone: me?.phone ?? null, email: me?.email ?? null }}
-        />
+        {!me?.name?.trim() && (
+          <p className="rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink">
+            {BUSINESS.missingNote}{" "}
+            <Link href="/dashboard/settings" className="font-medium text-brand hover:underline">
+              {BUSINESS.missingAction}
+            </Link>
+          </p>
+        )}
 
-        <ClaimsList
-          rows={rows}
-          greeting={greeting(now)}
-          dateLabel={hebDate(now)}
-          nowIso={now.toISOString()}
-          name={user.email?.split("@")[0] ?? null}
-        />
+        <ClaimsList rows={rows} nowIso={now.toISOString()} />
       </main>
     </>
   );
