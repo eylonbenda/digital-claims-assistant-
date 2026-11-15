@@ -71,7 +71,7 @@ export default function NewClaimForm() {
 
   const panel = created ? (
       <div className="rounded-2xl border border-green-200 bg-green-50 p-5">
-        <p className="font-medium text-green-800">תביעה נוצרה — שלח את הקישור ללקוח</p>
+        <p className="font-medium text-green-800">התיק נוצר — שלח את הקישור ללקוח</p>
         <div className="mt-3 flex items-center gap-2">
           <input
             readOnly
@@ -98,7 +98,7 @@ export default function NewClaimForm() {
             onClick={reset}
             className="rounded-lg border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-50"
           >
-            תביעה חדשה
+            תיק חדש
           </button>
         </div>
       </div>
@@ -107,7 +107,7 @@ export default function NewClaimForm() {
       onSubmit={handleCreate}
       className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3"
     >
-      <h2 className="font-semibold text-zinc-800">תביעה חדשה</h2>
+      <h2 className="font-semibold text-zinc-800">תיק חדש</h2>
 
       <label className="block">
         <span className="text-sm text-zinc-600">שם הלקוח</span>
@@ -164,7 +164,7 @@ export default function NewClaimForm() {
         aria-expanded={open || !!created}
         className="whitespace-nowrap rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
       >
-        + תביעה חדשה
+        + תיק חדש
       </button>
       {panel && (
         <div className="absolute end-0 top-full z-30 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl shadow-lg">
