@@ -23,6 +23,10 @@ export const OVERVIEW_COPY = {
   collectionNone: "לא נשלחו קישורים ב-90 הימים האחרונים.",
   amountsOff: "הסכומים עדיין לא זמינים בסביבה הזו. שאר הנתונים מוצגים כרגיל.",
   noAmounts: "לא הוזנו סכומים",
+  late: "מעל 30 יום",
+  waitingTotal: "סה״כ מחכה אצל המבטחות:",
+  legendCurrent: "30 הימים האחרונים",
+  legendPrevious: "30 הימים שקדמו",
   days: (n: number) => (n === 0 ? "פחות מיום" : n === 1 ? "יום אחד" : `${n} ימים`),
   previous: (n: number | string) => `קודם: ${n}`,
   of: (a: number, b: number) => `${a} מתוך ${b}`,
@@ -39,6 +43,13 @@ export const CYCLE_LABEL = {
   collect: "מפתיחת התיק עד שהלקוח סיים",
   prepare: "מסיום הלקוח עד שליחה למבטחת",
   payment: "משליחה למבטחת עד תשלום",
+} as const;
+
+// Names for the cycle bar's tooltips, where the full labels are too long.
+export const CYCLE_SHORT = {
+  collect: "איסוף מהלקוח",
+  prepare: "הכנה ושליחה",
+  payment: "המתנה לתשלום",
 } as const;
 
 export type { OpenStage };

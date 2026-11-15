@@ -8,7 +8,11 @@ import {
   OPEN_STAGES, WAITING_BANDS, computeOverview,
   type Money, type OverviewClaim, type OverviewEvent, type Stat,
 } from "@/lib/overview/compute";
-import { BAND_LABEL, CYCLE_LABEL, OVERVIEW_COPY as C } from "@/lib/overview/copy";
+import { BAND_LABEL, CYCLE_LABEL, CYCLE_SHORT, OVERVIEW_COPY as C } from "@/lib/overview/copy";
+import {
+  ACCENT, CYCLE_COLOR, DEEMPHASIS, STAGE_COLOR, STATUS_CRITICAL,
+  HBar, Icon, IconTile, Meter, SegmentedBar, Swatch, type IconName, type Tone,
+} from "./charts";
 
 // Numbers for the owner and the clerk: where the claims stand, what is waiting on
 // insurers, how long each step takes. Aggregates only — the claims themselves are
@@ -76,6 +80,14 @@ export default async function OverviewPage() {
   const o = computeOverview(claims, events, new Date());
   const money = !amountErr;
 
+  const stageTotal = OPEN_STAGES.reduce((n, st) => n + o.stages[st].count, 0);
+  const bandMax = Math.max(...WAITING_BANDS.map((b) => o.waiting.bands[b].count));
+  const cycleKeys = ["collect", "prepare", "payment"] as const;
+  const cycleComplete = cycleKeys.every((k) => o.cycle[k].median !== null);
+  const paidShown = (m: Money) => (money && m.withAmount > 0 ? formatILS(m.amount) : String(m.count));
+  const paidValue = (m: Money) => (money && m.withAmount > 0 ? m.amount : m.count);
+  const rate = o.collection.links ? o.collection.completed / o.collection.links : 0;
+
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <div>
@@ -89,43 +101,90 @@ export default async function OverviewPage() {
         </p>
       )}
 
-      <Card title={C.stagesTitle} hint={C.stagesHint}>
+      <Card icon="layers" tone="blue" title={C.stagesTitle} hint={C.stagesHint}>
+        {stageTotal > 0 && (
+          <div className="mb-4">
+            <SegmentedBar
+              label={C.stagesTitle}
+              parts={OPEN_STAGES.map((st) => ({
+                key: st,
+                name: STAGE_LABEL[st],
+                value: o.stages[st].count,
+                display: String(o.stages[st].count),
+                color: STAGE_COLOR[st],
+              }))}
+            />
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {OPEN_STAGES.map((s) => (
+          {OPEN_STAGES.map((st) => (
             <Link
-              key={s}
-              href={`/dashboard?stage=${s}`}
+              key={st}
+              href={`/dashboard?stage=${st}`}
               className="rounded-xl border border-zinc-200 p-4 hover:border-brand hover:bg-brand-soft"
             >
-              <div className="text-xs text-zinc-500">{STAGE_LABEL[s]}</div>
-              <div className="mt-1 text-3xl font-extrabold text-ink">{o.stages[s].count}</div>
-              {money && (s === "sent" || s === "awaiting_payment") && <MoneyLine m={o.stages[s]} />}
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-xs text-zinc-600">
+                  <Swatch color={STAGE_COLOR[st]} />
+                  {STAGE_LABEL[st]}
+                </span>
+                <IconTile name={STAGE_ICON[st].name} tone={STAGE_ICON[st].tone} small />
+              </div>
+              <div className="mt-2 text-3xl font-extrabold text-ink">{o.stages[st].count}</div>
+              {money && (st === "sent" || st === "awaiting_payment") && <MoneyLine m={o.stages[st]} />}
             </Link>
           ))}
         </div>
       </Card>
 
-      <Card title={C.waitingTitle} hint={C.waitingHint}>
+      <Card icon="clock" tone="amber" title={C.waitingTitle} hint={C.waitingHint}>
         {o.waiting.total.count === 0 ? (
           <p className="text-sm text-zinc-500">{C.waitingEmpty}</p>
         ) : (
-          <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_18rem]">
+          <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_18rem]">
             <div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <ul className="space-y-3">
                 {WAITING_BANDS.map((b) => {
                   const m = o.waiting.bands[b];
                   const late = (b === "d31_45" || b === "d46_plus") && m.count > 0;
                   return (
-                    <div key={b} className="rounded-xl border border-zinc-200 p-3">
-                      <div className="text-xs text-zinc-500">{BAND_LABEL[b]}</div>
-                      <div className={`mt-1 text-2xl font-extrabold ${late ? "text-red-600" : "text-ink"}`}>
-                        {m.count}
-                      </div>
-                      {money && <MoneyLine m={m} />}
-                    </div>
+                    <li key={b} className="grid grid-cols-[6.5rem_minmax(0,1fr)_7.5rem] items-center gap-3 text-sm">
+                      <span className="flex items-center gap-1.5 text-zinc-600">
+                        {BAND_LABEL[b]}
+                        {late && (
+                          <span className="flex items-center" style={{ color: STATUS_CRITICAL }} title={C.late}>
+                            <Icon name="alert" size={14} />
+                            <span className="sr-only">{C.late}</span>
+                          </span>
+                        )}
+                      </span>
+                      <HBar
+                        value={m.count}
+                        max={bandMax}
+                        color={late ? STATUS_CRITICAL : ACCENT}
+                        title={`${BAND_LABEL[b]}: ${m.count}`}
+                      />
+                      <span className="text-end">
+                        <span className="font-semibold text-ink">{m.count}</span>
+                        {money && m.withAmount > 0 && (
+                          <span className="ms-2 text-xs text-zinc-500">{formatILS(m.amount)}</span>
+                        )}
+                      </span>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
+              {money && o.waiting.total.withAmount > 0 && (
+                <p className="mt-4 text-sm text-zinc-600">
+                  {C.waitingTotal}{" "}
+                  <span className="font-bold text-ink">{formatILS(o.waiting.total.amount)}</span>
+                  {o.waiting.total.withAmount < o.waiting.total.count && (
+                    <span className="text-xs text-zinc-400">
+                      {" "}· {C.of(o.waiting.total.withAmount, o.waiting.total.count)} עם סכום
+                    </span>
+                  )}
+                </p>
+              )}
               {o.waiting.unknownSince > 0 && (
                 <p className="mt-2 text-xs text-zinc-400">{C.unknownSince(o.waiting.unknownSince)}</p>
               )}
@@ -150,44 +209,57 @@ export default async function OverviewPage() {
         )}
       </Card>
 
-      <Card title={C.cycleTitle} hint={C.cycleHint}>
+      <Card icon="timer" tone="violet" title={C.cycleTitle} hint={C.cycleHint}>
+        {cycleComplete && (
+          <div className="mb-4">
+            <SegmentedBar
+              label={C.cycleTitle}
+              parts={cycleKeys.map((k) => ({
+                key: k,
+                name: CYCLE_SHORT[k],
+                value: Math.max(o.cycle[k].median ?? 0, 0.5),
+                display: C.days(o.cycle[k].median ?? 0),
+                color: CYCLE_COLOR[k],
+              }))}
+            />
+          </div>
+        )}
         <div className="grid gap-3 md:grid-cols-3">
-          {(["collect", "prepare", "payment"] as const).map((k) => (
-            <StatTile key={k} label={CYCLE_LABEL[k]} stat={o.cycle[k]} />
+          {cycleKeys.map((k) => (
+            <StatTile key={k} label={CYCLE_LABEL[k]} stat={o.cycle[k]} color={CYCLE_COLOR[k]} />
           ))}
         </div>
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card title={C.recentTitle} hint={C.recentHint}>
-          <dl className="divide-y divide-zinc-100 text-sm">
-            <Row label={C.opened} value={o.recent.opened.current} previous={C.previous(o.recent.opened.previous)} />
-            <Row label={C.closed} value={o.recent.closed.current} previous={C.previous(o.recent.closed.previous)} />
-            <Row
+        <Card icon="calendar" tone="emerald" title={C.recentTitle} hint={C.recentHint}>
+          <div className="mb-3 flex items-center gap-4 text-xs text-zinc-500">
+            <span className="flex items-center gap-1.5"><Swatch color={ACCENT} />{C.legendCurrent}</span>
+            <span className="flex items-center gap-1.5"><Swatch color={DEEMPHASIS} />{C.legendPrevious}</span>
+          </div>
+          <div className="space-y-4">
+            <Compare label={C.opened} current={o.recent.opened.current} previous={o.recent.opened.previous} />
+            <Compare label={C.closed} current={o.recent.closed.current} previous={o.recent.closed.previous} />
+            <Compare
               label={C.paid}
-              value={
-                money && o.recent.paid.current.withAmount > 0
-                  ? formatILS(o.recent.paid.current.amount)
-                  : o.recent.paid.current.count
-              }
-              previous={C.previous(
-                money && o.recent.paid.previous.withAmount > 0
-                  ? formatILS(o.recent.paid.previous.amount)
-                  : o.recent.paid.previous.count,
-              )}
+              current={paidValue(o.recent.paid.current)}
+              previous={paidValue(o.recent.paid.previous)}
+              currentText={paidShown(o.recent.paid.current)}
+              previousText={paidShown(o.recent.paid.previous)}
             />
-          </dl>
+          </div>
         </Card>
 
-        <Card title={C.collectionTitle} hint={C.collectionHint}>
+        <Card icon="userCheck" tone="blue" title={C.collectionTitle} hint={C.collectionHint}>
           {o.collection.links === 0 ? (
             <p className="text-sm text-zinc-500">{C.collectionNone}</p>
           ) : (
             <div>
-              <div className="text-3xl font-extrabold text-ink">
-                {Math.round((o.collection.completed / o.collection.links) * 100)}%
+              <div className="text-4xl font-extrabold text-ink">{Math.round(rate * 100)}%</div>
+              <div className="mt-3">
+                <Meter ratio={rate} label={`${Math.round(rate * 100)}%`} />
               </div>
-              <p className="mt-1 text-sm text-zinc-500">
+              <p className="mt-2 text-sm text-zinc-500">
                 {C.of(o.collection.completed, o.collection.links)} לקוחות השלימו את מילוי הפרטים
               </p>
             </div>
@@ -198,11 +270,27 @@ export default async function OverviewPage() {
   );
 }
 
-function Card({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
+const STAGE_ICON: Record<(typeof OPEN_STAGES)[number], { name: IconName; tone: Tone }> = {
+  with_client: { name: "user", tone: "slate" },
+  before_send: { name: "file", tone: "amber" },
+  sent: { name: "send", tone: "blue" },
+  awaiting_payment: { name: "wallet", tone: "violet" },
+};
+
+function Card({
+  icon, tone, title, hint, children,
+}: {
+  icon: IconName; tone: Tone; title: string; hint: string; children: React.ReactNode;
+}) {
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-      <h2 className="text-base font-bold text-zinc-900">{title}</h2>
-      <p className="mb-4 mt-0.5 text-xs text-zinc-500">{hint}</p>
+      <div className="mb-4 flex items-start gap-3">
+        <IconTile name={icon} tone={tone} />
+        <div>
+          <h2 className="text-base font-bold text-zinc-900">{title}</h2>
+          <p className="mt-0.5 text-xs text-zinc-500">{hint}</p>
+        </div>
+      </div>
       {children}
     </section>
   );
@@ -220,17 +308,20 @@ function MoneyLine({ m }: { m: Money }) {
   );
 }
 
-function StatTile({ label, stat }: { label: string; stat: Stat }) {
+function StatTile({ label, stat, color }: { label: string; stat: Stat; color: string }) {
   return (
     <div className="rounded-xl border border-zinc-200 p-4">
-      <div className="text-xs text-zinc-500">{label}</div>
+      <div className="flex items-center gap-2 text-xs text-zinc-600">
+        <Swatch color={color} />
+        {label}
+      </div>
       {stat.median === null ? (
-        <div className="mt-1 text-sm text-zinc-400">
+        <div className="mt-2 text-sm text-zinc-400">
           {C.notEnough} ({stat.n})
         </div>
       ) : (
         <>
-          <div className="mt-1 text-3xl font-extrabold text-ink">{C.days(stat.median)}</div>
+          <div className="mt-2 text-3xl font-extrabold text-ink">{C.days(stat.median)}</div>
           <div className="mt-0.5 text-xs text-zinc-400">{stat.n} תיקים</div>
         </>
       )}
@@ -238,14 +329,28 @@ function StatTile({ label, stat }: { label: string; stat: Stat }) {
   );
 }
 
-function Row({ label, value, previous }: { label: string; value: number | string; previous: string }) {
+// This period against the one before, on one scale: accent for now, gray for then.
+function Compare({
+  label, current, previous, currentText, previousText,
+}: {
+  label: string; current: number; previous: number; currentText?: string; previousText?: string;
+}) {
+  const max = Math.max(current, previous);
+  const cur = currentText ?? String(current);
+  const prev = previousText ?? String(previous);
   return (
-    <div className="flex items-baseline justify-between gap-4 py-2.5">
-      <dt className="text-zinc-500">{label}</dt>
-      <dd className="text-end">
-        <span className="font-semibold text-zinc-900">{value}</span>
-        <span className="ms-2 text-xs text-zinc-400">{previous}</span>
-      </dd>
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
+        <span className="text-zinc-600">{label}</span>
+        <span>
+          <span className="font-semibold text-ink">{cur}</span>
+          <span className="ms-2 text-xs text-zinc-400">{C.previous(prev)}</span>
+        </span>
+      </div>
+      <div className="space-y-[2px]">
+        <HBar value={current} max={max} color={ACCENT} title={`${C.legendCurrent}: ${cur}`} />
+        <HBar value={previous} max={max} color={DEEMPHASIS} title={`${C.legendPrevious}: ${prev}`} />
+      </div>
     </div>
   );
 }
