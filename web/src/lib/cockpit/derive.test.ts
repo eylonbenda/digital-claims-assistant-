@@ -36,7 +36,7 @@ describe("deriveCockpit precedence (spec §3, top-down first match)", () => {
       chaseLabels: ["תמונות נזק"],
     }, NOW);
     expect(nextAction.kind).toBe("chase");
-    expect(badges.overview).toBe(true);
+    expect(badges.overview).toBe(2); // the contestable classification + one blocking doc
   });
 
   it("2. blocking docs → chase, with chaseable labels only in the line", () => {
@@ -51,7 +51,7 @@ describe("deriveCockpit precedence (spec §3, top-down first match)", () => {
     }, NOW);
     expect(nextAction.kind).toBe("chase");
     expect(nextAction.line).toContain("תמונות נזק");
-    expect(nextAction.targetTab).toBe("work");
+    expect(nextAction.targetTab).toBe("overview");
   });
 
   it("2b. blocked only by non-chaseable accident form → falls through to form_fill", () => {
@@ -108,7 +108,7 @@ describe("deriveCockpit precedence (spec §3, top-down first match)", () => {
 });
 
 describe("badges", () => {
-  it("work = open tasks + blocking doc items; form = missing fields; files = docs", () => {
+  it("overview = classification + open tasks + blocking doc items; form = missing fields; files = docs", () => {
     const { badges } = deriveCockpit({
       ...base,
       classificationNeedsAttention: true,
@@ -123,6 +123,14 @@ describe("badges", () => {
       missingFieldCount: 2,
       docsCount: 7,
     }, NOW);
-    expect(badges).toEqual({ overview: true, work: 2, form: 2, files: 7 });
+    expect(badges).toEqual({ overview: 3, send: 0, form: 2, files: 7 });
+  });
+
+  it("send = 1 only while a ready claim has not been sent", () => {
+    expect(deriveCockpit({ ...base, submissionReady: true }, NOW).badges.send).toBe(1);
+    expect(
+      deriveCockpit({ ...base, submissionReady: true, handlingEffective: "sent" }, NOW).badges.send,
+    ).toBe(0);
+    expect(deriveCockpit(base, NOW).badges.send).toBe(0);
   });
 });

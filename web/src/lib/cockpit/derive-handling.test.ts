@@ -26,7 +26,7 @@ describe("deriveCockpit — handling next-actions", () => {
   test("submittable + unsent → prepare_submission", () => {
     const { nextAction } = deriveCockpit(input({ submissionReady: true }), NOW);
     expect(nextAction.kind).toBe("prepare_submission");
-    expect(nextAction.targetTab).toBe("work");
+    expect(nextAction.targetTab).toBe("send");
   });
 
   test("prepare_submission loses to classify and to chase", () => {

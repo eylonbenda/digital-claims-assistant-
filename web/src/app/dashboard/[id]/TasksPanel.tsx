@@ -147,7 +147,7 @@ export default function TasksPanel({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="הוסף משימה…"
           maxLength={200}
-          className="min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+          className="min-w-[10rem] flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
         />
         <input
           type="date"
