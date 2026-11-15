@@ -9,23 +9,25 @@ export type CockpitTabsProps = {
   badges: Badges;
   initialTab: TabKey;
   overview: ReactNode;
-  work: ReactNode;
+  // Null when the claim has nothing to send yet — the tab is then not shown.
+  send: ReactNode | null;
   form: ReactNode;
   files: ReactNode;
 };
 
 const TAB_LABEL: Record<TabKey, string> = {
   overview: "סקירה",
-  work: "עבודה על התיק",
+  send: "שליחה למבטחת",
   form: "טופס ההודעה",
   files: "קבצים",
 };
-const TAB_ORDER: TabKey[] = ["overview", "work", "form", "files"];
+const TAB_ORDER: TabKey[] = ["overview", "send", "form", "files"];
 
 // Panes stay mounted (server-rendered once); switching is show/hide, and the
 // URL mirrors the active tab via replaceState so links/refreshes land right.
 export default function CockpitTabs(p: CockpitTabsProps) {
-  const [tab, setTab] = useState<TabKey>(p.initialTab);
+  const tabs = TAB_ORDER.filter((key) => key !== "send" || p.send !== null);
+  const [tab, setTab] = useState<TabKey>(tabs.includes(p.initialTab) ? p.initialTab : "overview");
 
   function navigate(next: TabKey) {
     setTab(next);
@@ -37,9 +39,11 @@ export default function CockpitTabs(p: CockpitTabsProps) {
   }
 
   function badgeFor(key: TabKey): ReactNode {
-    if (key === "overview")
-      return p.badges.overview ? <span className="mr-1 inline-block h-2 w-2 rounded-full bg-red-500" /> : null;
-    const n = key === "work" ? p.badges.work : key === "form" ? p.badges.form : p.badges.files;
+    const n =
+      key === "overview" ? p.badges.overview
+      : key === "send" ? p.badges.send
+      : key === "form" ? p.badges.form
+      : p.badges.files;
     if (!n) return null;
     const cls = key === "files" ? "bg-zinc-400" : "bg-red-500";
     return (
@@ -48,14 +52,14 @@ export default function CockpitTabs(p: CockpitTabsProps) {
   }
 
   const panes: Record<TabKey, ReactNode> = {
-    overview: p.overview, work: p.work, form: p.form, files: p.files,
+    overview: p.overview, send: p.send, form: p.form, files: p.files,
   };
 
   return (
     <div className="space-y-6">
       <CockpitHeader {...p.header} onNavigate={navigate} />
       <div className="border-b border-zinc-200" role="tablist">
-        {TAB_ORDER.map((key) => (
+        {tabs.map((key) => (
           <button
             key={key} type="button" role="tab" aria-selected={tab === key}
             onClick={() => navigate(key)}
@@ -71,7 +75,7 @@ export default function CockpitTabs(p: CockpitTabsProps) {
         ))}
       </div>
       <div id="cockpit-panes">
-        {TAB_ORDER.map((key) => (
+        {tabs.map((key) => (
           <div key={key} role="tabpanel" className={tab === key ? "space-y-6" : "hidden"}>
             {panes[key]}
           </div>

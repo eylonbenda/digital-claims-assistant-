@@ -9,7 +9,8 @@ import {
   chaseLine, formFieldsLine, formReadyLine, milestoneLine, taskLine,
 } from "./copy";
 
-export type TabKey = "overview" | "work" | "form" | "files";
+// "send" exists only while the claim has a submission to prepare (the page decides).
+export type TabKey = "overview" | "send" | "form" | "files";
 export type TaskLite = { title: string; status: string; due_at: string | null };
 export type BlockingLite = { key: string; label: string; kind: ItemKind };
 
@@ -33,17 +34,19 @@ export type CockpitInput = {
 
 export type NextAction =
   | { kind: "classify"; line: string; targetTab: "overview" }
-  | { kind: "chase"; line: string; targetTab: "work" }
-  | { kind: "task"; line: string; targetTab: "work" }
+  | { kind: "chase"; line: string; targetTab: "overview" }
+  | { kind: "task"; line: string; targetTab: "overview" }
   | { kind: "form_fields"; line: string; targetTab: "form" }
   | { kind: "form_fill"; line: string; targetTab: "form" }
   | { kind: "form_ready"; line: string; targetTab: "form" }
-  | { kind: "milestone"; line: string; targetTab: "work"; milestoneKey: string; milestoneLabel: string }
-  | { kind: "prepare_submission"; line: string; targetTab: "work" }
-  | { kind: "update_handling"; line: string; targetTab: "work" }
+  | { kind: "milestone"; line: string; targetTab: "overview"; milestoneKey: string; milestoneLabel: string }
+  | { kind: "prepare_submission"; line: string; targetTab: "send" }
+  | { kind: "update_handling"; line: string; targetTab: "overview" }
   | { kind: "none"; line: string; targetTab: "overview" };
 
-export type Badges = { overview: boolean; work: number; form: number; files: number };
+// overview counts what waits on the agent there: an unconfirmed track, open tasks
+// and missing blocking documents. send is 1 while a ready claim has not been sent.
+export type Badges = { overview: number; send: number; form: number; files: number };
 
 const DAY_MS = 86_400_000;
 
@@ -62,10 +65,11 @@ function nextOpenTask(tasks: TaskLite[], now: Date): { title: string; overdueDay
 
 export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: NextAction; badges: Badges } {
   const badges: Badges = {
-    overview: input.classificationNeedsAttention,
-    work:
+    overview:
+      (input.classificationNeedsAttention ? 1 : 0) +
       input.tasks.filter((t) => t.status !== "done").length +
       input.blocking.filter((b) => b.kind === "doc").length,
+    send: input.submissionReady && !input.handlingEffective ? 1 : 0,
     form: input.missingFieldCount,
     files: input.docsCount,
   };
@@ -75,16 +79,16 @@ export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: Nex
   if (input.classificationUnconfirmed) {
     nextAction = { kind: "classify", line: CLASSIFY_LINE, targetTab: "overview" };
   } else if (input.chaseLabels.length > 0) {
-    nextAction = { kind: "chase", line: chaseLine(input.chaseLabels), targetTab: "work" };
+    nextAction = { kind: "chase", line: chaseLine(input.chaseLabels), targetTab: "overview" };
   } else if (input.submissionReady && !input.handlingEffective) {
-    nextAction = { kind: "prepare_submission", line: PREPARE_SUBMISSION_LINE, targetTab: "work" };
+    nextAction = { kind: "prepare_submission", line: PREPARE_SUBMISSION_LINE, targetTab: "send" };
   } else if (
     (input.handlingEffective === "sent" || input.handlingEffective === "docs_requested") &&
     input.handlingOverdue
   ) {
-    nextAction = { kind: "update_handling", line: UPDATE_HANDLING_LINE, targetTab: "work" };
+    nextAction = { kind: "update_handling", line: UPDATE_HANDLING_LINE, targetTab: "overview" };
   } else if (task) {
-    nextAction = { kind: "task", line: taskLine(task.title, task.overdueDays), targetTab: "work" };
+    nextAction = { kind: "task", line: taskLine(task.title, task.overdueDays), targetTab: "overview" };
   } else if (input.missingFieldCount > 0) {
     nextAction = { kind: "form_fields", line: formFieldsLine(input.missingFieldCount), targetTab: "form" };
   } else if (
@@ -95,7 +99,7 @@ export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: Nex
     !isSystemMilestone(input.nextMilestone.key)
   ) {
     nextAction = {
-      kind: "milestone", line: milestoneLine(input.nextMilestone.label), targetTab: "work",
+      kind: "milestone", line: milestoneLine(input.nextMilestone.label), targetTab: "overview",
       milestoneKey: input.nextMilestone.key, milestoneLabel: input.nextMilestone.label,
     };
   } else if (input.hasGeneratedForm) {

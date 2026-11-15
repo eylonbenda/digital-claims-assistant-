@@ -63,7 +63,7 @@
 ‏הסוכן יכול **לערוך/להשלים את שדות הטופס הקנוניים** מה-Dashboard (`FormFieldEditor` → `PATCH /api/claims/[id]/form-data`) לפני יצירה מחדש; העריכות נשמרות ב-`summary_json.form_data`, הגשת הלקוח המקורית (`collected`) לא משתנה (audit), והמילוי מעדיף את `form_data` כשקיים.
 
 ### טופס דרישה (`demand_form`)
-נבנה כ-`generated_forms.kind = 'demand_form'` (ללא מיגרציה); כל הקוראים מבחינים בינו לבין `accident_notice` דרך `web/src/lib/forms/kinds.ts`. נוצר **אוטומטית** כשהסוכן מאשר את המסלול `third_party_report` (ב-`after()`), ו**לפי דרישה** ב-`POST /api/claims/[id]/demand-form` (אופציונלי `{ at_fault_insurer }`). הנמען = מבטח הצד האשם (`resolveAddressee`); **השולח = פרטי העסק המטפל** (`agents.name/phone/email`, נערכים בבלוק "פרטי העסק" ב-`/dashboard`).
+נבנה כ-`generated_forms.kind = 'demand_form'` (ללא מיגרציה); כל הקוראים מבחינים בינו לבין `accident_notice` דרך `web/src/lib/forms/kinds.ts`. נוצר **אוטומטית** כשהסוכן מאשר את המסלול `third_party_report` (ב-`after()`), ו**לפי דרישה** ב-`POST /api/claims/[id]/demand-form` (אופציונלי `{ at_fault_insurer }`). הנמען = מבטח הצד האשם (`resolveAddressee`); **השולח = פרטי העסק המטפל** (`agents.name/phone/email`, נערכים ב-`/dashboard/settings`).
 פריט ה-checklist `demand_form` מתקיים ע"י טופס **שהועלה או שנוצר**; בהגשה מצורף הטופס שהועלה אם קיים, אחרת האחרון שנוצר ("טופס דרישה"). שדות עריכה חדשים ב-`FormFieldEditor`: מס' פוליסה, סוג ביטוח, מעורבות משטרה, שמאי, מס' תביעה אצל המבטח, קוד דגם, ת"ז צד ג'.
 
 ---
