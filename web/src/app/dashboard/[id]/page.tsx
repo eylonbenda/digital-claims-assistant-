@@ -24,7 +24,7 @@ import { INSURER_DIRECTORY } from "@/lib/submission/directory";
 import ChecklistPanel from "./ChecklistPanel";
 import AgentDocUpload from "./AgentDocUpload";
 import ClaimTypeConfirm from "./ClaimTypeConfirm";
-import CockpitTabs, { GoToTab } from "./CockpitTabs";
+import CockpitTabs from "./CockpitTabs";
 import NotesPanel, { type NoteView } from "./NotesPanel";
 import TasksPanel, { type TaskView } from "./TasksPanel";
 import { deriveCockpit, type TabKey } from "@/lib/cockpit/derive";
@@ -105,7 +105,8 @@ export default async function ClaimDetailPage({
   const { id } = await params;
   const tabParam = (await searchParams).tab;
   const initialTab: TabKey =
-    tabParam === "work" || tabParam === "form" || tabParam === "files" ? tabParam : "overview";
+    // "work" was a tab until 2026-11; old links fall back to the overview.
+    tabParam === "send" || tabParam === "form" || tabParam === "files" ? tabParam : "overview";
 
   // Absolute origin for links baked into rendered HTML (e.g. the WhatsApp
   // message body) — computed server-side so SSR and client hydration match.
@@ -498,36 +499,14 @@ export default async function ClaimDetailPage({
                   )}
                 </section>
 
-                <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-                  <h2 className="mb-1 text-base font-bold text-zinc-900">
-                    משימות פתוחות
+                <section>
+                  <h2 className="mb-3 text-base font-bold text-zinc-900">
+                    משימות
                     {openTasks.length > 0 && (
                       <span className="mr-1 text-sm font-normal text-zinc-400">({openTasks.length})</span>
                     )}
                   </h2>
-                  {openTasks.length === 0 ? (
-                    <p className="py-2 text-sm text-zinc-500">אין משימות פתוחות.</p>
-                  ) : (
-                    <ul className="divide-y divide-zinc-100 text-sm">
-                      {openTasks.slice(0, 4).map((t) => (
-                        <li key={t.id} className="py-2.5">
-                          <p className="text-zinc-800">{t.title}</p>
-                          {t.due_at && (
-                            <p
-                              className={`mt-0.5 text-xs ${
-                                new Date(t.due_at).getTime() < now ? "text-amber-700" : "text-zinc-500"
-                              }`}
-                            >
-                              עד {new Date(t.due_at).toLocaleDateString("he-IL")}
-                            </p>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <GoToTab tab="work" className="mt-2 text-sm font-medium text-brand hover:underline">
-                    לכל המשימות והמסמכים
-                  </GoToTab>
+                  <TasksPanel claimId={claim.id} tasks={tasks} />
                 </section>
               </aside>
 
@@ -564,6 +543,16 @@ export default async function ClaimDetailPage({
                 view="core"
               />
 
+              <ChecklistPanel
+                claimId={claim.id}
+                claimType={claim.claim_type}
+                initialItems={checklistItems}
+                docUrls={docUrlByType}
+                view="rest"
+              />
+
+              <AgentDocUpload claimId={claim.id} />
+
               <section>
                 <h2 className="mb-3 text-lg font-semibold text-zinc-900">
                   הערות סוכן
@@ -594,45 +583,14 @@ export default async function ClaimDetailPage({
               </div>
             </>
           }
-          work={
-            <>
-              {submissionView && (
-                <SubmissionPanel
-                  claimId={claim.id}
-                  submission={submissionView}
-                  insurers={insurerOptions}
-                />
-              )}
-
-              <section>
-                <h2 className="mb-3 text-lg font-semibold text-zinc-900">
-                  משימות
-                  {openTasks.length > 0 && (
-                    <span className="mr-1 text-sm font-normal text-zinc-400">
-                      ({openTasks.length})
-                    </span>
-                  )}
-                </h2>
-                <TasksPanel claimId={claim.id} tasks={tasks} />
-              </section>
-
-              <section>
-                <ChecklistPanel
-                  claimId={claim.id}
-                  claimType={claim.claim_type}
-                  initialItems={checklistItems}
-                  docUrls={docUrlByType}
-                  view="rest"
-                />
-              </section>
-
-              <section>
-                <h2 className="mb-3 text-lg font-semibold text-zinc-900">
-                  העלאת מסמך לתיק
-                </h2>
-                <AgentDocUpload claimId={claim.id} />
-              </section>
-            </>
+          send={
+            submissionView ? (
+              <SubmissionPanel
+                claimId={claim.id}
+                submission={submissionView}
+                insurers={insurerOptions}
+              />
+            ) : null
           }
           form={
             <>
