@@ -1,6 +1,6 @@
 # Email relay, phase 1 — the system writes the email, the business mailbox stays the sender
 
-**Date:** 2026-11-15 · **Status:** draft, awaiting the user's read · **Area:** `web/src/lib/submission/`, new `web/src/lib/email/`, `web/src/app/dashboard/`
+**Date:** 2026-11-15 · **Status:** approved by the user 2026-11-15 as the basis for the plan (`docs/superpowers/plans/2026-11-15-email-relay-phase1.md`); the open questions at the end still stand · **Area:** `web/src/lib/submission/`, new `web/src/lib/email/`, `web/src/app/dashboard/`
 **Supersedes in part:** the non-goal "No real email sending and no inbound email reading" in `2026-10-21-claim-handling-design.md`. Everything else in that spec stands.
 
 ## Intent
