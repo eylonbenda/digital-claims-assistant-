@@ -476,3 +476,9 @@ cd web ; npm run dev
 - **`ClaimsList.tsx` calmer visual pass:** the greeting/date heading moved into `page.tsx`'s own header (list no longer takes `greeting`/`dateLabel`/`name` props); row next-step color is now binary (ink when `send`/`needs_action`, muted otherwise) instead of a three-way red/amber/zinc code; the copy-link button is an SVG chain icon instead of a 🔗 emoji; the active "צריך אותך" chip and search/table styling moved to the `brand` token instead of ad-hoc red/zinc.
 - `web/src/lib/dashboard/copy.ts` gains `BUSINESS.missingNote`/`missingAction` and `SETTINGS_TITLE`/`CLAIMS_TITLE`.
 - `docs/app-map.md`, `docs/claim-management.md` updated: business details are now edited on `/dashboard/settings`, not inline on `/dashboard`.
+
+### Done since last sync (2026-11-14, PR #109 — side rail on the overview tab, icon tiles in the checklist)
+- **No migration.** Presentation-only, confined to the claim cockpit: `web/src/app/dashboard/[id]/page.tsx`, `CockpitTabs.tsx`, `ChecklistPanel.tsx`.
+- **סקירה gains a two-column layout** on wide screens: the existing "claim at a glance" fields move into a narrower `<aside>` card, joined by a new **open-tasks preview card** (first 4 non-done tasks, overdue ones flagged) with a link to jump straight to the עבודה על התיק tab. On narrow screens the rail stacks above the main column.
+- **`CockpitTabs.tsx` exports a new `GoToTab`** (reads a `NavigateContext` the tab bar now provides) so server-rendered pane content — e.g. that open-tasks link — can switch tabs without re-navigating; it reuses the same `navigate()` that already drives the tab bar and `?tab=` mirroring, no new URL-state path.
+- **Checklist rows swap their ✅/🔴/⬜ emoji for an SVG status tile** (`ChecklistRow` in `ChecklistPanel.tsx`) — a rounded tile colored by done/blocking/neutral, with a check, flag (milestone) or document glyph inside.
