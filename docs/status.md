@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-14**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-15**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -482,3 +482,8 @@ cd web ; npm run dev
 - **סקירה gains a two-column layout** on wide screens: the existing "claim at a glance" fields move into a narrower `<aside>` card, joined by a new **open-tasks preview card** (first 4 non-done tasks, overdue ones flagged) with a link to jump straight to the עבודה על התיק tab. On narrow screens the rail stacks above the main column.
 - **`CockpitTabs.tsx` exports a new `GoToTab`** (reads a `NavigateContext` the tab bar now provides) so server-rendered pane content — e.g. that open-tasks link — can switch tabs without re-navigating; it reuses the same `navigate()` that already drives the tab bar and `?tab=` mirroring, no new URL-state path.
 - **Checklist rows swap their ✅/🔴/⬜ emoji for an SVG status tile** (`ChecklistRow` in `ChecklistPanel.tsx`) — a rounded tile colored by done/blocking/neutral, with a check, flag (milestone) or document glyph inside.
+
+### Done since last sync (2026-11-14, PR #111 — mandatory documents on the overview, quieter classification)
+- **No migration.** Presentation-only, confined to the claim cockpit: `web/src/app/dashboard/[id]/page.tsx`, `ChecklistPanel.tsx`.
+- **`ChecklistPanel` takes a new `view: "core" | "rest"` prop.** `"core"` renders only the mandatory base documents (`section === "base" && mandatory`) as one plain card ("מסמכי חובה") on סקירה; `"rest"` renders everything else — later/conditional documents and milestones — behind a disclosure on עבודה על התיק. Together the two views cover every checklist item exactly once.
+- **Classification goes quiet once confirmed.** `classificationNeedsAttention` is now simply `!confirmed` (`page.tsx`) — a confirmed track no longer re-raises the סקירה attention dot for a low-confidence or `needsAgentChoice` proposal. סקירה shows the system proposal + missing/unclear list only while the track is still unconfirmed; once confirmed it keeps just a "שינוי סיווג התביעה" disclosure, and the missing/unclear list stays under the form tab. This supersedes the PR #46 note above describing `classificationNeedsAttention` as wider than `classificationUnconfirmed` — the two now coincide.
