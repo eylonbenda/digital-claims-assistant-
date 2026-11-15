@@ -417,9 +417,10 @@ export default async function ClaimDetailPage({
       <main className="mx-auto max-w-6xl p-6">
         <Link
           href="/dashboard"
-          className="mb-4 inline-block text-sm font-medium text-brand hover:underline"
+          // Wide screens navigate back through the top bar's breadcrumb.
+          className="mb-4 inline-block text-sm font-medium text-brand hover:underline lg:hidden"
         >
-          → חזרה לתביעות
+          → חזרה לתיקים
         </Link>
         <CockpitTabs
           header={{

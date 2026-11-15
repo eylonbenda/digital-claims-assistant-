@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { CLAIMS_TITLE, SETTINGS_TITLE } from "@/lib/dashboard/copy";
 
 // One entry per top-level dashboard route. A claim page (/dashboard/<id>) belongs
-// to "תביעות": it is active on any /dashboard path no other entry claims.
+// to "תיקים": it is active on any /dashboard path no other entry claims.
 const ITEMS = [
   { href: "/dashboard", label: CLAIMS_TITLE, icon: FolderIcon },
   { href: "/dashboard/settings", label: SETTINGS_TITLE, icon: GearIcon },

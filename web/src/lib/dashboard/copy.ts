@@ -209,4 +209,5 @@ export const BUSINESS = {
 } as const;
 
 export const SETTINGS_TITLE = "הגדרות";
-export const CLAIMS_TITLE = "תביעות";
+export const CLAIMS_TITLE = "תיקים";
+export const CLAIM_CRUMB = "פרטי תיק";

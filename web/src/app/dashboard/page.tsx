@@ -186,7 +186,10 @@ export default async function DashboardPage() {
               {userName ? `, ${userName}` : ""} · {hebDate(now)}
             </p>
           </div>
-          <NewClaimForm />
+          {/* Wide screens have this in the top bar. */}
+          <div className="lg:hidden">
+            <NewClaimForm />
+          </div>
         </div>
 
         {!me?.name?.trim() && (
