@@ -88,6 +88,7 @@ export default async function CollectPage({
             garage_network_rider: !!claim.garage_network_rider,
           },
           satisfiedDocTypes(existing ?? [], claim.created_at),
+          claim.created_at,
         )}
       />
     );

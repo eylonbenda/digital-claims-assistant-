@@ -60,8 +60,11 @@ export function followupFields(
   claimType: string | null,
   flags: ClaimFlags,
   satisfiedDocTypes: Set<string> = new Set(),
+  claimCreatedAt?: string | null,
 ): FollowupField[] {
-  const checklist = computeChecklist(claimType ?? "unknown", satisfiedDocTypes, false, {}, flags);
+  const checklist = computeChecklist(
+    claimType ?? "unknown", satisfiedDocTypes, false, {}, flags, undefined, claimCreatedAt,
+  );
   const requested = clientRequestedItems(checklist)
     .map((i) => i.docType)
     .filter((t): t is string => !!t && CLIENT_UPLOAD_DOC_TYPES.has(t));

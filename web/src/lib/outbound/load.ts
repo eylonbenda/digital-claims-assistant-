@@ -90,6 +90,8 @@ export async function loadQueue(
           theft: !!c.theft, lien: !!c.lien, business_use: !!c.business_use,
           policy_activated: !!c.policy_activated, garage_network_rider: !!c.garage_network_rider,
         },
+        undefined,
+        c.created_at as string,
       );
       const b = briefBy.get(c.id);
       return {

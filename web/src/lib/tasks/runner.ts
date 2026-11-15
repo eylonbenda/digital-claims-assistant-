@@ -69,6 +69,8 @@ export async function runEngine(
         policy_activated: !!claim.policy_activated,
         garage_network_rider: !!claim.garage_network_rider,
       },
+      undefined,
+      claim.created_at as string,
     );
 
     // The TP insurer lives in third_parties (written at submit), not claims.at_fault_insurer
