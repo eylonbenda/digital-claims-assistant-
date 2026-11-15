@@ -49,6 +49,7 @@ A claim has 4 tracks (`claim_type`): `own_policy`, `third_party_report` ("דוח
 | `docs/ai-doc-validation.md` | **spec, not built** — AI vision validation of uploaded documents |
 | `docs/insurer-coverage-lookup.md` | **research, not built** — finding an unknown third-party insurer by plate + date via insurers' public lookup pages; per-insurer status, geo-blocking, build options |
 | `docs/research/claimai/` | competitor research on ClaimAI (claimai.co.il) — product, pricing, company, comparison vs us, trial-account test plan; raw notes in `notes/` |
+| `docs/email-relay-pilot-setup.md` | customer-facing (Hebrew) setup steps for the email-relay spike — Outlook redirect rule + 365 forwarding policy |
 | `docs/validation-guide.md` | Mom Test interview kit |
 | `docs/assumptions-canvas.md` | assumption tracker |
 | `docs/accidentStatementPdf/` | the source insurer PDFs — 14 files / 13 insurers (inventory + traps in `form-field-map.md`) |
