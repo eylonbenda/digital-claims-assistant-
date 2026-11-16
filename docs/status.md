@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-15**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-16**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -511,3 +511,7 @@ cd web ; npm run dev
 - **New `/dashboard/overview` ("סקירה")** — aggregates for the owner/clerk, not another claim list: open-stage tiles with money-in-flight (`web/src/lib/overview/compute.ts`), a "מחכים למבטחת" aging breakdown (0–14/15–30/31–45/45+ days since sent) with the oldest 3 named, cycle-time medians (collect → prepare → send → pay, hidden under a 3-claim minimum sample), last-30-vs-previous-30-day deltas (opened/closed/paid), and a 90-day collection completion rate. Added to `SidebarNav`/`TopBar`.
 - **Claims can now carry money.** `demand_amount`/`paid_amount` (ILS, optional, migration `012`) via `PATCH /api/claims/[id]/amounts` (pure planner `web/src/lib/handling/amounts.ts` — lenient parsing of `₪`/thousands-separators, either key independently, clearable with `null`/`""`). Surfaced three ways: an always-available `AmountsCard` on `/dashboard/[id]`, an optional demand-amount field on the submission panel (saved before the claim is marked sent), and an optional paid-amount field on the handling dialog when the target status is `paid`/`partial_paid`.
 - Unit-tested: `amounts.test.ts`, `overview/compute.test.ts`.
+
+### Done since last sync (2026-11-16, PR #117 — pure core for the email relay)
+- **No migration.** New `web/src/lib/email/` (`config.ts`, `send.ts`, `classify.ts`, `match.ts`, `forward.ts`, `budget.ts`, `types.ts` + `email.test.ts`) — pure logic only, building toward the email-relay phase 1 design (`docs/superpowers/specs/2026-11-15-email-relay-phase1-design.md`): planning an outbound relay to the business's own claims mailbox (`planSend`, reusing `submission/compose.ts`), classifying/matching inbound mail to a claim (`classifyKind`, `matchClaim`), and planning the copy filed to the business mailbox (`planForward`). **Not yet wired to any API route, provider SDK, or migration** — `agents.claims_mailbox`/`inbound_alias` and the `claim_emails` tables from the design spec don't exist yet.
+- Unit-tested: `email.test.ts`.
