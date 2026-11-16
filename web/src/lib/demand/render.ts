@@ -256,29 +256,48 @@ export async function renderDemandPdfDebug(
     }
   }
 
-  // Flow top to bottom. A new page starts when the next block — plus the blocks it must keep
-  // with — would cross MARGIN. Gaps never open a page.
-  let page = pdf.addPage([W, H]);
-  pages.push(page);
+  const placed = flowBlocks(res.blocks, avail);
+  pages.push(pdf.addPage([W, H]));
+  placed.forEach((p, i) => {
+    if (!p) return;
+    while (pages.length <= p.page) pages.push(pdf.addPage([W, H]));
+    res.blocks[i].draw(pages[p.page], H - MARGIN - p.offset);
+  });
+
+  return { bytes: await pdf.save(), drawn };
+}
+
+// Flow blocks top to bottom over pages of height `avail`. A new page starts when the next block
+// — plus the blocks it must `keep` with — would overflow. Gaps never open a page (null = skipped).
+// Returns each block's page (0-based) and its top offset from the page's top margin.
+export function flowBlocks(
+  blocks: readonly { h: number; gap: boolean; keep: boolean }[],
+  avail: number,
+): ({ page: number; offset: number } | null)[] {
+  const out: ({ page: number; offset: number } | null)[] = [];
+  let page = 0;
   let used = 0;
-  const { blocks } = res;
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
-    if (b.gap && used === 0 && pages.length > 1) continue;
+    if (b.gap && used === 0 && page > 0) {
+      out.push(null);
+      continue;
+    }
     let chain = 0;
     for (let j = i; j < blocks.length; j++) {
       chain += blocks[j].h;
       if (!blocks[j].keep) break;
     }
     if (used > 0 && used + Math.min(chain, avail) > avail) {
-      page = pdf.addPage([W, H]);
-      pages.push(page);
+      page++;
       used = 0;
-      if (b.gap) continue;
+      if (b.gap) {
+        out.push(null);
+        continue;
+      }
     }
-    b.draw(page, H - MARGIN - used);
+    out.push({ page, offset: used });
     used += b.h;
   }
-
-  return { bytes: await pdf.save(), drawn };
+  return out;
 }
