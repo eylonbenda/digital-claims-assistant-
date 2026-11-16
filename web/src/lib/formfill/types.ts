@@ -1,6 +1,8 @@
 // Canonical claim data — one shape, all insurers. Mirrors docs/form-field-map.md (§2 core + §5
 // growth) and the POC at .pdfwork/formfill/sample-claim.mjs. Templates map a subset of these
 // keys to coordinates; the collection flow fills this shape.
+import type { Damages } from "../demand/damages";
+
 export type ClaimType =
   | "own_policy"
   | "third_party_report"
