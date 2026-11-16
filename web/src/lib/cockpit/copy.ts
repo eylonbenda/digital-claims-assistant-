@@ -58,3 +58,19 @@ export const DEMAND_COPY = {
   } as Record<number, string>,
   errorFallback: "יצירת הטופס נכשלה — נסה שוב",
 } as const;
+
+// Damages ("פירוט הנזק") editor in the form-field editor.
+export const DAMAGES_COPY = {
+  title: "פירוט הנזק",
+  beforeVat: "לפני מע״מ",
+  claimantVatRegistered: "הניזוק עוסק מורשה (סכומים לפני מע״מ)",
+  addLine: "+ הוסף שורה",
+  removeLine: "הסר",
+  otherLabel: "תיאור הסעיף",
+  otherAmount: "סכום",
+  otherVat: "חייב מע״מ",
+  missingLabel: "חסר שם לסעיף נוסף",
+  previewVat: "מע״מ",
+  previewTotal: "סה״כ",
+  errorsTitle: "שגיאות בפירוט הנזק",
+} as const;
