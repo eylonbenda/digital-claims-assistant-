@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-15**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-16**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -511,3 +511,8 @@ cd web ; npm run dev
 - **New `/dashboard/overview` ("סקירה")** — aggregates for the owner/clerk, not another claim list: open-stage tiles with money-in-flight (`web/src/lib/overview/compute.ts`), a "מחכים למבטחת" aging breakdown (0–14/15–30/31–45/45+ days since sent) with the oldest 3 named, cycle-time medians (collect → prepare → send → pay, hidden under a 3-claim minimum sample), last-30-vs-previous-30-day deltas (opened/closed/paid), and a 90-day collection completion rate. Added to `SidebarNav`/`TopBar`.
 - **Claims can now carry money.** `demand_amount`/`paid_amount` (ILS, optional, migration `012`) via `PATCH /api/claims/[id]/amounts` (pure planner `web/src/lib/handling/amounts.ts` — lenient parsing of `₪`/thousands-separators, either key independently, clearable with `null`/`""`). Surfaced three ways: an always-available `AmountsCard` on `/dashboard/[id]`, an optional demand-amount field on the submission panel (saved before the claim is marked sent), and an optional paid-amount field on the handling dialog when the target status is `paid`/`partial_paid`.
 - Unit-tested: `amounts.test.ts`, `overview/compute.test.ts`.
+
+### Done since last sync (2026-11-16, PR #122 — bidi fix: mirror brackets, keep terminators with their number)
+- **No migration.** `web/src/lib/formfill/bidi.ts` (+ its test) only — the shared RTL run-splitting engine behind every insurer form and the demand form.
+- **Brackets in an RTL run are now mirrored (L4).** fontkit only reverses glyphs and never mirrors them, so `"פגיעה (אחורי)"` drew as `"פגיעה )אחורי("`; `visualRuns` now swaps bracket pairs itself, including in a pure-RTL string that never hits the reverse path.
+- **A terminator (`%`, `₪`, …) touching a number now stays with it (W5)** instead of drifting to the far side — `"(18%)"` drew as `"(%18("`.
