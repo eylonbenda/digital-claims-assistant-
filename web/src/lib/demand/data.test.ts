@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import sampleClaim from "../formfill/sample-claim";
 import { buildDemandData, resolveAddressee, type DemandDoc } from "./data";
 import { COPY } from "./copy";
+import type { ClaimData } from "../formfill/types";
 
 const sender = { name: "מוסך דוגמה", phone: "03-1234567", email: "g@example.com" };
 const now = new Date("2026-11-11T10:00:00Z");
@@ -98,5 +99,51 @@ describe("buildDemandData", () => {
       expect(v).not.toBe("null");
     }
     expect(empty.addressee).toBe("");
+  });
+});
+
+describe("damages section", () => {
+  const damages = {
+    repair: { amount: 7370, vat: true },
+    assessor_fee: { amount: 677.97, vat: true },
+  };
+  const build = (dm: ClaimData["damages"]) =>
+    buildDemandData({ data: { ...sampleClaim, damages: dm }, sender, addresseeKey: null, carAtGarageAt: null, now });
+  const sec = (d: DemandDoc) => d.sections.find((s) => s.heading.startsWith("פירוט הנזק"));
+
+  it("renders rows, VAT and total after third parties and before 'other'", () => {
+    const d = build(damages);
+    const s = sec(d)!;
+    expect(s.heading).toBe("פירוט הנזק (כולל מע״מ)");
+    expect(s.money).toBe(true);
+    expect(s.rows.map((r) => [r.label, r.value])).toEqual([
+      ["תיקון הרכב", "7,370.00 ₪"],
+      ["שכ״ט שמאי", "677.97 ₪"],
+      ["מע״מ (18%)", "1,448.63 ₪"],
+      ["סה״כ לדרישה", "9,496.60 ₪"],
+    ]);
+    expect(s.rows.map((r) => r.kind)).toEqual(["money", "money", "money", "total"]);
+    const i = d.sections.indexOf(s);
+    expect(d.sections[i + 1].heading).toBe(COPY.sections.other);
+    expect(d.sections[i - 1].heading.startsWith(COPY.sections.thirdParty)).toBe(true);
+  });
+  it("VAT-registered claimant: before-VAT heading, no VAT row", () => {
+    const s = sec(build({ ...damages, claimant_vat_registered: true }))!;
+    expect(s.heading).toBe("פירוט הנזק (לפני מע״מ)");
+    expect(s.rows.some((r) => r.label.startsWith("מע״מ"))).toBe(false);
+    expect(s.rows[s.rows.length - 1].value).toBe("8,047.97 ₪");
+  });
+  it("fixed labels and other lines", () => {
+    const s = sec(build({
+      diminished_value: { amount: 100, vat: false },
+      towing: { amount: 200, vat: true },
+      other: [{ label: "החלפת מנעול", amount: 50 }],
+    }))!;
+    const labels = s.rows.map((r) => r.label);
+    expect(labels).toEqual(expect.arrayContaining(["ירידת ערך", "גרירה", "החלפת מנעול"]));
+  });
+  it("no damages -> no section", () => {
+    expect(sec(build(undefined))).toBeUndefined();
+    expect(sec(build({}))).toBeUndefined();
   });
 });

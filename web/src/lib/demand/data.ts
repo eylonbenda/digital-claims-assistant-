@@ -6,9 +6,11 @@ import { toILDate } from "../dates";
 import { matchInsurer } from "../submission/match";
 import { INSURER_DIRECTORY } from "../submission/directory";
 import { COPY } from "./copy";
+import { computeDamageTotals, formatLetterAmount, VAT_RATE } from "./damages";
 
-export type DemandRow = { label: string; value: string };
-export type DemandSection = { heading: string; rows: DemandRow[] };
+// kind: "money" rows are never capped/clipped/dropped by the renderer; "total" is also emphasised.
+export type DemandRow = { label: string; value: string; kind?: "money" | "total" };
+export type DemandSection = { heading: string; rows: DemandRow[]; money?: true };
 export type DemandDoc = {
   date: string;
   sender: { name: string; phone: string; email: string };
@@ -86,6 +88,25 @@ export function buildDemandData(input: {
       ],
     });
   });
+
+  const totals = computeDamageTotals(d.damages);
+  if (totals) {
+    const money = (label: string, n: number, kind: "money" | "total" = "money"): DemandRow => ({
+      label,
+      value: formatLetterAmount(n),
+      kind,
+    });
+    const rows: DemandRow[] = totals.rows.map((r) =>
+      money(r.key === "other" ? r.label : COPY.damages.labels[r.key], r.amount),
+    );
+    if (totals.vat !== null) rows.push(money(`${COPY.damages.vat} (${Math.round(VAT_RATE * 100)}%)`, totals.vat));
+    rows.push(money(COPY.damages.total, totals.total, "total"));
+    sections.push({
+      heading: totals.vat === null ? COPY.damages.headingExclVat : COPY.damages.headingInclVat,
+      rows,
+      money: true,
+    });
+  }
 
   sections.push({
     heading: COPY.sections.other,
