@@ -7,6 +7,7 @@ import { reportError } from "@/lib/observability/report";
 import { buildDemandData } from "./data";
 import { renderDemandPdf } from "./render";
 import { DEMAND_TRACK, demandInputs } from "./inputs";
+import { staleDemandRows } from "./cleanup";
 
 const BUCKET = "claim-docs";
 const WHERE = "lib/demand/generate";
@@ -31,7 +32,7 @@ export async function generateDemandForm(claimId: string): Promise<GenerateDeman
     if (!claim) return { ok: false, reason: "not_found" };
     if (claim.claim_type !== DEMAND_TRACK) return { ok: false, reason: "not_third_party_report" };
 
-    const [agentRes, evRes, priorRes] = await Promise.all([
+    const [agentRes, evRes] = await Promise.all([
       claim.agent_id
         ? svc.from("agents").select("name, phone, email").eq("id", claim.agent_id).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
@@ -40,13 +41,8 @@ export async function generateDemandForm(claimId: string): Promise<GenerateDeman
         .select("type, payload_json, created_at")
         .eq("claim_id", claimId)
         .eq("type", MILESTONE_EVENT),
-      svc
-        .from("generated_forms")
-        .select("id, storage_path")
-        .eq("claim_id", claimId)
-        .eq("kind", FORM_KIND.demand),
     ]);
-    for (const r of [agentRes, evRes, priorRes]) if (r.error) throw r.error;
+    for (const r of [agentRes, evRes]) if (r.error) throw r.error;
 
     // One source for the addressee and the PDF's third-party rows (agent edits included).
     const data = effectiveClaimData(claim.summary_json as ClaimSummaryJson);
@@ -81,13 +77,25 @@ export async function generateDemandForm(claimId: string): Promise<GenerateDeman
       throw insErr;
     }
 
-    const prior = priorRes.data ?? [];
-    if (prior.length) {
-      // Best-effort cleanup: a leftover old row is harmless next to the new one.
-      const { error: rmErr } = await svc.storage.from(BUCKET).remove(prior.map((p) => p.storage_path as string));
-      if (rmErr) await reportError(WHERE, rmErr, { claimId, step: "remove prior objects" });
-      const { error: delErr } = await svc.from("generated_forms").delete().in("id", prior.map((p) => p.id as string));
-      if (delErr) await reportError(WHERE, delErr, { claimId, step: "delete prior rows" });
+    // Converge to one row: re-read every demand form of the claim and drop all but the
+    // newest. Overlapping runs each see the other's row, so both keep the same winner.
+    const { data: all, error: allErr } = await svc
+      .from("generated_forms")
+      .select("id, storage_path, created_at")
+      .eq("claim_id", claimId)
+      .eq("kind", FORM_KIND.demand);
+    if (allErr) {
+      // The new form exists; only the cleanup is skipped.
+      await reportError(WHERE, allErr, { claimId, step: "re-read demand forms" });
+    } else {
+      const stale = staleDemandRows((all ?? []) as { id: string; storage_path: string; created_at: string }[]);
+      if (stale.length) {
+        // Best-effort cleanup: a leftover old row is harmless next to the new one.
+        const { error: rmErr } = await svc.storage.from(BUCKET).remove(stale.map((p) => p.storage_path));
+        if (rmErr) await reportError(WHERE, rmErr, { claimId, step: "remove prior objects" });
+        const { error: delErr } = await svc.from("generated_forms").delete().in("id", stale.map((p) => p.id));
+        if (delErr) await reportError(WHERE, delErr, { claimId, step: "delete prior rows" });
+      }
     }
 
     await runEngine(claimId, { type: "doc_uploaded", docType: FORM_KIND.demand });
