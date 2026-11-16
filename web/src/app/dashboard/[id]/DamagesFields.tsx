@@ -70,6 +70,7 @@ export default function DamagesFields({
     if (le) errors.push(le);
     const ae = otherAmountErr(i);
     if (ae) errors.push(`${name}: ${ae}`);
+    else if (o.label.trim() !== "" && (otherRaw[i] ?? "").trim() === "") errors.push(`${name}: ${C.missingAmount}`);
   });
   const errKey = errors.join("|");
   useEffect(() => {

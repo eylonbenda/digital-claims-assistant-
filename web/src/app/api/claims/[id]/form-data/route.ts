@@ -2,13 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { ClaimData } from "@/lib/formfill/types";
 import { reportError, serverError } from "@/lib/observability/report";
-import { after } from "next/server";
 import { generateDemandForm } from "@/lib/demand/generate";
 import { DEMAND_TRACK } from "@/lib/demand/inputs";
 import { validateDamages } from "@/lib/demand/damages";
 
-export const runtime = "nodejs"; // the background demand-form render reads the Hebrew font from disk
-// Bounds the post-response demand-form regeneration (after()).
+export const runtime = "nodejs"; // the demand-form render reads the Hebrew font from disk
+// Bounds the inline demand-form regeneration.
 export const maxDuration = 60;
 
 // PATCH /api/claims/[id]/form-data
@@ -60,15 +59,15 @@ export async function PATCH(
     payload_json: { by: user.email ?? null },
   });
 
-  // Keep the demand form in step with the saved damages. Best-effort: never fails the save.
+  // Keep the demand form in step with the saved damages. Inline (not after()) so the client's
+  // router.refresh() right after this response sees the new PDF, amounts and checklist.
+  // generateDemandForm never throws; the catch is defensive and never fails the save.
   if (claim.claim_type === DEMAND_TRACK) {
-    after(async () => {
-      try {
-        await generateDemandForm(id);
-      } catch (e) {
-        await reportError("/api/claims/[id]/form-data", e, { claimId: id, step: "demand form" });
-      }
-    });
+    try {
+      await generateDemandForm(id);
+    } catch (e) {
+      await reportError("/api/claims/[id]/form-data", e, { claimId: id, step: "demand form" });
+    }
   }
 
   return Response.json({ ok: true });

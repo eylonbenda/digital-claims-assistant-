@@ -109,6 +109,7 @@ describe("validateDamages", () => {
     ["NaN", { repair: { amount: NaN, vat: true } }],
     ["3 decimals", { repair: { amount: 12.345, vat: true } }],
     ["too big", { repair: { amount: 1000001, vat: true } }],
+    ["other with zero amount", { other: [{ label: "חניה", amount: 0 }] }],
     ["empty label", { other: [{ label: "  ", amount: 1 }] }],
     ["long label", { other: [{ label: "x".repeat(61), amount: 1 }] }],
     ["11 others", { other: Array.from({ length: 11 }, () => ({ label: "x", amount: 1 })) }],
@@ -116,6 +117,10 @@ describe("validateDamages", () => {
     ["registered string", { claimant_vat_registered: "no" }],
     ["array", []],
   ];
+  it("uses Hebrew labels, not keys, in errors", () => {
+    expect(validateDamages({ repair: { amount: -1, vat: true } })).toEqual({ ok: false, error: "תיקון הרכב: סכום לא תקין" });
+    expect(validateDamages({ other: [{ label: "חניה", amount: 0 }] })).toEqual({ ok: false, error: "חניה: חסר סכום" });
+  });
   it.each(bad)("rejects %s", (_n, v) => {
     const r = validateDamages(v);
     expect(r.ok).toBe(false);

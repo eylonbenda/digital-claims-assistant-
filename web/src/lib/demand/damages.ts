@@ -3,6 +3,7 @@
 // integer agorot and VAT is rounded half-up once, on the sum of the VAT-able lines.
 
 import { parseAmount } from "../handling/amounts";
+import { COPY as DEMAND_COPY } from "./copy";
 
 export const VAT_RATE = 0.18;
 const VAT_PERCENT = Math.round(VAT_RATE * 100);
@@ -110,9 +111,9 @@ export function validateDamages(v: unknown): { ok: true } | { ok: false; error: 
     const line = v[key];
     if (line === undefined) continue;
     if (!isObj(line)) return { ok: false, error: "פירוט הנזק אינו תקין" };
-    const e = checkAmount(line.amount, key);
+    const e = checkAmount(line.amount, DEMAND_COPY.damages.labels[key]);
     if (e) return { ok: false, error: e };
-    if (typeof line.vat !== "boolean") return { ok: false, error: `${key}: מע״מ לא תקין` };
+    if (typeof line.vat !== "boolean") return { ok: false, error: `${DEMAND_COPY.damages.labels[key]}: מע״מ לא תקין` };
   }
   if (v.other !== undefined) {
     if (!Array.isArray(v.other)) return { ok: false, error: "סעיפים נוספים אינם תקינים" };
@@ -124,6 +125,7 @@ export function validateDamages(v: unknown): { ok: true } | { ok: false; error: 
       if (label.length > MAX_LABEL_LENGTH) return { ok: false, error: `שם סעיף ארוך מדי (עד ${MAX_LABEL_LENGTH} תווים)` };
       const e = checkAmount(o.amount, label);
       if (e) return { ok: false, error: e };
+      if (o.amount === 0) return { ok: false, error: `${label}: חסר סכום` };
       if (o.vat !== undefined && typeof o.vat !== "boolean") return { ok: false, error: `${label}: מע״מ לא תקין` };
     }
   }

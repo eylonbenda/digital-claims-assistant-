@@ -12,6 +12,7 @@ export default function DemandFormPanel({
   addresseeKey,
   hasUploadedDemand,
   insurerOptions,
+  repairUnpriced,
 }: {
   claimId: string;
   latest: { url: string | null; createdAt: string } | null;
@@ -21,6 +22,8 @@ export default function DemandFormPanel({
   // An uploaded demand_form document exists — it is the one the submission sends.
   hasUploadedDemand: boolean;
   insurerOptions: { key: string; label: string }[];
+  // The repair amount is not set yet, so the checklist will not count the letter as ready.
+  repairUnpriced: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -82,6 +85,10 @@ export default function DemandFormPanel({
             <span className="text-xs text-red-500">{C.linkUnavailable}</span>
           )}
         </div>
+      )}
+
+      {repairUnpriced && (
+        <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{C.repairUnpricedHint}</div>
       )}
 
       {hasUploadedDemand && (
