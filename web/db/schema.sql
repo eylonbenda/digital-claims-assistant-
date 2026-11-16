@@ -43,6 +43,10 @@ create table agents (
   name text,
   email text,
   phone text,
+  -- Email (migration 013): the existing claims address (copied on sends, sent a copy of
+  -- inbound mail) and the local part of the system address. A null alias = email off.
+  claims_mailbox text,
+  inbound_alias text unique,
   created_at timestamptz not null default now()
 );
 
@@ -177,6 +181,39 @@ create table outbound_events (
 create index outbound_events_cooldown_idx
   on outbound_events (claim_id, task_key, created_at desc);
 
+-- Email sent to insurers from the app, and what comes back (migration 013).
+create table claim_emails (
+  id uuid primary key default gen_random_uuid(),
+  agent_id uuid not null references agents(id) on delete cascade,
+  claim_id uuid references claims(id) on delete set null,      -- null = not filed on a claim yet
+  direction text not null check (direction in ('outbound', 'inbound')),
+  kind text not null default 'other' check (kind in ('business', 'insurer', 'other')),
+  provider_id text unique,
+  message_id text,
+  in_reply_to text,
+  from_addr text not null,
+  to_addrs text[] not null default '{}',
+  cc_addrs text[] not null default '{}',
+  subject text not null default '',
+  text_body text,
+  match_method text check (match_method in ('subject_id', 'thread', 'manual')),
+  attachments_dropped boolean not null default false,
+  delivery_failed boolean not null default false,
+  received_at timestamptz not null default now()
+);
+create index claim_emails_agent_claim_idx on claim_emails (agent_id, claim_id, received_at desc);
+create index claim_emails_message_id_idx on claim_emails (message_id);
+
+create table claim_email_attachments (
+  id uuid primary key default gen_random_uuid(),
+  email_id uuid not null references claim_emails(id) on delete cascade,
+  filename text not null,
+  mime text,
+  size_bytes integer,
+  storage_path text not null
+);
+create index claim_email_attachments_email_idx on claim_email_attachments (email_id);
+
 -- ---------- RLS ----------
 -- Every public table MUST enable RLS — web/scripts/check-rls.mjs enforces this in CI.
 -- agencies: RLS on, no policy (service role only) — migration 009.
@@ -191,6 +228,8 @@ alter table claim_events enable row level security;
 alter table claim_notes enable row level security;
 alter table agent_briefs enable row level security;
 alter table outbound_events enable row level security;
+alter table claim_emails enable row level security;
+alter table claim_email_attachments enable row level security;
 
 create policy "agent reads own row" on agents
   for select using (auth_user_id = auth.uid());
@@ -269,3 +308,10 @@ insert into public.schema_migrations(version) values
   ('001'), ('002'), ('003'), ('004'), ('005'),
   ('006'), ('007'), ('008'), ('009'), ('010')
 on conflict do nothing;
+
+-- claim_emails: the agent reads its own rows (keyed on agent_id — an unfiled message
+-- has no claim); writes go through the service client only. Migration 013.
+create policy "agent reads own emails" on claim_emails for select
+  using (agent_id in (select id from agents where auth_user_id = auth.uid()));
+create policy "agent reads own email attachments" on claim_email_attachments for select
+  using (email_id in (select id from claim_emails));
