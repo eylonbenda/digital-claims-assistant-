@@ -513,9 +513,11 @@ cd web ; npm run dev
 - Unit-tested: `amounts.test.ts`, `overview/compute.test.ts`.
 
 ### Done since last sync (2026-11-16, `feat/demand-damages` — damages section in the demand form)
-- **No migration.** Damage lines live in `summary_json.form_data.damages` (before VAT, agorot, VAT 18%; `claimant_vat_registered` prints amounts before VAT). Logic in `web/src/lib/demand/damages.ts`; cockpit editor `DamagesFields.tsx` (`third_party_report` only, live preview).
-- `PATCH /api/claims/[id]/form-data` validates damages and regenerates the demand form via `after()` on `third_party_report` (route added to `outputFileTracingIncludes`); `demand/cleanup.ts` keeps only the newest `demand_form` row.
+- **No migration.** Damage lines live in `summary_json.form_data.damages` (₪ with up to 2 decimals, before VAT, computed internally in integer agorot, VAT 18%; `claimant_vat_registered` prints amounts before VAT). Logic in `web/src/lib/demand/damages.ts`; cockpit editor `DamagesFields.tsx` (`third_party_report` only, live preview).
+- `PATCH /api/claims/[id]/form-data` validates damages and regenerates the demand form inline (awaited before the response, so `router.refresh()` sees it) on `third_party_report` (route added to `outputFileTracingIncludes`); `demand/cleanup.ts` keeps only the newest `demand_form` row.
 - The letter gains a "פירוט הנזק" section (money rows never clipped, VAT row, emphasised total; flows to a second page when crowded).
 - **Behaviour change:** on `third_party_report` a generated demand form ticks the "מכתב דרישה" checklist item only once a repair amount exists (`formFacts`/`isRepairPriced`); uploaded forms unaffected.
 - `formfill/bidi.ts` mirrors brackets in RTL runs and keeps `%`/`₪` with their number — also fixes "(…)" in every insurer form.
 - Stage 2 (extraction of amounts from uploaded docs) is separate, not built.
+- **Follow-up (a):** prefill the send-confirm `demand_amount` from the damages total — until then the two can disagree.
+- **Follow-up (b):** the `formfill/bidi.ts` bracket and terminator fix (commit ac6ae77) also changes the insurer accident forms; it is going to its own PR, with a render check on one insurer form.
