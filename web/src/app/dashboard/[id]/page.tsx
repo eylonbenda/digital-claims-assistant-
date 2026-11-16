@@ -32,7 +32,7 @@ import TasksPanel, { type TaskView } from "./TasksPanel";
 import { deriveCockpit, type TabKey } from "@/lib/cockpit/derive";
 import { effectiveHandling } from "@/lib/handling/effective";
 import { loadQueue } from "@/lib/outbound/load";
-import { formFacts, FORM_KIND } from "@/lib/forms/kinds";
+import { formFacts, isRepairPriced, FORM_KIND } from "@/lib/forms/kinds";
 import { composeSubmission } from "@/lib/submission/compose";
 import SubmissionPanel, { type SubmissionView } from "./SubmissionPanel";
 
@@ -233,7 +233,10 @@ export default async function ClaimDetailPage({
   // Demand forms are attached to the submission and counted as the demand_form doc instead.
   const accidentFormRows = (formRows ?? []).filter((r) => r.kind === FORM_KIND.accidentNotice);
   const demandFormRows = (formRows ?? []).filter((r) => r.kind === FORM_KIND.demand);
-  const facts = formFacts((formRows ?? []).map((r) => r.kind as string));
+  const facts = formFacts(
+    (formRows ?? []).map((r) => r.kind as string),
+    isRepairPriced(effectiveClaimData(formSummary)),
+  );
   const uploadedDocTypes = new Set([
     ...satisfiedDocTypes(
       (rows ?? []).map((r) => ({ type: r.type as string })),

@@ -122,6 +122,7 @@ export interface ClaimData {
   };
 
   damage?: { insured_vehicle?: string; third_party_vehicle?: string };
+  damages?: Damages; // demand-form money lines (amounts before VAT)
 
   garage?: { name?: string; address?: string; phone?: string; is_arrangement?: boolean }; // מוסך הסדר
   assessor_name?: string;
