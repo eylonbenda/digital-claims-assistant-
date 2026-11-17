@@ -1,6 +1,8 @@
 // Canonical claim data — one shape, all insurers. Mirrors docs/form-field-map.md (§2 core + §5
 // growth) and the POC at .pdfwork/formfill/sample-claim.mjs. Templates map a subset of these
 // keys to coordinates; the collection flow fills this shape.
+import type { Damages } from "../demand/damages";
+
 export type ClaimType =
   | "own_policy"
   | "third_party_report"
@@ -120,6 +122,7 @@ export interface ClaimData {
   };
 
   damage?: { insured_vehicle?: string; third_party_vehicle?: string };
+  damages?: Damages; // demand-form money lines (amounts before VAT)
 
   garage?: { name?: string; address?: string; phone?: string; is_arrangement?: boolean }; // מוסך הסדר
   assessor_name?: string;

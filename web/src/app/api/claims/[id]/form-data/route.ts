@@ -1,7 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { ClaimData } from "@/lib/formfill/types";
-import { serverError } from "@/lib/observability/report";
+import { reportError, serverError } from "@/lib/observability/report";
+import { generateDemandForm } from "@/lib/demand/generate";
+import { DEMAND_TRACK } from "@/lib/demand/inputs";
+import { validateDamages } from "@/lib/demand/damages";
+
+export const runtime = "nodejs"; // the demand-form render reads the Hebrew font from disk
+// Bounds the inline demand-form regeneration.
+export const maxDuration = 60;
 
 // PATCH /api/claims/[id]/form-data
 // Body: { form_data: ClaimData }
@@ -26,10 +33,13 @@ export async function PATCH(
     return Response.json({ error: "form_data object required" }, { status: 400 });
   }
 
+  const damagesCheck = validateDamages((formData as Record<string, unknown>).damages);
+  if (!damagesCheck.ok) return Response.json({ error: damagesCheck.error }, { status: 400 });
+
   // RLS verify ownership + read current summary_json so we merge instead of clobber.
   const { data: claim } = await supabase
     .from("claims")
-    .select("id, summary_json")
+    .select("id, summary_json, claim_type")
     .eq("id", id)
     .single();
   if (!claim) return Response.json({ error: "not found" }, { status: 404 });
@@ -48,6 +58,17 @@ export async function PATCH(
     type: "form_data_edited",
     payload_json: { by: user.email ?? null },
   });
+
+  // Keep the demand form in step with the saved damages. Inline (not after()) so the client's
+  // router.refresh() right after this response sees the new PDF, amounts and checklist.
+  // generateDemandForm never throws; the catch is defensive and never fails the save.
+  if (claim.claim_type === DEMAND_TRACK) {
+    try {
+      await generateDemandForm(id);
+    } catch (e) {
+      await reportError("/api/claims/[id]/form-data", e, { claimId: id, step: "demand form" });
+    }
+  }
 
   return Response.json({ ok: true });
 }

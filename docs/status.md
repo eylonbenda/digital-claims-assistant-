@@ -512,6 +512,21 @@ cd web ; npm run dev
 - **Claims can now carry money.** `demand_amount`/`paid_amount` (ILS, optional, migration `012`) via `PATCH /api/claims/[id]/amounts` (pure planner `web/src/lib/handling/amounts.ts` — lenient parsing of `₪`/thousands-separators, either key independently, clearable with `null`/`""`). Surfaced three ways: an always-available `AmountsCard` on `/dashboard/[id]`, an optional demand-amount field on the submission panel (saved before the claim is marked sent), and an optional paid-amount field on the handling dialog when the target status is `paid`/`partial_paid`.
 - Unit-tested: `amounts.test.ts`, `overview/compute.test.ts`.
 
+### Done since last sync (2026-11-16, PR #122 — bidi fix: mirror brackets, keep terminators with their number)
+- **No migration.** `web/src/lib/formfill/bidi.ts` (+ its test) only — the shared RTL run-splitting engine behind every insurer form and the demand form.
+- **Brackets in an RTL run are now mirrored (L4).** fontkit only reverses glyphs and never mirrors them, so `"פגיעה (אחורי)"` drew as `"פגיעה )אחורי("`; `visualRuns` now swaps bracket pairs itself, including in a pure-RTL string that never hits the reverse path.
+- **A terminator (`%`, `₪`, …) touching a number now stays with it (W5)** instead of drifting to the far side — `"(18%)"` drew as `"(%18("`.
+
+### Done since last sync (2026-11-16, `feat/demand-damages` — damages section in the demand form)
+- **No migration.** Damage lines live in `summary_json.form_data.damages` (₪ with up to 2 decimals, before VAT, computed internally in integer agorot, VAT 18%; `claimant_vat_registered` prints amounts before VAT). Logic in `web/src/lib/demand/damages.ts`; cockpit editor `DamagesFields.tsx` (`third_party_report` only, live preview).
+- `PATCH /api/claims/[id]/form-data` validates damages and regenerates the demand form inline (awaited before the response, so `router.refresh()` sees it) on `third_party_report` (route added to `outputFileTracingIncludes`); `demand/cleanup.ts` keeps only the newest `demand_form` row.
+- The letter gains a "פירוט הנזק" section (money rows never clipped, VAT row, emphasised total; flows to a second page when crowded).
+- **Behaviour change:** on `third_party_report` a generated demand form ticks the "מכתב דרישה" checklist item only once a repair amount exists (`formFacts`/`isRepairPriced`); uploaded forms unaffected.
+- `formfill/bidi.ts` mirrors brackets in RTL runs and keeps `%`/`₪` with their number — also fixes "(…)" in every insurer form.
+- Stage 2 (extraction of amounts from uploaded docs) is separate, not built.
+- **Follow-up (a):** prefill the send-confirm `demand_amount` from the damages total — until then the two can disagree.
+- **Follow-up (b):** the `formfill/bidi.ts` bracket and terminator fix (commit ac6ae77) also changes the insurer accident forms; it is going to its own PR, with a render check on one insurer form.
+
 ### Done since last sync (2026-11-16, PR #117 — pure core for the email relay)
 - **No migration.** New `web/src/lib/email/` (`config.ts`, `send.ts`, `classify.ts`, `match.ts`, `forward.ts`, `budget.ts`, `types.ts` + `email.test.ts`) — pure logic only, building toward the email-relay phase 1 design (`docs/superpowers/specs/2026-11-15-email-relay-phase1-design.md`): planning an outbound relay to the business's own claims mailbox (`planSend`, reusing `submission/compose.ts`), classifying/matching inbound mail to a claim (`classifyKind`, `matchClaim`), and planning the copy filed to the business mailbox (`planForward`). **Not yet wired to any API route, provider SDK, or migration** — `agents.claims_mailbox`/`inbound_alias` and the `claim_emails` tables from the design spec don't exist yet.
 - Unit-tested: `email.test.ts`.
