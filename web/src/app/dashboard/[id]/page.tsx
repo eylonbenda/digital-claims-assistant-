@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { computeChecklist, chaseableLabels, satisfiedDocTypes } from "@/lib/claims/checklist";
+import { chaseableLabels } from "@/lib/claims/checklist";
 import { classifyFromClaimData } from "@/lib/claims/classify";
 import {
   needsAnalysis,
@@ -32,9 +32,11 @@ import TasksPanel, { type TaskView } from "./TasksPanel";
 import { deriveCockpit, type TabKey } from "@/lib/cockpit/derive";
 import { effectiveHandling } from "@/lib/handling/effective";
 import { loadQueue } from "@/lib/outbound/load";
-import { formFacts, FORM_KIND } from "@/lib/forms/kinds";
-import { composeSubmission } from "@/lib/submission/compose";
+import { FORM_KIND } from "@/lib/forms/kinds";
+import { buildSubmission, type SubmissionSource } from "@/lib/submission/build";
 import SubmissionPanel, { type SubmissionView } from "./SubmissionPanel";
+import CorrespondencePanel from "./CorrespondencePanel";
+import { loadClaimEmails, loadEmailFeature } from "@/lib/email/load";
 
 const BUCKET = "claim-docs";
 const SIGNED_TTL = 60 * 60; // 1h — agent viewing session
@@ -221,44 +223,19 @@ export default async function ClaimDetailPage({
     formClaimData,
   );
 
-  // Compute the dynamic checklist on the server — pure function, no I/O.
-  const flags = {
-    theft:                !!(claim as Record<string, unknown>).theft,
-    lien:                 !!(claim as Record<string, unknown>).lien,
-    business_use:         !!(claim as Record<string, unknown>).business_use,
-    policy_activated:     !!(claim as Record<string, unknown>).policy_activated,
-    garage_network_rider: !!(claim as Record<string, unknown>).garage_network_rider,
-  };
+  // The checklist and the insurer-ready submission, from the same builder the send
+  // route uses — what this page shows is what gets sent.
   // generated_forms holds more than the accident notice: only that kind feeds the form list and hasStoredForm.
-  // Demand forms are attached to the submission and counted as the demand_form doc instead.
   const accidentFormRows = (formRows ?? []).filter((r) => r.kind === FORM_KIND.accidentNotice);
   const demandFormRows = (formRows ?? []).filter((r) => r.kind === FORM_KIND.demand);
-  const facts = formFacts((formRows ?? []).map((r) => r.kind as string));
-  const uploadedDocTypes = new Set([
-    ...satisfiedDocTypes(
-      (rows ?? []).map((r) => ({ type: r.type as string })),
-      claim.created_at,
-    ),
-    ...facts.generatedDocTypes,
-  ]);
   const checklistState = ((claim as Record<string, unknown>).checklist_state as Record<string, boolean> | null) ?? {};
-  // What the claimant said they'd send later (wizard `docsDeferred`), so a missing
-  // blocking document reads as "the client will send it" rather than an unexplained
-  // gap. Reuses `collected` from the classification block above.
-  const deferredDocTypes = new Set(
-    Object.entries(collected?.docsDeferred ?? {})
-      .filter(([, v]) => v === true)
-      .map(([k]) => k),
-  );
-  const checklistItems = computeChecklist(
-    claim.claim_type,
-    uploadedDocTypes,
-    facts.hasAccidentNotice,
-    checklistState,
-    flags,
-    deferredDocTypes,
-    claim.created_at,
-  );
+  const { checklist: checklistItems, submission } = buildSubmission({
+    claim: claim as unknown as SubmissionSource["claim"],
+    docs: (rows ?? []).map((r) => ({ type: r.type as string, storage_path: r.storage_path })),
+    forms: (formRows ?? []).map((r) => ({ insurer: r.insurer, storage_path: r.storage_path, kind: r.kind as string })),
+    thirdParties: tpRows ?? [],
+    agencyName: agentRow?.name ?? null,
+  });
 
   // Ownership is already proven by the RLS queries above; the service client only
   // mints short-lived signed URLs for the private bucket (Storage RLS is separate).
@@ -351,7 +328,6 @@ export default async function ClaimDetailPage({
   }));
 
   // ── Prepare-and-confirm submission (spec: 2026-10-21-claim-handling) ──────
-  const tp = (tpRows ?? [])[0] ?? null;
   const handlingChangedAt = (claim as Record<string, unknown>).handling_status_changed_at as
     | string
     | null;
@@ -360,28 +336,6 @@ export default async function ClaimDetailPage({
     checklistState,
     claim.claim_type,
   );
-  const submission = composeSubmission({
-    claim: {
-      id: claim.id,
-      claimType: claim.claim_type,
-      clientName: claim.client_name,
-      ourPlate: formClaimData?.vehicle?.plate ?? null,
-      // Canonical third_parties[0] first: with several vehicles (multi-car accidents) the
-      // table rows carry no order, the form data does.
-      tpPlate: formClaimData?.third_parties?.[0]?.vehicle_plate || tp?.plate || null,
-      eventDate: formClaimData?.accident?.date ?? null,
-      atFaultInsurer:
-        ((claim as Record<string, unknown>).at_fault_insurer as string | null) ??
-        (formClaimData?.third_parties?.[0]?.insurer || tp?.insurer) ??
-        null,
-      policyInsurer: claim.policy_insurer,
-      agencyName: agentRow?.name ?? null,
-    },
-    checklist: checklistItems,
-    docs: (rows ?? []).map((r) => ({ type: r.type as string, storage_path: r.storage_path })),
-    forms: accidentFormRows.map((r) => ({ insurer: r.insurer, storage_path: r.storage_path })),
-    demandForms: demandFormRows.map((r) => ({ storage_path: r.storage_path })),
-  });
   const submissionView: SubmissionView | null =
     submission && !handlingEffective
       ? {
@@ -395,6 +349,11 @@ export default async function ClaimDetailPage({
           })),
         }
       : null;
+
+  // Email: whether this business sends from the app, and what was sent and received
+  // on this claim. Both are null/empty when the feature is off or migration 013 is missing.
+  const emailFeature = await loadEmailFeature(supabase, user.id);
+  const claimEmails = emailFeature ? ((await loadClaimEmails(supabase, claim.id)) ?? []) : [];
 
   const chaseLabels = chaseableLabels(blockingMissing);
   // The one due reminder for this claim (outbound queue); null falls back to the ad-hoc chase.
@@ -602,6 +561,8 @@ export default async function ClaimDetailPage({
                 <NotesPanel claimId={claim.id} notes={notes} />
               </section>
 
+              {claimEmails.length > 0 && <CorrespondencePanel emails={claimEmails} now={new Date(now)} />}
+
               {classification && confirmed && (
                 <details>
                   <summary className="inline-block cursor-pointer list-none rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 marker:content-none hover:bg-zinc-50">
@@ -626,6 +587,11 @@ export default async function ClaimDetailPage({
                 claimId={claim.id}
                 submission={submissionView}
                 insurers={insurerOptions}
+                direct={{
+                  enabled: !!emailFeature,
+                  fromAddress: emailFeature?.address ?? null,
+                  ccAddress: emailFeature?.claimsMailbox ?? null,
+                }}
               />
             ) : null
           }
