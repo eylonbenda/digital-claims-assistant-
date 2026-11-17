@@ -10,6 +10,7 @@ import {
 import { chipCounts, visibleRows, type StageFilter } from "@/lib/dashboard/list";
 import { paginate } from "@/lib/dashboard/paginate";
 import type { Stage } from "@/lib/dashboard/stage";
+import { EMAIL_COPY } from "@/lib/email/copy";
 import Pager, { useUrlPage, useUrlStage } from "./Pager";
 
 const ROWS_PER_PAGE = 25;
@@ -89,7 +90,7 @@ function Row({ row, now }: { row: ClaimRow; now: Date }) {
           </Link>
           {row.fresh && (
             <span className="ms-1 rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-800">
-              {row.fresh === "submitted" ? "חדש" : "מסמך חדש"}
+              {row.fresh === "submitted" ? "חדש" : row.fresh === "upload" ? "מסמך חדש" : EMAIL_COPY.newEmailBadge}
             </span>
           )}
         </div>
