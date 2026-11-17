@@ -1,5 +1,25 @@
 import { describe, it, expect } from "vitest";
-import { parseBusinessDetails } from "./details";
+import { parseBusinessDetails, parseClaimsMailbox } from "./details";
+
+describe("parseClaimsMailbox", () => {
+  it("is absent when the request does not carry the field", () => {
+    expect(parseClaimsMailbox({ name: "x" })).toEqual({ absent: true });
+    expect(parseClaimsMailbox(null)).toEqual({ absent: true });
+  });
+  it("trims and lower-cases a valid address", () => {
+    expect(parseClaimsMailbox({ claims_mailbox: "  Claims@Garage.co.il " })).toEqual({
+      ok: true, value: "claims@garage.co.il",
+    });
+  });
+  it("clears on an empty value", () => {
+    expect(parseClaimsMailbox({ claims_mailbox: "  " })).toEqual({ ok: true, value: null });
+    expect(parseClaimsMailbox({ claims_mailbox: null })).toEqual({ ok: true, value: null });
+  });
+  it("rejects anything that is not an address", () => {
+    expect(parseClaimsMailbox({ claims_mailbox: "not-an-email" })).toMatchObject({ ok: false });
+    expect(parseClaimsMailbox({ claims_mailbox: 7 })).toMatchObject({ ok: false });
+  });
+});
 
 describe("parseBusinessDetails", () => {
   it("trims a valid input", () => {
