@@ -28,7 +28,17 @@ describe("visualRuns", () => {
   });
 
   it("mirrors a lone bracket that ends up in an RTL run", () => {
-    expect(texts("רכב (Toyota)")).toEqual(["(", "Toyota", "רכב ("]);
+    // fontkit reverses an RTL run but does not mirror, so brackets inside it are pre-mirrored.
+    expect(texts("רכב (Toyota)")).toEqual(["(", "Toyota", "רכב )"]);
+  });
+
+  it("pre-mirrors brackets in a pure-RTL string (fontkit reverses without mirroring)", () => {
+    expect(visualRuns("פירוט הנזק (כולל מע״מ)")).toEqual([{ text: "פירוט הנזק )כולל מע״מ(", rtl: true }]);
+  });
+
+  it("W5: a percent or currency sign touching a number stays with it", () => {
+    expect(texts("מע״מ (18%):")).toEqual([":(", "18%", "מע״מ )"]);
+    expect(texts("סך ₪120")).toEqual(["₪120", "סך "]);
   });
 
   it("treats Arabic as RTL", () => {

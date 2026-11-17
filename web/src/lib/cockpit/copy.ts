@@ -44,6 +44,7 @@ export const DEMAND_COPY = {
   pending: "יוצר…",
   open: "פתח / הורד ↗",
   linkUnavailable: "קישור לא זמין",
+  repairUnpricedHint: "מכתב הדרישה ייחשב מוכן אחרי הזנת עלות התיקון בפירוט הנזק",
   senderMissing: "פרטי העסק חסרים — הטופס ייצא בלי שולח",
   senderMissingLink: "השלם פרטי עסק",
   insurerPrompt: "המבטחת לא זוהתה — בחר למי לפנות",
@@ -57,4 +58,21 @@ export const DEMAND_COPY = {
     500: "יצירת הטופס נכשלה — נסה שוב",
   } as Record<number, string>,
   errorFallback: "יצירת הטופס נכשלה — נסה שוב",
+} as const;
+
+// Damages ("פירוט הנזק") editor in the form-field editor.
+export const DAMAGES_COPY = {
+  title: "פירוט הנזק",
+  beforeVat: "לפני מע״מ",
+  claimantVatRegistered: "הניזוק עוסק מורשה (סכומים לפני מע״מ)",
+  addLine: "+ הוסף שורה",
+  removeLine: "הסר",
+  otherLabel: "תיאור הסעיף",
+  otherAmount: "סכום",
+  otherVat: "חייב מע״מ",
+  missingLabel: "חסר שם לסעיף נוסף",
+  missingAmount: "חסר סכום",
+  previewVat: "מע״מ",
+  previewTotal: "סה״כ",
+  errorsTitle: "שגיאות בפירוט הנזק",
 } as const;

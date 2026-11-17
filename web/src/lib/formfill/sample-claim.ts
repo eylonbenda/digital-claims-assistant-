@@ -92,6 +92,10 @@ const sampleClaim: ClaimData = {
       hospital: "",
     },
   ],
+  damages: {
+    repair: { amount: 7370, vat: true },
+    assessor_fee: { amount: 677.97, vat: true },
+  },
   bank_account: { bank: "בנק הפועלים", branch: "601", account_number: "123456" },
   declarations: {
     poa_third_party: true,

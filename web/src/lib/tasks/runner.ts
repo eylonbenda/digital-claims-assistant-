@@ -1,7 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { computeChecklist, satisfiedDocTypes } from "@/lib/claims/checklist";
 import { TP_INSURER_UNKNOWN } from "@/lib/collection/claim-state";
-import { formFacts } from "@/lib/forms/kinds";
+import { formFacts, isRepairPriced } from "@/lib/forms/kinds";
+import { effectiveClaimData, type ClaimSummaryJson } from "@/lib/formfill/effective";
 import { advanceTasks } from "./engine";
 import {
   STATUS_ORDER,
@@ -31,7 +32,7 @@ export async function runEngine(
       svc
         .from("claims")
         .select(
-          "id, claim_type, status, at_fault_insurer, checklist_state, created_at, submitted_at, theft, lien, business_use, policy_activated, garage_network_rider",
+          "id, claim_type, status, at_fault_insurer, checklist_state, summary_json, created_at, submitted_at, theft, lien, business_use, policy_activated, garage_network_rider",
         )
         .eq("id", claimId)
         .single(),
@@ -49,7 +50,10 @@ export async function runEngine(
     ]);
     if (!claim) return null;
 
-    const facts = formFacts((formRows ?? []).map((f) => f.kind as string));
+    const facts = formFacts(
+      (formRows ?? []).map((f) => f.kind as string),
+      isRepairPriced(effectiveClaimData(claim.summary_json as ClaimSummaryJson)),
+    );
     const hasForm = facts.hasAccidentNotice;
     const checklist = computeChecklist(
       claim.claim_type,

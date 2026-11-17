@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { satisfiedDocTypes } from "@/lib/claims/checklist";
-import { formFacts } from "@/lib/forms/kinds";
+import { formFacts, isRepairPriced } from "@/lib/forms/kinds";
+import { effectiveClaimData, type ClaimSummaryJson } from "@/lib/formfill/effective";
 import { buildFactSheet, type BriefClaimRow, type FactSheet } from "./facts";
 import { rankClaims, fallbackTier, TIER_ORDER, type RankSignal, type Tier } from "./rank";
 
@@ -123,7 +124,10 @@ export async function getOrCreateBrief(
 
     const sheets: FactSheet[] = claims.map((c) => {
       const claimDocs = docsBy.get(c.id) ?? [];
-      const facts = formFacts((formsBy.get(c.id) ?? []).map((f) => f.kind as string));
+      const facts = formFacts(
+        (formsBy.get(c.id) ?? []).map((f) => f.kind as string),
+        isRepairPriced(effectiveClaimData(c.summary_json as ClaimSummaryJson)),
+      );
       const activityTimes = [
         c.submitted_at,
         ...claimDocs.map((d) => d.uploaded_at as string),

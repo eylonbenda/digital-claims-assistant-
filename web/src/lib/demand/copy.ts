@@ -11,6 +11,18 @@ export const COPY = {
     thirdParty: "צד ג'",
     other: "נוסף",
   },
+  damages: {
+    headingInclVat: "פירוט הנזק (כולל מע״מ)",
+    headingExclVat: "פירוט הנזק (לפני מע״מ)",
+    labels: {
+      repair: "תיקון הרכב",
+      diminished_value: "ירידת ערך",
+      assessor_fee: "שכ״ט שמאי",
+      towing: "גרירה",
+    },
+    vat: "מע״מ",
+    total: "סה״כ לדרישה",
+  },
   labels: {
     plate: "מספר רכב",
     eventDate: "תאריך האירוע",
