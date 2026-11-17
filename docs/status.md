@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-16**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-17**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -537,3 +537,11 @@ cd web ; npm run dev
 - **New `POST /api/inbound/email`** — the provider's webhook, not session-authenticated: the signature is checked on the raw body first (`401` on a bad one), `503` when email isn't configured, `200` for anything a retry can't improve (stored / duplicate / own mail / unknown alias), `5xx` otherwise so the provider retries.
 - `web/src/lib/submission/directory.ts` gains a `domains` field per insurer (for labelling inbound mail as `kind='insurer'`) and `insurerDomains()` — ships empty like the addresses, so every insurer currently classifies as `other` until domains are confirmed.
 - Unit-tested: `web/src/lib/email/ingest.test.ts`, `web/src/app/api/inbound/email/route.test.ts`, plus new cases in `web/src/lib/email/email.test.ts`.
+
+### Done since last sync (2026-11-17, PR #123 — inbox, manual filing, and the app sends to the insurer directly)
+- **No new migration** — still gated on `013_claim_emails.sql` from PR #119 above.
+- **Design amendment: the app now sends to the insurer directly, not via a relay to the business's own mailbox.** `send.ts`'s `planSend` is the pure planner behind the new **`POST /api/claims/[id]/submission/send`** — builds the submission packet via `submission/build.ts`'s `buildSubmission` (the same builder the claim page now uses, so what the clerk sees is what gets sent), sends it from the business's own system address straight to the insurer's confirmed recipient, cc's the business's `claims_mailbox`, then performs the same compare-and-set mark-as-sent + milestone tick as the manual `/submission` confirm route. `SubmissionPanel.tsx` offers this as a one-click alternative to "I sent it myself," shown only when email is configured for the business.
+- **`/dashboard/inbox` ("דואר נכנס")** — inbound mail that `ingestInbound` couldn't file on a claim automatically, newest first (`loadUnmatched`). Each message can be filed by hand (`AssignClaim.tsx`, searches the business's open claims by name or plate) via the new **`POST /api/emails/[id]/assign`** (RLS-probed, compare-and-set on "still unfiled" → `409` on a race). `SidebarNav` gains an entry with an unmatched-count badge, hidden entirely when email is off for the business (`loadEmailFeature`).
+- **A claim's own mail is now visible on the claim page.** New `CorrespondencePanel.tsx` (סקירה tab, shown only once the claim has any mail) and the shared `EmailCard.tsx` it reuses with the inbox render everything sent/received on that claim (`loadClaimEmails`), including attachments via short-lived signed URLs and a "bounced" badge on `delivery_failed`.
+- **An inbound insurer email now counts as dashboard activity.** `composeDashboard` gained `fresh: "email"` and folds `last_email_at` into `activity_at`, so a claim a reply just landed on rises to the top of the list with a "מייל חדש" badge, same mechanism as the existing "חדש"/"מסמך חדש" ones.
+- `docs/app-map.md` (email/submission module rows, `/dashboard/inbox` surface, two new API routes), `docs/flow.md` (§ post-send handling, § cockpit tabs), `docs/claim-management.md` (§ ניהול התביעה מול המבטחת) updated.
