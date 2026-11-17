@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeChecklist, satisfiedDocTypes, type ComputedItem } from "@/lib/claims/checklist";
 import { effectiveClaimData, type ClaimSummaryJson } from "@/lib/formfill/effective";
-import { formFacts, FORM_KIND } from "@/lib/forms/kinds";
+import { formFacts, isRepairPriced, FORM_KIND } from "@/lib/forms/kinds";
 import type { ClaimType } from "@/lib/tasks/types";
 import { composeSubmission, type Submission } from "./compose";
 
@@ -46,7 +46,7 @@ export function buildSubmission(src: SubmissionSource): {
 
   // generated_forms holds more than the accident notice: only that kind counts as
   // the form; a generated demand form counts as the demand_form document instead.
-  const facts = formFacts(forms.map((f) => f.kind));
+  const facts = formFacts(forms.map((f) => f.kind), isRepairPriced(formClaimData));
   const uploadedDocTypes = new Set([
     ...satisfiedDocTypes(docs.map((d) => ({ type: d.type })), claim.created_at),
     ...facts.generatedDocTypes,

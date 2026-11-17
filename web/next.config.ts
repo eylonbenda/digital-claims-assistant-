@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
     "/api/claims/submit": ["./src/lib/formfill/assets/**"],
     "/api/claims/[id]/demand-form": ["./src/lib/formfill/assets/**"],
     "/api/claims/[id]/classify": ["./src/lib/formfill/assets/**"],
+    "/api/claims/[id]/form-data": ["./src/lib/formfill/assets/**"],
   },
 };
 

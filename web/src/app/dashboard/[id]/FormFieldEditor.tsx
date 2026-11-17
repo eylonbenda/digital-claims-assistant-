@@ -6,6 +6,9 @@ import type { ClaimData } from "@/lib/formfill/types";
 import { MAX_THIRD_PARTIES } from "@/lib/collection/claim-state";
 import { setPath } from "@/lib/formfill/set-path";
 import { validatePhone } from "@/lib/validation/phone";
+import type { Damages } from "@/lib/demand/damages";
+import { DAMAGES_COPY } from "@/lib/cockpit/copy";
+import DamagesFields from "./DamagesFields";
 
 // ── immutable nested get/set by dot-path (supports numeric keys → arrays) ────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -192,6 +195,20 @@ export default function FormFieldEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [damagesErrors, setDamagesErrors] = useState<string[]>([]);
+  // Bumped on reset so DamagesFields re-seeds its raw input text.
+  const [resetKey, setResetKey] = useState(0);
+  const showDamages = claimType === "third_party_report";
+
+  function updateDamages(fn: (d: Damages) => Damages) {
+    setData((d) => {
+      const next = fn(d.damages ?? {});
+      const rest = { ...d };
+      delete rest.damages;
+      return Object.keys(next).length ? { ...rest, damages: next } : rest;
+    });
+    setSaved(false);
+  }
 
   function update(path: string, value: string, bool?: boolean) {
     const v = bool && value !== "" ? value === "true" : value;
@@ -365,6 +382,14 @@ export default function FormFieldEditor({
             </fieldset>
           );
         })}
+        {showDamages && (
+          <DamagesFields
+            key={resetKey}
+            damages={data.damages}
+            onChange={updateDamages}
+            onErrors={setDamagesErrors}
+          />
+        )}
         {!collapseTp && tpCount < MAX_THIRD_PARTIES && (
           <button
             type="button"
@@ -381,6 +406,12 @@ export default function FormFieldEditor({
           <span className="font-medium">{fieldErrors.length} שדות עם שגיאה:</span>{" "}
           {fieldErrors.map((e) => e.label).join(" · ")} — ניתן לשמור בכל זאת, אך כדאי
           לתקן לפני מילוי הטופס.
+        </div>
+      )}
+
+      {showDamages && damagesErrors.length > 0 && (
+        <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+          <span className="font-medium">{DAMAGES_COPY.errorsTitle}:</span> {damagesErrors.join(" · ")}
         </div>
       )}
 
@@ -405,14 +436,14 @@ export default function FormFieldEditor({
         <button
           type="button"
           onClick={save}
-          disabled={busy}
+          disabled={busy || (showDamages && damagesErrors.length > 0)}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
           {busy ? "שומר…" : "שמור שדות"}
         </button>
         <button
           type="button"
-          onClick={() => { setData(initial); setSaved(false); setError(null); }}
+          onClick={() => { setData(initial); setResetKey((k) => k + 1); setSaved(false); setError(null); }}
           disabled={busy}
           className="text-sm text-zinc-500 hover:underline disabled:opacity-50"
         >

@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { computeChecklist, chaseItemLabels, missingLateDocItems, satisfiedDocTypes } from "@/lib/claims/checklist";
-import { formFacts } from "@/lib/forms/kinds";
+import { formFacts, isRepairPriced } from "@/lib/forms/kinds";
+import { effectiveClaimData, type ClaimSummaryJson } from "@/lib/formfill/effective";
 import type { Brief } from "@/lib/brief/brief";
 import {
   buildQueue,
@@ -32,7 +33,7 @@ export async function loadQueue(
     let claimsQuery = svc
       .from("claims")
       .select(
-        "id, client_name, client_phone, access_token, claim_type, created_at, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider",
+        "id, client_name, client_phone, access_token, claim_type, created_at, checklist_state, summary_json, theft, lien, business_use, policy_activated, garage_network_rider",
       )
       .eq("agent_id", agentId)
       .not("status", "in", "(closed,abandoned)");
@@ -80,7 +81,10 @@ export async function loadQueue(
 
     const queueClaims: QueueClaim[] = claims.map((c) => {
       const docs = docsBy.get(c.id) ?? [];
-      const facts = formFacts(formKindsBy.get(c.id) ?? []);
+      const facts = formFacts(
+        formKindsBy.get(c.id) ?? [],
+        isRepairPriced(effectiveClaimData(c.summary_json as ClaimSummaryJson)),
+      );
       const checklist = computeChecklist(
         c.claim_type,
         new Set([...satisfiedDocTypes(docs, c.created_at as string), ...facts.generatedDocTypes]),

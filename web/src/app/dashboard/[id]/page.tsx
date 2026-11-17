@@ -32,7 +32,7 @@ import TasksPanel, { type TaskView } from "./TasksPanel";
 import { deriveCockpit, type TabKey } from "@/lib/cockpit/derive";
 import { effectiveHandling } from "@/lib/handling/effective";
 import { loadQueue } from "@/lib/outbound/load";
-import { FORM_KIND } from "@/lib/forms/kinds";
+import { isRepairPriced, FORM_KIND } from "@/lib/forms/kinds";
 import { buildSubmission, type SubmissionSource } from "@/lib/submission/build";
 import SubmissionPanel, { type SubmissionView } from "./SubmissionPanel";
 import CorrespondencePanel from "./CorrespondencePanel";
@@ -663,6 +663,7 @@ export default async function ClaimDetailPage({
                   senderMissing={!agentRow?.name?.trim()}
                   addresseeKey={demandAddresseeKey}
                   hasUploadedDemand={(rows ?? []).some((r) => r.type === "demand_form")}
+                  repairUnpriced={!isRepairPriced(effectiveClaimData(formSummary))}
                   insurerOptions={Object.entries(INSURER_DIRECTORY).map(([key, e]) => ({
                     key,
                     label: e.label,
