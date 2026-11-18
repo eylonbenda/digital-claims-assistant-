@@ -4,6 +4,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { demoClaim } from "./demo.ts";
 import { loadEnv, OUT_DIR, TRAINING_ROOT, type Env } from "./env.ts";
+import { clearPreviousOutputs } from "./outputs.ts";
 import { validateScene, type Scene, type Segment } from "./scene.ts";
 import { MARKER_CLIENT_NAME, seed } from "./seed.ts";
 import { holdMs } from "./stage/pacing.ts";
@@ -22,7 +23,7 @@ const PHONE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
 
 // Logs the demo agent in off-camera and proves the app reads the database the seed wrote.
-async function loginAndCheckDatabase(browser: Browser, env: Env): Promise<string> {
+async function loginAndCheckDatabase(browser: Browser, env: Env, markerPhone: string): Promise<string> {
   const ctx = await browser.newContext({ viewport: VIEWPORT.desktop, locale: "he-IL" });
   try {
     const page = await ctx.newPage();
@@ -37,7 +38,8 @@ async function loginAndCheckDatabase(browser: Browser, env: Env): Promise<string
       throw new Error("could not log in as the demo agent — check DEMO_AGENT_EMAIL / DEMO_AGENT_PASSWORD in training/.env.local");
     }
     try {
-      await page.getByText(MARKER_CLIENT_NAME).first().waitFor({ state: "visible" });
+      // The phone is new on every run: an old seed in another database cannot satisfy this.
+      await page.getByText(markerPhone).first().waitFor({ state: "visible" });
     } catch {
       throw new Error(
         `app and seed use different databases: "${MARKER_CLIENT_NAME}" is not on the dashboard at ${env.baseUrl}. ` +
@@ -98,7 +100,7 @@ export async function recordScene(scene: Scene, env: Env): Promise<RecordedSegme
   const errs = validateScene(scene);
   if (errs.length) throw new Error(`scene ${scene.id} is invalid: ${errs.join("; ")}`);
 
-  await seed(env); // guards the target first, then resets the demo agent
+  const { markerPhone } = await seed(env); // guards the target first, then resets the demo agent
   fs.rmSync(SEGMENT_DIR, { recursive: true, force: true });
   fs.mkdirSync(SEGMENT_DIR, { recursive: true });
 
@@ -109,7 +111,7 @@ export async function recordScene(scene: Scene, env: Env): Promise<RecordedSegme
   let ctx: BrowserContext | null = null;
   let side: { ctx: BrowserContext; page: Page } | null = null;
   try {
-    const authState = await loginAndCheckDatabase(browser, env);
+    const authState = await loginAndCheckDatabase(browser, env, markerPhone);
     for (const seg of scene.segments) {
       const phone = seg.surface === "phone";
       // A phone clip gets its chapter card as a clip of its own, full frame.
@@ -167,8 +169,9 @@ async function main(): Promise<void> {
   const scene = (await import(pathToFileURL(file).href)).default as Scene;
   const env = loadEnv();
   console.log(`recording ${scene.id} against ${env.baseUrl}`);
-  const segments = await recordScene(scene, env);
   const out = path.join(OUT_DIR, `${scene.id}.mp4`);
+  clearPreviousOutputs(OUT_DIR, scene.id);
+  const segments = await recordScene(scene, env);
   const { composeVideo } = await import("./compose.ts");
   await composeVideo(segments, out);
   fs.rmSync(SEGMENT_DIR, { recursive: true, force: true });

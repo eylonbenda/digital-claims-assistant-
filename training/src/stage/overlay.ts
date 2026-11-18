@@ -21,7 +21,7 @@ export function overlayScript(surface: OverlaySurface): string {
   if (window.__stage) return;
   const css = \`
     [data-stage-root]{position:fixed;inset:0;pointer-events:none;z-index:2147483647;font-family:var(--font-heebo,"Segoe UI"),"Segoe UI",Arial,sans-serif}
-    [data-stage-caption]{${caption}unicode-bidi:plaintext;opacity:0;transition:opacity .25s ease}
+    [data-stage-caption]{${caption}unicode-bidi:isolate;direction:rtl;opacity:0;transition:opacity .25s ease}
     [data-stage-caption][data-on]{opacity:1}
     [data-stage-cursor]{position:absolute;left:0;top:0;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;
       background:rgba(29,78,216,.38);border:2px solid rgba(29,78,216,.95);box-shadow:0 2px 8px rgba(0,0,0,.35);
@@ -34,7 +34,7 @@ export function overlayScript(surface: OverlaySurface): string {
       box-shadow:0 0 0 6px rgba(29,78,216,.22);opacity:0;transition:opacity .2s}
     [data-stage-ring][data-on]{opacity:1}
     [data-stage-title]{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
-      gap:14px;background:#182438;color:#fff;text-align:center;unicode-bidi:plaintext;padding:0 8%}
+      gap:14px;background:#182438;color:#fff;text-align:center;unicode-bidi:isolate;direction:rtl;padding:0 8%}
     [data-stage-title][data-on]{display:flex}
     [data-stage-title] b{font-size:${phone ? "30px" : "54px"};font-weight:700}
     [data-stage-title] i{width:64px;height:5px;border-radius:3px;background:#1d4ed8}

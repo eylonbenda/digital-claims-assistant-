@@ -10,10 +10,11 @@ import { showPdf } from "../src/stage/pdf-viewer.ts";
 
 const nextButton = (page: Page): Locator => page.getByRole("button", { name: /^(בוא נתחיל|המשך|שליחה לטיפול)$/ });
 const next = ({ page, stage }: StepCtx) => stage.click(nextButton(page));
-// The wizard pre-fills what the office already entered (name, phone): type only what is empty.
-const typeIfEmpty = async ({ stage }: StepCtx, field: Locator, text: string) => {
-  if ((await field.inputValue()).trim() === "") await stage.type(field, text);
-  else await stage.highlight(field, 500);
+// The wizard pre-fills what the office already entered. The caption says so, so it must be
+// true: fail rather than quietly type the value in.
+const showPrefilled = async ({ stage }: StepCtx, field: Locator, what: string) => {
+  if ((await field.inputValue()).trim() === "") throw new Error(`${what} was expected to be pre-filled from the claim, but is empty`);
+  await stage.highlight(field, 500);
 };
 const chapter = (name: string, title: string) => ({
   name,
@@ -135,11 +136,11 @@ const client: Segment = {
       run: async (c) => {
         const { page, stage, demo } = c;
         await page.getByRole("heading", { name: "הפרטים שלך" }).waitFor();
-        await typeIfEmpty(c, page.getByLabel("שם פרטי"), demo.insured.first_name);
-        await typeIfEmpty(c, page.getByLabel("שם משפחה"), demo.insured.last_name);
-        await typeIfEmpty(c, page.getByLabel("תעודת זהות"), demo.insured.id_number);
-        await typeIfEmpty(c, page.getByLabel("טלפון נייד"), demo.insured.mobile);
-        await typeIfEmpty(c, page.getByLabel("עיר מגורים"), demo.insured.city);
+        await showPrefilled(c, page.getByLabel("שם פרטי"), "first name");
+        await showPrefilled(c, page.getByLabel("שם משפחה"), "last name");
+        await stage.type(page.getByLabel("תעודת זהות"), demo.insured.id_number);
+        await showPrefilled(c, page.getByLabel("טלפון נייד"), "mobile");
+        await stage.type(page.getByLabel("עיר מגורים"), demo.insured.city);
         const insurer = page.locator("select").nth(0), type = page.locator("select").nth(1);
         await stage.highlight(insurer, 700);
         await insurer.selectOption({ label: demo.policyInsurerLabel });
@@ -215,8 +216,11 @@ const client: Segment = {
         await upload(page, 1, [FIXTURES.registration]);
         await stage.hold(1200);
         await upload(page, 2, [FIXTURES.car1, FIXTURES.car2, FIXTURES.car3]);
-        await nextButton(page).and(page.locator(":enabled")).waitFor({ timeout: 30_000 });
-        await page.waitForTimeout(2500); // let the car photos finish uploading too
+        // All six files must have reached the server before the client moves on.
+        await page.waitForFunction(
+          '(document.body.innerText.match(/✅/g) || []).length === 6 && !document.body.innerText.includes("⏳")',
+          undefined, { timeout: 45_000 },
+        );
         await nextButton(page).scrollIntoViewIfNeeded();
       },
     },
@@ -298,7 +302,7 @@ const notice: Segment = {
       run: async ({ page, stage, demo }) => {
         await stage.type(page.getByLabel("מספר פוליסה").first(), demo.policyNumber);
         await stage.click(page.getByRole("button", { name: "שמור שדות" }));
-        await page.waitForLoadState("networkidle");
+        await page.getByText("נשמר ✓").waitFor(); // the save really went through
       },
     },
     {
@@ -306,9 +310,12 @@ const notice: Segment = {
       caption: "ולוחצים על ״מלא טופס הודעה על תאונה״",
       run: async ({ page, stage, shared, env }) => {
         const link = page.getByRole("link", { name: "מלא טופס הודעה על תאונה" });
-        await stage.highlight(link, 1800);
-        // The link opens the PDF in a new tab, and headless Chromium cannot display a PDF.
-        // Fetch the very same URL with the agent's session and show those bytes instead.
+        // A real click: the app opens the PDF in a new tab. Headless Chromium cannot display
+        // a PDF, so that tab is closed and the very same URL is fetched with the agent's
+        // session — those bytes are what the next step shows.
+        const popup = page.context().waitForEvent("page", { timeout: 10_000 }).catch(() => null);
+        await stage.click(link);
+        await (await popup)?.close().catch(() => undefined);
         const href = await link.getAttribute("href");
         if (!href) throw new Error("the generate-form link has no href");
         const res = await page.context().request.get(new URL(href, env.baseUrl).href);

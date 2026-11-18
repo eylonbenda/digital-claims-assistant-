@@ -12,6 +12,7 @@ export type Env = {
   demoEmail: string;
   demoPassword: string;
   prodSupabaseUrl: string | null;
+  confirmedDevUrl: string | null;
 };
 
 // Reads training/.env.local. Errors name the missing key, never a value.
@@ -29,5 +30,6 @@ export function loadEnv(): Env {
     demoEmail: need("DEMO_AGENT_EMAIL"),
     demoPassword: need("DEMO_AGENT_PASSWORD"),
     prodSupabaseUrl: process.env.PROD_SUPABASE_URL?.trim() || null,
+    confirmedDevUrl: process.env.CONFIRMED_DEV_SUPABASE_URL?.trim() || null,
   };
 }

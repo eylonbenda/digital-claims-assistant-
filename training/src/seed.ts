@@ -2,9 +2,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { pathToFileURL } from "node:url";
 import { loadEnv, type Env } from "./env.ts";
 import { assertSafeTarget } from "./guard.ts";
+import { DEMO_STAMP, demoUserDecision, newMarkerPhone } from "./seed-rules.ts";
 
-// The recorder looks for this name on the dashboard before it records anything: seeing
-// it proves the running app and this seed talk to the same database.
 export const MARKER_CLIENT_NAME = "דנה לוי (הדגמה)";
 const DEMO_AGENT_NAME = "מוסך הדגמה";
 const BUCKET = "claim-docs";
@@ -22,6 +21,12 @@ async function findOrCreateUser(db: SupabaseClient, env: Env): Promise<string> {
     if (error) throw new Error(`seed: listing users failed — ${error.message}`);
     const hit = data.users.find((u) => u.email?.toLowerCase() === env.demoEmail.toLowerCase());
     if (hit) {
+      if (demoUserDecision(hit) === "refuse") {
+        throw new Error(
+          `seed: ${env.demoEmail} is an existing account that this tool did not create — refusing to touch it. ` +
+            "Use an email that has no account yet for DEMO_AGENT_EMAIL.",
+        );
+      }
       // Keep the password in step with .env.local so login always works.
       const upd = await db.auth.admin.updateUserById(hit.id, { password: env.demoPassword });
       if (upd.error) throw new Error(`seed: resetting the demo password failed — ${upd.error.message}`);
@@ -33,6 +38,7 @@ async function findOrCreateUser(db: SupabaseClient, env: Env): Promise<string> {
     email: env.demoEmail,
     password: env.demoPassword,
     email_confirm: true,
+    app_metadata: { [DEMO_STAMP]: true },
   });
   if (error || !data.user) throw new Error(`seed: creating the demo user failed — ${error?.message}`);
   return data.user.id;
@@ -55,7 +61,7 @@ async function resetClaims(db: SupabaseClient, agentId: string): Promise<void> {
   must(await db.from("claims").delete().eq("agent_id", agentId).select("id"), "deleting demo claims");
 }
 
-export async function seed(env: Env): Promise<{ agentId: string }> {
+export async function seed(env: Env): Promise<{ agentId: string; markerPhone: string }> {
   await assertSafeTarget(env);
   const db = createClient(env.supabaseUrl, env.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const userId = await findOrCreateUser(db, env);
@@ -71,12 +77,13 @@ export async function seed(env: Env): Promise<{ agentId: string }> {
   ) as { id: string };
 
   await resetClaims(db, agent.id);
+  const markerPhone = newMarkerPhone();
 
   // Background claims so the dashboard is not empty on camera. All fictional.
   must(
     // Every row carries the same keys: a bulk insert sends null for a key a row omits.
     await db.from("claims").insert([
-      { agent_id: agent.id, client_name: MARKER_CLIENT_NAME, client_phone: "0500000003", status: "submitted",
+      { agent_id: agent.id, client_name: MARKER_CLIENT_NAME, client_phone: markerPhone, status: "submitted",
         claim_type: "own_policy", policy_insurer: "harel", created_at: daysAgo(2), submitted_at: daysAgo(2) },
       { agent_id: agent.id, client_name: "משה פרץ (הדגמה)", client_phone: "0500000004", status: "created",
         claim_type: "unknown", policy_insurer: null, created_at: daysAgo(1), submitted_at: null },
@@ -85,7 +92,7 @@ export async function seed(env: Env): Promise<{ agentId: string }> {
     ]).select("id"),
     "inserting background claims",
   );
-  return { agentId: agent.id };
+  return { agentId: agent.id, markerPhone };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

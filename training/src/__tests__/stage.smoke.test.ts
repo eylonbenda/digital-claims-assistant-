@@ -92,3 +92,23 @@ test("the cursor still lives on the phone page when captions are elsewhere", asy
   assert.equal(await phone.title(), "clicked");
   assert.equal(await phone.locator("[data-stage-cursor][data-on]").count(), 1);
 });
+
+test("a control at the bottom of a desktop page is moved clear of the caption bar", async () => {
+  const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
+  await page.setContent('<html dir="rtl"><body style="margin:0;height:3000px"><button style="position:absolute;top:670px;right:500px">שמור שדות</button></body></html>');
+  const stage = await attachStage(page, "desktop");
+  await stage.caption("משלימים ושומרים");
+  const button = page.getByRole("button", { name: "שמור שדות" });
+  await stage.highlight(button, 50);
+  const b = (await button.boundingBox())!, c = (await cap(page).boundingBox())!;
+  assert.ok(b.y + b.height <= c.y, `button bottom ${b.y + b.height} is under the caption top ${c.y}`);
+});
+
+test("a caption that starts with a Latin word is still laid out right-to-left", async () => {
+  const page = await open("desktop");
+  const stage = await attachStage(page, "desktop");
+  await stage.caption("PDF מוכן לשליחה");
+  const style = (prop: string) => page.evaluate(`getComputedStyle(document.querySelector("[data-stage-caption]")).${prop}`);
+  assert.equal(await style("unicodeBidi"), "isolate");
+  assert.equal(await style("direction"), "rtl");
+});

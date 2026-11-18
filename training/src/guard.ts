@@ -10,6 +10,7 @@ export function checkTarget(i: {
   versionEnv: string | null;
   supabaseUrl: string;
   prodSupabaseUrl: string | null;
+  confirmedDevUrl: string | null;
 }): { ok: true } | { ok: false; reason: string } {
   let host: string;
   try {
@@ -22,6 +23,17 @@ export function checkTarget(i: {
   }
   if (i.prodSupabaseUrl && norm(i.prodSupabaseUrl) === norm(i.supabaseUrl)) {
     return { ok: false, reason: "SUPABASE_URL in training/.env.local is the PROD project — refusing" };
+  }
+  // Fail closed: the app says "local" for anything off Vercel, so something has to state
+  // which database this is. Either the prod URL to refuse, or the dev URL said twice.
+  const confirmed = i.confirmedDevUrl !== null && norm(i.confirmedDevUrl) === norm(i.supabaseUrl);
+  if (!i.prodSupabaseUrl && !confirmed) {
+    return {
+      ok: false,
+      reason:
+        "cannot tell that SUPABASE_URL is the dev project — set PROD_SUPABASE_URL (the project to refuse), " +
+        "or set CONFIRMED_DEV_SUPABASE_URL to the same value as SUPABASE_URL, in training/.env.local",
+    };
   }
   if (i.versionEnv === null) {
     return { ok: false, reason: `no app at ${i.baseUrl} — start it first (see training/README.md)` };
@@ -40,6 +52,6 @@ export async function assertSafeTarget(env: Env): Promise<void> {
   } catch {
     versionEnv = null;
   }
-  const r = checkTarget({ baseUrl: env.baseUrl, versionEnv, supabaseUrl: env.supabaseUrl, prodSupabaseUrl: env.prodSupabaseUrl });
+  const r = checkTarget({ baseUrl: env.baseUrl, versionEnv, supabaseUrl: env.supabaseUrl, prodSupabaseUrl: env.prodSupabaseUrl, confirmedDevUrl: env.confirmedDevUrl });
   if (!r.ok) throw new Error(r.reason);
 }

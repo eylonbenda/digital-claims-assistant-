@@ -19,6 +19,8 @@ export type Stage = {
   highlight(target: Locator, ms?: number): Promise<void>;
 };
 
+const CAPTION_ZONE = 130; // px of the frame edge the in-page caption bar can occupy
+
 const call = (page: Page, fn: string, ...args: unknown[]) =>
   page.evaluate(`window.__stage && window.__stage.${fn}(${args.map((a) => JSON.stringify(a)).join(",")})`).catch(() => undefined);
 
@@ -42,8 +44,18 @@ export async function attachStage(page: Page, surface: Surface, opts: { captionP
     // Scrolling an element into view can pan a slightly-too-wide page sideways; the
     // recording must stay flush with the reading edge.
     await page.evaluate("window.scrollTo(0, window.scrollY)").catch(() => undefined);
-    const box = await target.boundingBox();
+    let box = await target.boundingBox();
     if (!box) throw new Error("stage: target has no box (not visible)");
+    // An in-page caption bar sits over the bottom (desktop) or top (phone) of the frame:
+    // nudge the page so the control being shown is not underneath it.
+    if (!opts.captionPage) {
+      const vh = page.viewportSize()?.height ?? 720;
+      const by = surface === "desktop" ? box.y + box.height - (vh - CAPTION_ZONE) : box.y - CAPTION_ZONE;
+      if (surface === "desktop" ? by > 0 : by < 0) {
+        await page.evaluate(`window.scrollBy(0, ${Math.round(by)})`);
+        box = (await target.boundingBox()) ?? box;
+      }
+    }
     return { x: box.x + box.width / 2, y: box.y + box.height / 2, box };
   };
 

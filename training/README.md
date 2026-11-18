@@ -21,9 +21,13 @@ Design and rationale: [`docs/superpowers/specs/2026-11-18-training-videos-design
    ```
    Copy `.env.example` to `.env.local` and fill it in. `SUPABASE_URL` and
    `SUPABASE_SERVICE_ROLE_KEY` are the **dev** project's (the same values as
-   `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` in `web/.env.local`). Pick any
-   email and a strong password for the demo agent: the first run creates that user in dev.
-   Set `PROD_SUPABASE_URL` to the production project's URL so the tool can refuse it.
+   `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` in `web/.env.local`). For the demo
+   agent, use an email that has **no account yet** and a strong password: the first run
+   creates that user in dev and stamps it as the tool's own. The seed refuses to touch an
+   existing account that lacks the stamp, so it can never take over a real login.
+   Set `PROD_SUPABASE_URL` to the production project's URL so the tool can refuse it (or,
+   if you do not have it at hand, repeat the dev URL in `CONFIRMED_DEV_SUPABASE_URL`).
+   Without one of the two the tool will not run.
 
 2. **Start the app** against the dev database, and point `BASE_URL` at it.
    - Main checkout: `cd web && npm run dev` → `BASE_URL=http://localhost:3000`.
@@ -40,16 +44,16 @@ Design and rationale: [`docs/superpowers/specs/2026-11-18-training-videos-design
 ## What a run does
 
 1. **Guards the target** — refuses unless `BASE_URL` is localhost, the app does not report
-   `env=production`, and `SUPABASE_URL` is not the prod project.
+   `env=production`, and `SUPABASE_URL` is shown not to be prod (see setup).
 2. **Seeds** — finds or creates the demo agent ("מוסך הדגמה"), **deletes that agent's claims
    and stored files**, and inserts three fictional background claims. Nothing outside that
    one agent is touched.
-3. **Logs in** off-camera and checks that the seeded marker claim is on the dashboard. If it
-   is not, the app and the seed are pointed at different databases and the run stops.
+3. **Logs in** off-camera and checks that this run's marker (a phone number generated per
+   run) is on the dashboard. If it is not, the app and the seed are pointed at different databases and the run stops.
 4. **Records** each segment in its own browser context, then **renders** the mp4.
 
-If any step fails, the run exits non-zero, writes `out/failed-<step>.png`, and produces no
-mp4.
+A run starts by deleting the previous `out/<id>.mp4`. If any step fails, the run exits
+non-zero, writes `out/failed-<step>.png`, and there is no mp4.
 
 ## What is real and what is not
 
