@@ -10,6 +10,7 @@ Design and rationale: [`docs/superpowers/specs/2026-11-18-training-videos-design
 |---|---|---|
 | `01-accident-notice` | `videos/01-accident-notice.ts` | open a claim → send the link → the client's side (phone) → the filled accident notice |
 | `00-smoke` | `videos/00-smoke.ts` | 7-second check that login, recording and rendering work |
+| promo (ten files) | `promo/` | a short video for prospective customers — see [Promo video](#promo-video) |
 
 ## Record a video
 
@@ -89,6 +90,62 @@ Copy `videos/00-smoke.ts`, give it a new `id`, and write its segments:
 - Select elements by role, label or visible Hebrew text, not CSS classes.
 - Phone segments: captions are recorded on a side panel and composited next to the phone.
 
+## Promo video
+
+A short video for prospective customers, in `promo/`: the WhatsApp chase, three real product
+moments, an outcome line, and a WhatsApp call to action. Two audience versions (`garage`,
+`agent`), three shapes each (9:16, 1:1, 16:9), plus a 15-second cut for ads: ten files in
+`out/promo/`. Design: [`docs/superpowers/specs/2026-11-18-promo-video-design.md`](../docs/superpowers/specs/2026-11-18-promo-video-design.md).
+
+It is made in two stages, so wording and design can change without touching the app:
+
+```bash
+npm run promo:capture   # needs the app running, like `record`. Saves sharp stills of the real app.
+npm run promo:render    # needs only those stills. About 20 minutes for all ten files.
+```
+
+`promo:capture` follows every safety rule of `record` (same guard, same demo account, same
+stubbed vehicle lookup) and seeds the demo business as "מוסך הדגמה" or "סוכנות הדגמה".
+`promo:render` takes `--audience`, `--ratio` and `--cut` to render a subset, for example
+`npm run promo:render -- --audience garage --ratio 9x16`.
+
+While designing, `npm run promo:preview -- garage 9x16` writes one still per beat to
+`out/promo/preview/` in a few seconds.
+
+| To change | Edit |
+|---|---|
+| any wording, the phone number | `promo/copy.ts`, then `promo:render` |
+| beat order and lengths | `promo/beats.ts` |
+| how a beat looks | `promo/compositions/` (`opening`, `product`, `closing`) |
+| which app screens are shown | `promo/capture.ts` + `CAPTURE_IDS` in `promo/manifest.ts`, then `promo:capture` |
+
+**What is real.** Every product picture is a capture of the real app on demo data, and the
+form is the real filled PDF. The chat thread in the opening is a drawing of life *without*
+the product and is deliberately not our interface. Insurer names are listed only while that
+insurer's template exists in `web/src/lib/formfill/templates/`.
+
+**What must stay true.** No number, testimonial or customer name that is not real; the copy
+is qualitative until there is a pilot figure approved for marketing. No "סוכן" in the
+garage version: the app itself says it in places, so the crops in `product.ts` keep those
+regions (and the side menu, which shows the demo login) out of frame. Check this again
+after changing a crop or a capture.
+
+**Car photos.** The uploads are drawn pictures in `fixtures/promo/` (`npm run
+promo:fixtures`). To use real ones, put three or more images in `fixtures/promo/user/`
+(git-ignored) and capture again. Use only photos with no legible plate, no person and no
+customer's identifiable car, and look at every frame that shows them before publishing.
+
+**Music.** None is shipped. Set `PROMO_MUSIC` in `.env.local` to a track you hold a licence
+for; it is mixed under the video and faded out. The video length never changes.
+
+**Layout rules, enforced by tests.** Words stay inside each shape's safe area (the vertical
+video gives up the top 14% and bottom 20% to the apps' own buttons), never overlap a
+picture, and still fit when 25% longer. A wording change that breaks this fails `npm test`.
+
+**Adding a beat** (for example claim management): add the stills to `capture.ts` and
+`CAPTURE_IDS`, write a scene in `compositions/product.ts`, add its id to `BeatId` and to a
+cut in `beats.ts`.
+
 ## Known app quirk
 
 On a 390px phone the wizard's summary page becomes wider than the screen when the accident
@@ -100,3 +157,5 @@ fixed, the description can be longer.
 
 `npm test` — unit tests for the guard, pacing, scene validation and the ffmpeg arguments, plus
 browser smoke tests for the caption/cursor overlay. They do not need the app running.
+The promo adds layout tests for every beat in every shape and one real 15-second render,
+so the full run takes about two and a half minutes.
