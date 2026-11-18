@@ -39,6 +39,12 @@ export const SHARED = {
   ],
 };
 
+// Everything one audience's video says, resolved to plain strings.
+export type PromoCopy = typeof SHARED & { hook: string; outcome: string };
+export function resolveCopy(audience: Audience): PromoCopy {
+  return { ...SHARED, hook: COPY[audience].hook, outcome: COPY[audience].outcome };
+}
+
 // The names the landing page lists. `template` is the file in web/src/lib/formfill/templates.
 export const INSURERS: { name: string; template: string }[] = [
   { name: "הראל", template: "harel" },

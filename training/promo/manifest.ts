@@ -11,7 +11,13 @@ export const CAPTURE_IDS = [
 ] as const;
 export type CaptureId = (typeof CAPTURE_IDS)[number];
 
-export type Capture = { id: CaptureId; file: string; width: number; height: number; surface: "phone" | "desktop" | "pdf" };
+// `points`: where named controls sit in the still (0..1 on each axis), measured at capture
+// time so a tap lands on the control even after the app's layout shifts.
+export type Point = { x: number; y: number };
+export type Capture = {
+  id: CaptureId; file: string; width: number; height: number; surface: "phone" | "desktop" | "pdf";
+  points?: Record<string, Point>;
+};
 export type Manifest = { audience: Audience; capturedAt: string; captures: Capture[] };
 
 export const captureDir = (audience: Audience, outDir = OUT_DIR) => path.join(outDir, "promo", "captures", audience);

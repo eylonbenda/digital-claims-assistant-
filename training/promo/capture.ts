@@ -1,7 +1,7 @@
 // Stage 1 of the promo: walk the real app once per audience and save sharp stills of the
 // moments the promo shows. Same safety rules as the training recorder (the seed guards the
 // target, only the demo account is touched, the vehicle lookup is stubbed).
-import { chromium, type Browser, type Page } from "playwright";
+import { chromium, type Browser, type Locator, type Page } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -11,14 +11,15 @@ import { PHONE_UA, loginAndCheckDatabase, stubVehicleLookup } from "../src/recor
 import { seed } from "../src/seed.ts";
 import { AUDIENCES, COPY, type Audience } from "./copy.ts";
 import { promoFixtures } from "./fixtures.ts";
-import { CAPTURE_IDS, captureDir, checkManifest, type Capture, type CaptureId, type Manifest } from "./manifest.ts";
+import { CAPTURE_IDS, captureDir, checkManifest, type Capture, type CaptureId, type Manifest, type Point } from "./manifest.ts";
 
 const SCALE = 2;
 const DESKTOP = { width: 1280, height: 800 };
 const PHONE = { width: 390, height: 780 };
 const TIMEOUT_MS = 15_000;
 
-const next = (page: Page) => page.getByRole("button", { name: new RegExp("^(בוא נתחיל|המשך|שליחה לטיפול)$") }).click();
+const nextButton = (page: Page) => page.getByRole("button", { name: new RegExp("^(בוא נתחיל|המשך|שליחה לטיפול)$") });
+const next = (page: Page) => nextButton(page).click();
 
 async function settle(page: Page): Promise<void> {
   await page.evaluate("document.fonts.ready");
@@ -77,13 +78,21 @@ export async function capturePromo(env: Env, audience: Audience): Promise<Manife
   let at = "login";
 
   const browser = await chromium.launch();
-  const shoot = async (page: Page, id: CaptureId, surface: "phone" | "desktop") => {
+  // `controls`: named controls whose position is measured, so the promo can tap them.
+  const shoot = async (page: Page, id: CaptureId, surface: "phone" | "desktop", controls: Record<string, Locator> = {}) => {
     at = id;
     await settle(page);
+    const view = page.viewportSize()!;
+    const points: Record<string, Point> = {};
+    for (const [name, control] of Object.entries(controls)) {
+      const b = await control.boundingBox();
+      if (!b) throw new Error(`the "${name}" control is not on screen for ${id}`);
+      points[name] = { x: (b.x + b.width / 2) / view.width, y: (b.y + b.height / 2) / view.height };
+    }
     const file = `${id}.png`;
     await page.screenshot({ path: path.join(dir, file) });
     const vp = page.viewportSize()!;
-    captures.push({ id, file, width: vp.width * SCALE, height: vp.height * SCALE, surface });
+    captures.push({ id, file, width: vp.width * SCALE, height: vp.height * SCALE, surface, points });
     console.log(`  · ${audience}/${id}`);
   };
   const authFile = path.join(dir, "auth.json");
@@ -121,7 +130,7 @@ export async function capturePromo(env: Env, audience: Audience): Promise<Manife
     await phone.getByText("אני מאשר/ת איסוף הפרטים").click();
     await next(phone);
     await phone.getByRole("button", { name: "לא, אין נפגעים", exact: true }).waitFor();
-    await shoot(phone, "client-question", "phone");
+    await shoot(phone, "client-question", "phone", { answer: phone.getByRole("button", { name: "לא, אין נפגעים", exact: true }) });
     for (const answer of ["לא, אין נפגעים", "אני (המבוטח)", "הצד השני אשם", "כן"]) {
       await phone.getByRole("button", { name: answer, exact: true }).click();
       await phone.waitForTimeout(400);
@@ -172,7 +181,7 @@ export async function capturePromo(env: Env, audience: Audience): Promise<Manife
     await uploaded(6);
     // The file input itself is hidden; centre the block that holds it.
     await phone.evaluate(`document.querySelectorAll('input[type="file"]')[2].parentElement.scrollIntoView({ block: "center" })`);
-    await shoot(phone, "client-photos", "phone");
+    await shoot(phone, "client-photos", "phone", { next: nextButton(phone) });
     await next(phone);
     await phone.getByRole("heading", { name: "סיכום" }).waitFor();
     await phone.getByText("אני מאשר/ת את ההצהרה ואת העברת המידע.").click();
@@ -187,7 +196,7 @@ export async function capturePromo(env: Env, audience: Audience): Promise<Manife
     await desk.goto(`${env.baseUrl}/dashboard`);
     const row = desk.getByRole("link", { name: demo.client.name }).first();
     await row.waitFor();
-    await shoot(desk, "dashboard-submitted", "desktop");
+    await shoot(desk, "dashboard-submitted", "desktop", { claim: row });
     await row.click();
     await desk.waitForURL(new RegExp("/dashboard/[0-9a-f-]{36}"));
     await desk.getByRole("tab", { name: "טופס ההודעה" }).waitFor();
@@ -211,7 +220,7 @@ export async function capturePromo(env: Env, audience: Audience): Promise<Manife
     await desk.getByText("נשמר ✓").waitFor();
     await desk.getByRole("button", { name: "תקן שדות בטופס" }).click().catch(() => undefined); // collapse the editor if it toggles
     await desk.evaluate("window.scrollTo(0, 0)");
-    await shoot(desk, "form-tab", "desktop");
+    await shoot(desk, "form-tab", "desktop", { generate: desk.getByRole("link", { name: "מלא טופס הודעה על תאונה" }) });
 
     at = "pdf-page-1";
     const href = await desk.getByRole("link", { name: "מלא טופס הודעה על תאונה" }).getAttribute("href");
