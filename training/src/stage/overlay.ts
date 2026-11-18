@@ -8,7 +8,7 @@ export function overlayScript(surface: "desktop" | "phone"): string {
   return `(() => {
   if (window.__stage) return;
   const css = \`
-    [data-stage-root]{position:fixed;inset:0;pointer-events:none;z-index:2147483647;font-family:Heebo,Arial,"Segoe UI",sans-serif}
+    [data-stage-root]{position:fixed;inset:0;pointer-events:none;z-index:2147483647;font-family:var(--font-heebo),"Segoe UI",Arial,sans-serif}
     [data-stage-caption]{position:absolute;${phone ? "top:10px" : "bottom:26px"};left:50%;transform:translateX(-50%);
       max-width:${phone ? "92%" : "70%"};box-sizing:border-box;padding:${phone ? "9px 14px" : "13px 26px"};border-radius:14px;
       background:rgba(24,36,56,.94);color:#fff;font-size:${phone ? "15px" : "22px"};font-weight:600;line-height:1.35;
@@ -16,7 +16,7 @@ export function overlayScript(surface: "desktop" | "phone"): string {
       opacity:0;transition:opacity .25s ease}
     [data-stage-caption][data-on]{opacity:1}
     [data-stage-cursor]{position:absolute;left:0;top:0;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;
-      background:rgba(29,78,216,.85);border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);
+      background:rgba(29,78,216,.38);border:2px solid rgba(29,78,216,.95);box-shadow:0 2px 8px rgba(0,0,0,.35);
       transition:transform .55s cubic-bezier(.3,.7,.3,1);opacity:0}
     [data-stage-cursor][data-on]{opacity:1}
     [data-stage-ripple]{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;
