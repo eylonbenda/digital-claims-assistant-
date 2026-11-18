@@ -21,6 +21,8 @@ export const demoClaim = {
   client: { name: "יעל כהן", phone: "0500000001" },
   insured: { first_name: "יעל", last_name: "כהן", id_number: "000000018", mobile: "0500000001", city: "חיפה" },
   policyInsurerLabel: "הראל",
+  policyInsurerKey: "harel",
+  policyNumber: "40123567",
   insuranceTypeLabel: "מקיף",
   vehicle: { plate: "12345678", manufacturer: "טויוטה", model: "קורולה", year: "2021", color: "לבן" },
   thirdParty: { name: "אבי לוי", phone: "0500000002", plate: "87654321", insurerLabel: "מגדל" },
@@ -29,6 +31,8 @@ export const demoClaim = {
     time: "08:40",
     city: "חיפה",
     street: "שדרות ההדגמה 10",
-    description: "עמדתי ברמזור אדום ורכב שהגיע מאחור פגע בי בחלק האחורי.",
+    // Kept short on purpose: a longer text makes the wizard's summary page wider than a
+    // 390px phone (app bug, fixed separately), which pans the recording.
+    description: "רכב פגע בי מאחור ברמזור אדום.",
   },
 } as const;

@@ -32,6 +32,9 @@ export async function attachStage(page: Page, surface: Surface): Promise<Stage> 
 
   const centre = async (target: Locator) => {
     await target.scrollIntoViewIfNeeded();
+    // Scrolling an element into view can pan a slightly-too-wide page sideways; the
+    // recording must stay flush with the reading edge.
+    await page.evaluate("window.scrollTo(0, window.scrollY)").catch(() => undefined);
     const box = await target.boundingBox();
     if (!box) throw new Error("stage: target has no box (not visible)");
     return { x: box.x + box.width / 2, y: box.y + box.height / 2, box };
