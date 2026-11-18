@@ -127,7 +127,7 @@ created → in_progress → submitted → classified → form_generated → chec
 - **Route unclear** → classification stays `unknown`; the checklist shows shared docs until the agent decides.
 - **Multiple vehicles** → "add another" option on the third-party step, up to 3 vehicles total (above). **Multiple injured persons** on one form (`injured_persons[]`) has no multi-add UI yet — plan ahead.
 - **Non-technical client** → fallback: the agent fills manually from the dashboard, or the client sends materials and the system organizes them.
-- **Duplicates** → token per claim; warn the agent before opening a duplicate claim for the same event.
+- **Duplicates** → token per claim; warn the agent before opening a duplicate claim for the same event. A claim opened by mistake (wrong client, duplicate, test) can be permanently deleted from its own cockpit header while it was never sent to the insurer (`DELETE /api/claims/[id]`, `web/src/lib/claims/delete.ts`) — once sent, it is closed with a reason instead, never deleted.
 - **Theft / vandalism** → set `theft=true`; checklist requires police report + keys. Classification `own_policy`.
 - **Lien on vehicle** → set `lien=true`; lien-release document required before payout is processed.
 - **Business client** → set `business_use=true`; accountant VAT-offset confirmation required.

@@ -10,6 +10,7 @@ import type { SendItem } from "@/lib/outbound/queue";
 import HandlingDialog from "./HandlingDialog";
 import { canRemind } from "@/lib/cockpit/reminder";
 import ReminderButton from "./ReminderButton";
+import DeleteClaimButton from "./DeleteClaimButton";
 
 export type CockpitHeaderProps = {
   claimId: string;
@@ -30,6 +31,9 @@ export type CockpitHeaderProps = {
   handlingEffective: HandlingStatus | null;
   handlingDays: number | null;
   claimClosed: boolean;
+  // A claim opened by mistake can be removed until it is sent (lib/claims/delete.ts).
+  canDelete: boolean;
+  fileCount: number;
   onNavigate: (tab: TabKey) => void;
 };
 
@@ -108,13 +112,20 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
             </div>
           )}
         </div>
-        <div className="shrink-0 text-sm text-zinc-400">
+        <div className="shrink-0 text-end text-sm text-zinc-400">
+          <div>
           {p.daysOpen === 0 ? "נפתחה היום" : `${p.daysOpen} ימים פתוחה`}
           {p.daysSinceActivity !== null && (
             <span className={p.daysSinceActivity >= 4 ? "text-amber-700" : ""}>
               {" · עדכון "}
               {p.daysSinceActivity === 0 ? "היום" : `לפני ${p.daysSinceActivity} ימים`}
             </span>
+          )}
+          </div>
+          {p.canDelete && (
+            <div className="mt-1">
+              <DeleteClaimButton claimId={p.claimId} clientName={p.clientName} fileCount={p.fileCount} />
+            </div>
           )}
         </div>
       </div>

@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-17**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-18**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -553,3 +553,10 @@ cd web ; npm run dev
 - **New email setup block in settings** (`/dashboard/settings`, `EmailSetup.tsx`, shown only when email is on for the business): the read-only system address (copy button), an editable `claims_mailbox` saved on its own via `PATCH /api/agents/me` (new `parseClaimsMailbox` in `web/src/lib/agents/details.ts`, rejects the system's own inbound domain), the last-received date, and a collapsed M365 redirect-rule walkthrough + the insurer domain list, for insurer mail that still lands directly in the business's own inbox.
 - Unit-tested: `failure.test.ts` (new), plus new cases in `email.test.ts`, `ingest.test.ts`, `route.test.ts` (inbound webhook), `details.test.ts`.
 - `docs/app-map.md` (`/dashboard/settings`, `email/` module row, `/api/agents/me`, `/api/inbound/email`), `docs/claim-management.md` (§ ניהול התביעה מול המבטחת), `docs/architecture.md` (`claim_emails.delivery_failed`) updated.
+
+### Done since last sync (2026-11-18, PR #129 — delete a claim opened by mistake)
+- **No new migration.** A whole claim can now be permanently removed from its own cockpit header: new **`DELETE /api/claims/[id]`**, guarded by the pure `web/src/lib/claims/delete.ts` (`deleteBlocker`, shared by the route and the page) — blocked once `effectiveHandling` is non-null (sent, including legacy hand-ticked claims) or an outbound email exists on the claim, else `409` pointing at "עדכון סטטוס → סגירה". `status` itself (closed/abandoned) never blocks — a never-sent claim closed by mistake is still a mistake.
+- Route deletes the `claims` row first (service client, compare-and-set on `handling_status is null`, so a concurrent send wins and the delete gets `409`), then removes the `claim_documents`/`generated_forms` Storage objects whose paths it read beforehand — row-then-objects so a failed removal only orphans a blob, never leaves a row pointing at nothing. `claim_emails.claim_id` is `on delete set null`, so mail filed on the deleted claim survives and returns to the inbox as unfiled.
+- New `DeleteClaimButton.tsx` in `CockpitHeader.tsx`: a quiet "מחיקת תיק" text button shown only while the page's own `deleteBlocker` check allows it, with a confirm dialog naming the client and file count; the route re-checks regardless of what the page saw.
+- Unit-tested: `delete.test.ts` (guard), `route.test.ts` (happy path, 401/404/409s).
+- Spec: [superpowers/specs/2026-11-18-delete-claim-design.md](superpowers/specs/2026-11-18-delete-claim-design.md). `docs/app-map.md` (new `/api/claims/[id]` DELETE row) already updated in the same PR.

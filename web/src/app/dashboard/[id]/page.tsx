@@ -31,6 +31,7 @@ import NotesPanel, { type NoteView } from "./NotesPanel";
 import TasksPanel, { type TaskView } from "./TasksPanel";
 import { deriveCockpit, type TabKey } from "@/lib/cockpit/derive";
 import { effectiveHandling } from "@/lib/handling/effective";
+import { deleteBlocker } from "@/lib/claims/delete";
 import { loadQueue } from "@/lib/outbound/load";
 import { isRepairPriced, FORM_KIND } from "@/lib/forms/kinds";
 import { buildSubmission, type SubmissionSource } from "@/lib/submission/build";
@@ -355,6 +356,15 @@ export default async function ClaimDetailPage({
   const emailFeature = await loadEmailFeature(supabase, user.id);
   const claimEmails = emailFeature ? ((await loadClaimEmails(supabase, claim.id)) ?? []) : [];
 
+  // "מחיקת תיק" is offered only while nothing went out; the route re-checks.
+  const canDelete =
+    deleteBlocker({
+      handlingStatus: ((claim as Record<string, unknown>).handling_status as string | null) ?? null,
+      checklistState,
+      claimType: claim.claim_type,
+      hasOutboundEmail: claimEmails.some((e) => e.direction === "outbound"),
+    }) === null;
+
   const chaseLabels = chaseableLabels(blockingMissing);
   // The one due reminder for this claim (outbound queue); null falls back to the ad-hoc chase.
   const claimOpen = claim.status !== "closed" && claim.status !== "abandoned";
@@ -417,6 +427,8 @@ export default async function ClaimDetailPage({
             chaseLabels,
             pendingSend,
             claimOpen,
+            canDelete,
+            fileCount: (rows ?? []).length + (formRows ?? []).length,
             uploadUrl: `${origin}/c/${claim.access_token}`,
             handlingEffective,
             handlingDays: handlingChangedAt
