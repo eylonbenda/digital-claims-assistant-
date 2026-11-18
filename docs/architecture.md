@@ -36,7 +36,12 @@ Principle: the Next.js layer is the only boundary facing the client. No client t
 
 ```
 agencies        (id, name, created_at)
-agents          (id, agency_id → agencies, auth_user_id, name, email, phone)
+agents          (id, agency_id → agencies, auth_user_id, name, email, phone,
+                 claims_mailbox, inbound_alias)  -- email relay (migration 013):
+                 -- claims_mailbox = the business's existing claims address (cc'd on
+                 --   every send, sent a copy of every inbound message); inbound_alias
+                 --   is the local part of alias@in.<domain>, a write credential set by
+                 --   us (never the agent) — null alias means the feature is off
 claims          (id, agent_id → agents, client_name, client_phone,
                  claim_type, status, urgent bool, access_token (unique),
                  policy_insurer, at_fault_insurer,
@@ -135,6 +140,22 @@ outbound_events (id, claim_id → claims, task_id → tasks (on delete set null)
                  --     wa.me reports nothing back. Must become a real delivery record
                  --     (BSP receipts) before any rule flips to auto-send.
                  --   index (claim_id, task_key, created_at desc) serves the cooldown read
+claim_emails    (id, agent_id → agents, claim_id → claims (nullable),
+                 direction, kind, provider_id (unique), message_id, in_reply_to,
+                 from_addr, to_addrs[], cc_addrs[], subject, text_body,
+                 match_method, attachments_dropped, delivery_failed, received_at)
+                 -- email sent to insurers and what comes back (migration 013, email
+                 --   relay phase 1). direction: outbound | inbound · kind: business |
+                 --   insurer | other · claim_id null = not yet filed on a claim ·
+                 --   match_method: subject_id | thread | manual · provider_id is the
+                 --   provider's id — the idempotency key for a repeat webhook delivery ·
+                 --   delivery_failed is set by a provider bounce/failed webhook event on
+                 --   the matching outbound row, which also opens a manual task
+                 -- RLS: agent reads own via agent_id, writes service-role only
+claim_email_attachments (id, email_id → claim_emails, filename, mime,
+                 size_bytes, storage_path)
+                 -- filename is the original, kept for display, never used as a path
+                 -- RLS: readable wherever its email is; writes service-role only
 schema_migrations (version text pk, applied_at)
                  -- which migrations this DB has run (migration 010; 001–010 backfilled).
                  --   Every later migration inserts its own row. /api/health compares it

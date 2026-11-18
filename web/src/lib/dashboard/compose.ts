@@ -16,6 +16,8 @@ export type ComposeClaim = {
   draft?: DraftLite;
   // newest claim_documents.uploaded_at — drives activity ordering + the "new document" badge
   last_upload_at?: string | null;
+  // newest inbound insurer email filed on the claim — activity, and the "new email" badge
+  last_email_at?: string | null;
   // Post-send handling lifecycle (computed by the caller via effectiveHandling).
   handling_effective?: string | null;
   handling_insurer_label?: string | null;
@@ -35,8 +37,9 @@ export type ClaimCard = {
   // Latest of link created / client submitted / last upload. The flat list sorts on
   // this, so a claim that just came in (or just got a document) rises to the top.
   activity_at: string;
-  // Something arrived in the last FRESH_MS: a submission, or a document after submit.
-  fresh: "submitted" | "upload" | null;
+  // Something arrived in the last FRESH_MS: a submission, a document after submit,
+  // or an email from the insurer.
+  fresh: "submitted" | "upload" | "email" | null;
   // Derived from queue/task/classification state only — deliberately not from the
   // brief. The intake-first list must order and colour itself identically whether
   // or not the AI brief is enabled.
@@ -105,7 +108,9 @@ export function composeDashboard(input: {
       ? "submitted"
       : c.submitted_at && c.last_upload_at && c.last_upload_at > c.submitted_at && isRecent(c.last_upload_at)
         ? "upload"
-        : null;
+        : isRecent(c.last_email_at)
+          ? "email"
+          : null;
     const nearestOpen = openBy.get(c.id)?.[0] ?? null;
 
     const stage = claimStage({
@@ -146,7 +151,7 @@ export function composeDashboard(input: {
     const row: ClaimRow = {
       claim_id: c.id, client_name: c.client_name,
       created_at: c.created_at,
-      activity_at: latest(c.created_at, c.submitted_at, c.last_upload_at, c.handling_changed_at),
+      activity_at: latest(c.created_at, c.submitted_at, c.last_upload_at, c.handling_changed_at, c.last_email_at),
       fresh,
       needs_action: !closed && (
         !!send || dos.length > 0 || unclassified ||

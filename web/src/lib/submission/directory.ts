@@ -11,6 +11,10 @@ export type DirectoryEntry = {
   claimsEmail: string | null;
   cc: string[];
   verified: boolean;
+  // Mail domains the insurer writes from ("fnx.co.il"). Used only to label inbound
+  // mail as coming from an insurer; a wrong or missing entry mislabels a message,
+  // nothing more. Ships empty, like the addresses — pilot legwork.
+  domains: string[];
 };
 
 const entry = (label: string): DirectoryEntry => ({
@@ -18,6 +22,7 @@ const entry = (label: string): DirectoryEntry => ({
   claimsEmail: null,
   cc: [],
   verified: false,
+  domains: [],
 });
 
 // Keys match the wizard's canonical insurer keys (web/src/lib/collection/claim-state.ts).
@@ -36,3 +41,8 @@ export const INSURER_DIRECTORY: Record<string, DirectoryEntry> = {
   haklai: entry("חקלאי"),
   kash: entry("קש"),
 };
+
+/** Every known insurer mail domain, for classifying inbound mail. */
+export function insurerDomains(): string[] {
+  return Object.values(INSURER_DIRECTORY).flatMap((e) => e.domains);
+}

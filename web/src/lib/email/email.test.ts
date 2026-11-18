@@ -3,7 +3,7 @@ import type { Submission } from "@/lib/submission/compose";
 import { INBOUND_MAX_BYTES, OUTBOUND_MAX_BYTES, overBudget, storageName } from "./budget";
 import { FORWARD_HEADER, addressOf, classifyKind, isOwnMail, parseAlias } from "./classify";
 import { emailConfig, inboundAddress } from "./config";
-import { FORWARD_SUBJECT_PREFIX, planForward } from "./forward";
+import { FORWARD_SUBJECT_PREFIX, alreadyHasIt, planForward } from "./forward";
 import { extractShortIds, matchClaim } from "./match";
 import { SEND_ERROR, planSend } from "./send";
 
@@ -131,6 +131,8 @@ describe("budget / storageName", () => {
     expect(storageName(1, "a/../../b.jpg")).not.toMatch(/\.\.|\//);
     expect(storageName(0, "")).toBe("0-file");
     expect(storageName(0, "חשבונית")).toBe("0-file");
+    expect(storageName(4, "אישור.PDF")).toBe("4-file.pdf");
+    expect(storageName(5, "scan.final.jpg")).toBe("5-scan.final.jpg");
     expect(storageName(3, "x".repeat(200) + ".pdf").length).toBeLessThanOrEqual(82);
   });
 });
@@ -180,6 +182,19 @@ describe("planSend", () => {
     expect(planSend({ ...base, business: { ...business, name: "  " } })).toMatchObject({
       from: "OpenTik <cohen-x7k2@in.example.com>",
     });
+  });
+});
+
+describe("alreadyHasIt", () => {
+  const msg = { from: "Dana <dana@fnx.co.il>", to: ["cohen@in.example.com"], cc: [] as string[] };
+  it("is false for mail the business has not seen", () => {
+    expect(alreadyHasIt(msg, "claims@garage.co.il")).toBe(false);
+    expect(alreadyHasIt(msg, null)).toBe(false);
+  });
+  it("is true when the business wrote it or was addressed directly", () => {
+    expect(alreadyHasIt({ ...msg, from: "Garage <Claims@Garage.co.il>" }, "claims@garage.co.il")).toBe(true);
+    expect(alreadyHasIt({ ...msg, cc: ["claims@garage.co.il"] }, "Claims@garage.co.il")).toBe(true);
+    expect(alreadyHasIt({ ...msg, to: [...msg.to, "<claims@garage.co.il>"] }, "claims@garage.co.il")).toBe(true);
   });
 });
 

@@ -4,11 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { CLAIMS_TITLE, OVERVIEW_TITLE, SETTINGS_TITLE } from "@/lib/dashboard/copy";
+import { EMAIL_COPY } from "@/lib/email/copy";
+
+const INBOX_HREF = "/dashboard/inbox";
 
 // One entry per top-level dashboard route. A claim page (/dashboard/<id>) belongs
 // to "תיקים": it is active on any /dashboard path no other entry claims.
 const ITEMS = [
   { href: "/dashboard", label: CLAIMS_TITLE, icon: FolderIcon },
+  { href: INBOX_HREF, label: EMAIL_COPY.inboxTitle, icon: MailIcon },
   { href: "/dashboard/overview", label: OVERVIEW_TITLE, icon: ChartIcon },
   { href: "/dashboard/settings", label: SETTINGS_TITLE, icon: GearIcon },
 ] as const;
@@ -19,13 +23,22 @@ function isActive(href: string, pathname: string): boolean {
 }
 
 // `compact` is the narrow-screen top bar: a horizontal row, labels only.
-export default function SidebarNav({ compact = false }: { compact?: boolean }) {
+// `inbox` is the number of unfiled messages, or null when email is off for this
+// business — the entry is then hidden.
+export default function SidebarNav({
+  compact = false,
+  inbox = null,
+}: {
+  compact?: boolean;
+  inbox?: number | null;
+}) {
   const pathname = usePathname();
 
   return (
     <nav className={compact ? "flex items-center gap-1" : "flex flex-col gap-1 px-3"}>
-      {ITEMS.map(({ href, label, icon: Icon }) => {
+      {ITEMS.filter((i) => i.href !== INBOX_HREF || inbox !== null).map(({ href, label, icon: Icon }) => {
         const active = isActive(href, pathname);
+        const count = href === INBOX_HREF ? (inbox ?? 0) : 0;
         return (
           <Link
             key={href}
@@ -37,10 +50,34 @@ export default function SidebarNav({ compact = false }: { compact?: boolean }) {
           >
             {!compact && <Icon />}
             {label}
+            {count > 0 && (
+              <span className="ms-auto rounded-full bg-brand px-1.5 py-0.5 text-xs font-semibold leading-none text-white">
+                {count}
+              </span>
+            )}
           </Link>
         );
       })}
     </nav>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3.5 7 8.5 6 8.5-6" />
+    </svg>
   );
 }
 

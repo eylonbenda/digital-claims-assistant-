@@ -121,6 +121,18 @@ export default async function DashboardPage() {
   const lastUploadBy = new Map<string, string>();
   for (const d of docRows ?? []) if (!lastUploadBy.has(d.claim_id)) lastUploadBy.set(d.claim_id, d.uploaded_at);
 
+  // Newest insurer email filed on each claim (RLS-scoped). Best-effort: before
+  // migration 013 the table is missing, and the list then simply has no email activity.
+  const { data: emailRows } = await supabase
+    .from("claim_emails")
+    .select("claim_id, received_at")
+    .eq("direction", "inbound")
+    .eq("kind", "insurer")
+    .not("claim_id", "is", null)
+    .order("received_at", { ascending: false });
+  const lastEmailBy = new Map<string, string>();
+  for (const e of emailRows ?? []) if (!lastEmailBy.has(e.claim_id)) lastEmailBy.set(e.claim_id, e.received_at);
+
   // Third-party vehicle plates per claim (RLS-scoped) — searchable from the list.
   const { data: tpRows } = await supabase.from("third_parties").select("claim_id, plate");
   const tpPlatesBy = new Map<string, string[]>();
@@ -140,6 +152,7 @@ export default async function DashboardPage() {
       // Only the draft is pulled (JSON path select), not the whole summary_json.
       draft: c.draft as DraftLite,
       last_upload_at: lastUploadBy.get(c.id) ?? null,
+      last_email_at: lastEmailBy.get(c.id) ?? null,
       phone: c.client_phone, urgent: c.urgent, access_token: c.access_token,
       client_plate: (c.client_plate as string | null) ?? null,
       tp_plates: tpPlatesBy.get(c.id) ?? [],
