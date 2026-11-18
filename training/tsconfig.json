@@ -4,5 +4,5 @@
     "strict": true, "noEmit": true, "skipLibCheck": true, "esModuleInterop": true,
     "lib": ["ES2023", "DOM"], "types": ["node"], "allowImportingTsExtensions": true
   },
-  "include": ["src", "videos"]
+  "include": ["src", "videos", "promo"]
 }
