@@ -1,7 +1,35 @@
 # Email relay, phase 1 — the system writes the email, the business mailbox stays the sender
 
-**Date:** 2026-11-15 · **Status:** approved by the user 2026-11-15 as the basis for the plan (`docs/superpowers/plans/2026-11-15-email-relay-phase1.md`); the open questions at the end still stand · **Area:** `web/src/lib/submission/`, new `web/src/lib/email/`, `web/src/app/dashboard/`
+**Date:** 2026-11-15 · **Status:** amended 2026-11-16 for direct sending (see the amendment below); originally approved by the user 2026-11-15 as the basis for the plan (`docs/superpowers/plans/2026-11-15-email-relay-phase1.md`); the open questions at the end still stand · **Area:** `web/src/lib/submission/`, new `web/src/lib/email/`, `web/src/app/dashboard/`
 **Supersedes in part:** the non-goal "No real email sending and no inbound email reading" in `2026-10-21-claim-handling-design.md`. Everything else in that spec stands.
+
+## Amendment 2026-11-16 — the system sends to the insurer directly
+
+**Decided by the user on 2026-11-16**, after the unknown-sender risk below was raised again: the app sends the claim to the insurer itself, with the business's existing claims address in copy. This replaces the relay through the business mailbox. Where this section and the rest of the document disagree, this section wins; sections it supersedes are named.
+
+### What changes
+
+- **Outbound (supersedes §3).** `POST /api/claims/[id]/submission/send` sends the packet from the business's own system address to the insurer, `Cc` the business's `claims_mailbox`.
+  - `From`: `"<business name> (OpenTik)" <alias@in.<our domain>>` — the per-business inbound address is the sender, so a reply returns to that business's inbox in the app. `Reply-To` is the same address.
+  - `To`: the insurer's claims address — the verified directory address when there is one, otherwise the address the clerk types. Either way the clerk confirms it.
+  - Subject, body and attachments come from `composeSubmission()` unchanged. The 20 MB budget stands; over it, the manual prepare-and-confirm flow remains the way out.
+- **Explicit confirmation before every send.** A confirm step shows the recipient address, the copy address, the subject and the attachment list, and nothing leaves until the clerk approves it. This is the "no silent sends" anti-goal of the claim-handling spec, now load-bearing: no human retypes the address any more.
+- **"Sent" is known, not inferred (supersedes §4).** When the provider accepts the message, the route applies the existing `planConfirm()` and the claim becomes "נשלחה". The self-copy rule is dropped — the business's copy goes to its real mailbox, not to the inbound address.
+- **Delivery failure.** The provider's bounce / failure event for a sent message creates a task on the claim ("המייל למבטחת חזר — לבדוק כתובת ולשלוח שוב") and flags the stored message. It does **not** revert the status by itself; the clerk decides, with the existing "ביטול שליחה".
+- **Inbound copy to the business (new).** Every inbound message stored for a business is also forwarded to its `claims_mailbox`, attachments included, so the mailbox the clerk works from stays complete.
+  - **Loop guard:** a message whose `From` is on our own inbound domain, or that carries our `X-OpenTik-Forwarded` header, is neither stored nor forwarded. Without it, a redirect rule in the business mailbox would bounce our own copy back to us indefinitely.
+- **The redirect rule becomes optional (amends §10).** Replies arrive on their own because the system address is the sender. The rule is still the only way to capture mail an insurer starts on its own to the address it knows; set it up when that matters.
+- **Global rule (amends Non-goals).** The system now sends to two kinds of address only: the insurer address the clerk confirmed for that send, and the business's own `claims_mailbox`. Still no email to clients, and still no AI reading of inbound mail.
+
+### What stays
+
+Provider choice and adapter (§1), per-business addresses (§2), the inbound webhook (§5), matching (§6), the data model (§7, now migration 013 — `direction` takes `'outbound'` instead of `'relay_out'`, `kind` takes `'business'` instead of `'self_copy'`, and `claim_emails` gains `delivery_failed boolean not null default false`), the UI apart from the sending panel (§8), insurer domains (§9), configuration (§11).
+
+### The risk that was accepted
+
+An insurer's claims desk does not know our sending domain. A claim file from an unfamiliar sender may be filtered or left unanswered, and nothing tells us it was not read — a bounce reports non-delivery, not neglect. Mitigations in this phase: the business name in the sender, the business address in copy, bounce handling, and the unchanged follow-up task that asks the clerk to check on a sent claim. The stronger fix is to send from the business's own domain (verify it with the provider, a one-time DNS change on their side); that depends on whether the claims address is on a domain they control, which is not yet known.
+
+**Check before relying on it:** send three real claims this way and see whether the insurer acknowledges them as it normally does. If it does not, the relay design in §3–§4 is the fallback and most of what is built is shared.
 
 ## Intent
 
@@ -122,7 +150,7 @@ Pure function `matchClaim()` in `web/src/lib/email/match.ts`, first hit wins, al
 
 No fuzzy matching on plates or names in phase 1: a wrong auto-match puts one client's correspondence on another client's file. Unmatched mail costs one click; a mismatch is a privacy incident.
 
-### 7. Data model — migration `012_claim_emails.sql` (additive)
+### 7. Data model — migration `013_claim_emails.sql` (additive)
 
 ```sql
 alter table agents add column claims_mailbox text;
@@ -201,7 +229,7 @@ If 1 fails, phase 1 inbound does not work as designed and this spec is revised b
 
 ## Build order
 
-1. Migration 012, provider module, config, feature-off paths.
+1. Migration 013, provider module, config, feature-off paths.
 2. Inbound webhook, storage, `matchClaim()`, inbox page and manual assign.
 3. Correspondence section on the claim page; list `activity_at` / `fresh` integration.
 4. Outbound relay route and the sending panel.
