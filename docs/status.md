@@ -526,3 +526,7 @@ cd web ; npm run dev
 - Stage 2 (extraction of amounts from uploaded docs) is separate, not built.
 - **Follow-up (a):** prefill the send-confirm `demand_amount` from the damages total — until then the two can disagree.
 - **Follow-up (b):** the `formfill/bidi.ts` bracket and terminator fix (commit ac6ae77) also changes the insurer accident forms; it is going to its own PR, with a render check on one insurer form.
+
+### Done since last sync (2026-11-16, PR #117 — pure core for the email relay)
+- **No migration.** New `web/src/lib/email/` (`config.ts`, `send.ts`, `classify.ts`, `match.ts`, `forward.ts`, `budget.ts`, `types.ts` + `email.test.ts`) — pure logic only, building toward the email-relay phase 1 design (`docs/superpowers/specs/2026-11-15-email-relay-phase1-design.md`): planning an outbound relay to the business's own claims mailbox (`planSend`, reusing `submission/compose.ts`), classifying/matching inbound mail to a claim (`classifyKind`, `matchClaim`), and planning the copy filed to the business mailbox (`planForward`). **Not yet wired to any API route, provider SDK, or migration** — `agents.claims_mailbox`/`inbound_alias` and the `claim_emails` tables from the design spec don't exist yet.
+- Unit-tested: `email.test.ts`.
