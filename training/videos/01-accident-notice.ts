@@ -104,11 +104,11 @@ const client: Segment = {
       caption: "הוא מאשר את העברת הפרטים ומתחיל",
       run: async (c) => {
         await c.stage.click(c.page.getByText("אני מאשר/ת איסוף הפרטים"));
-        await next(c);
       },
     },
     {
       name: "client-quick-questions",
+      before: next,
       caption: "ארבע שאלות קצרות — לחיצה אחת לכל שאלה",
       run: async ({ page, stage }) => {
         for (const answer of ["לא, אין נפגעים", "אני (המבוטח)", "הצד השני אשם", "כן"]) {
@@ -126,11 +126,11 @@ const client: Segment = {
         await stage.type(page.getByLabel("מספר רישוי"), demo.vehicle.plate);
         await page.getByText("מולא ממאגר משרד התחבורה").waitFor();
         await stage.hold(1500);
-        await next(c);
       },
     },
     {
       name: "client-insured",
+      before: next,
       caption: "השם והטלפון כבר מולאו מהתיק — משלימים ת״ז, עיר וביטוח",
       run: async (c) => {
         const { page, stage, demo } = c;
@@ -145,11 +145,11 @@ const client: Segment = {
         await insurer.selectOption({ label: demo.policyInsurerLabel });
         await stage.highlight(type, 700);
         await type.selectOption({ label: demo.insuranceTypeLabel });
-        await next(c);
       },
     },
     {
       name: "client-third-party",
+      before: next,
       caption: "פרטי הצד השני — ואם אין אותם, אפשר לדלג",
       run: async (c) => {
         const { page, stage, demo } = c;
@@ -160,11 +160,11 @@ const client: Segment = {
         const insurer = page.locator("select").first();
         await stage.highlight(insurer, 700);
         await insurer.selectOption({ label: demo.thirdParty.insurerLabel });
-        await next(c);
       },
     },
     {
       name: "client-when-where",
+      before: next,
       caption: "מתי ואיפה קרתה התאונה",
       run: async (c) => {
         const { page, stage, demo } = c;
@@ -173,34 +173,41 @@ const client: Segment = {
         await page.getByLabel("שעה").fill(demo.accident.time);
         await stage.type(page.getByLabel("עיר", { exact: true }), demo.accident.city);
         await stage.type(page.getByLabel("רחוב / שכונה"), demo.accident.street);
-        await next(c);
       },
     },
     {
       name: "client-damage",
+      before: next,
       caption: "מסמנים איפה הרכב נפגע",
       run: async (c) => {
         const { page, stage } = c;
         await stage.click(page.getByRole("button", { name: "אחורי", exact: true }).first());
         await stage.click(page.getByRole("button", { name: "לא", exact: true }));
-        await next(c);
       },
     },
     {
       name: "client-description",
+      before: next,
       caption: "ומתארים במילים פשוטות מה קרה",
       run: async (c) => {
         const { page, stage, demo } = c;
         await stage.type(page.getByRole("textbox").first(), demo.accident.description);
-        await next(c);
+      },
+    },
+    {
+      name: "client-documents-later",
+      before: next,
+      caption: "מסמכים ותמונות. אין מסמך בהישג יד? מסמנים ״אשלח בהמשך״",
+      run: async ({ page, stage }) => {
+        await page.getByRole("heading", { name: "מסמכים ותמונות" }).waitFor();
+        await stage.highlight(page.getByText("אשלח בהמשך").first(), 1800);
       },
     },
     {
       name: "client-documents",
-      caption: "מצלמים רישיון נהיגה משני הצדדים, רישיון רכב ותמונות של הנזק",
+      caption: "ומי שיש לו — מצלם רישיון נהיגה משני הצדדים, רישיון רכב ותמונות נזק",
       run: async (c) => {
         const { page, stage } = c;
-        await page.getByRole("heading", { name: "מסמכים ותמונות" }).waitFor();
         await upload(page, 0, [FIXTURES.licenceFront]);
         await stage.hold(1200);
         await upload(page, 0, [FIXTURES.licenceBack]);
@@ -214,12 +221,8 @@ const client: Segment = {
       },
     },
     {
-      name: "client-documents-next",
-      caption: "אין מסמך בהישג יד? מסמנים ״אשלח בהמשך״ וממשיכים",
-      run: async (c) => { await next(c); },
-    },
-    {
       name: "client-summary",
+      before: next,
       caption: "סיכום של כל מה שמולא — אפשר לתקן כל שורה",
       run: async ({ page, stage }) => {
         await page.getByRole("heading", { name: "סיכום" }).waitFor();

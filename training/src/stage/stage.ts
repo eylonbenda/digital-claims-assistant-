@@ -22,13 +22,20 @@ export type Stage = {
 const call = (page: Page, fn: string, ...args: unknown[]) =>
   page.evaluate(`window.__stage && window.__stage.${fn}(${args.map((a) => JSON.stringify(a)).join(",")})`).catch(() => undefined);
 
-export async function attachStage(page: Page, surface: Surface): Promise<Stage> {
+/**
+ * `captionPage`: show captions and title cards on that page instead of on `page`.
+ * Used for phone clips, where text inside a 390px page would be too small to read in
+ * the final frame — the caption page is recorded alongside and composited beside it.
+ */
+export async function attachStage(page: Page, surface: Surface, opts: { captionPage?: Page } = {}): Promise<Stage> {
   const script = overlayScript(surface);
+  const textPage = opts.captionPage ?? page;
   let current = "";
   await page.addInitScript({ content: script });
   await page.evaluate(script).catch(() => undefined); // the document that is already open
+  if (opts.captionPage) await opts.captionPage.evaluate(overlayScript("side"));
   // A full navigation gives a fresh overlay: put the caption back.
-  page.on("domcontentloaded", () => { if (current) void call(page, "caption", current); });
+  textPage.on("domcontentloaded", () => { if (current) void call(textPage, "caption", current); });
 
   const centre = async (target: Locator) => {
     await target.scrollIntoViewIfNeeded();
@@ -42,13 +49,13 @@ export async function attachStage(page: Page, surface: Surface): Promise<Stage> 
 
   const stage: Stage = {
     async titleCard(text, ms = 2500) {
-      await call(page, "title", text);
+      await call(textPage, "title", text);
       await page.waitForTimeout(ms);
-      await call(page, "title", "");
+      await call(textPage, "title", "");
     },
     async caption(text) {
       current = text;
-      await call(page, "caption", text);
+      await call(textPage, "caption", text);
     },
     async hold(ms) {
       await page.waitForTimeout(ms ?? holdMs(current));

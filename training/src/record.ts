@@ -1,4 +1,4 @@
-import { chromium, type Browser, type BrowserContext } from "playwright";
+import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -6,13 +6,15 @@ import { demoClaim } from "./demo.ts";
 import { loadEnv, OUT_DIR, TRAINING_ROOT, type Env } from "./env.ts";
 import { validateScene, type Scene, type Segment } from "./scene.ts";
 import { MARKER_CLIENT_NAME, seed } from "./seed.ts";
+import { holdMs } from "./stage/pacing.ts";
 import { attachStage, type Surface } from "./stage/stage.ts";
 
-export type RecordedSegment = { surface: Surface; file: string };
+/** `backdrop`: the caption panel recorded beside a phone clip. */
+export type RecordedSegment = { surface: Surface; file: string; backdrop?: string };
 
 export const VIEWPORT: Record<Surface, { width: number; height: number }> = {
   desktop: { width: 1280, height: 720 },
-  phone: { width: 390, height: 844 },
+  phone: { width: 390, height: 720 }, // short enough to stay readable when scaled into a 720p frame
 };
 const STEP_TIMEOUT_MS = 15_000;
 const SEGMENT_DIR = path.join(OUT_DIR, "segments");
@@ -72,6 +74,26 @@ async function newSegmentContext(browser: Browser, seg: Segment, authState: stri
   return ctx;
 }
 
+const SIDE_HTML = `<html><body style="margin:0;background:#182438"></body></html>`;
+
+// A page the size of the final frame, recorded next to a phone clip: it carries the
+// captions (and, before the phone appears, the chapter title).
+async function newSidePage(browser: Browser): Promise<{ ctx: BrowserContext; page: Page }> {
+  const ctx = await browser.newContext({ viewport: VIEWPORT.desktop, recordVideo: { dir: SEGMENT_DIR, size: VIEWPORT.desktop } });
+  const page = await ctx.newPage();
+  await page.setContent(SIDE_HTML);
+  return { ctx, page };
+}
+
+async function recordTitleClip(browser: Browser, title: string): Promise<RecordedSegment> {
+  const { ctx, page } = await newSidePage(browser);
+  const stage = await attachStage(page, "desktop");
+  await stage.titleCard(title);
+  const video = page.video()!;
+  await ctx.close();
+  return { surface: "desktop", file: await video.path() };
+}
+
 export async function recordScene(scene: Scene, env: Env): Promise<RecordedSegment[]> {
   const errs = validateScene(scene);
   if (errs.length) throw new Error(`scene ${scene.id} is invalid: ${errs.join("; ")}`);
@@ -85,21 +107,30 @@ export async function recordScene(scene: Scene, env: Env): Promise<RecordedSegme
   const shared: Record<string, string> = {};
   let stepName = "login";
   let ctx: BrowserContext | null = null;
+  let side: { ctx: BrowserContext; page: Page } | null = null;
   try {
     const authState = await loginAndCheckDatabase(browser, env);
     for (const seg of scene.segments) {
+      const phone = seg.surface === "phone";
+      // A phone clip gets its chapter card as a clip of its own, full frame.
+      if (phone && seg.title) recorded.push(await recordTitleClip(browser, seg.title));
+      side = phone ? await newSidePage(browser) : null; // started back-to-back with the phone so the two stay in step
       ctx = await newSegmentContext(browser, seg, authState);
       const page = await ctx.newPage();
       page.setDefaultTimeout(STEP_TIMEOUT_MS);
-      const stage = await attachStage(page, seg.surface);
+      const stage = await attachStage(page, seg.surface, { captionPage: side?.page });
       try {
-        if (seg.title) await stage.titleCard(seg.title);
+        if (seg.title && !phone) await stage.titleCard(seg.title);
         for (const step of seg.steps) {
           stepName = step.name;
           console.log(`  · ${step.name}`);
+          const c = { page, stage, demo: demoClaim, env, shared };
+          await step.before?.(c);
           if (step.caption !== undefined) await stage.caption(step.caption);
-          await step.run({ page, stage, demo: demoClaim, env, shared });
-          await stage.hold(step.caption ? undefined : 400);
+          const started = Date.now();
+          await step.run(c);
+          // The caption was readable while the step ran; only top up what is left.
+          await stage.hold(step.caption ? Math.max(700, holdMs(step.caption) - (Date.now() - started)) : 400);
         }
       } catch (err) {
         fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -107,14 +138,18 @@ export async function recordScene(scene: Scene, env: Env): Promise<RecordedSegme
         throw err;
       }
       const video = page.video();
+      const sideVideo = side?.page.video();
       await ctx.close(); // flushes the video file
+      await side?.ctx.close();
       ctx = null;
+      side = null;
       if (!video) throw new Error("recording produced no video");
-      recorded.push({ surface: seg.surface, file: await video.path() });
+      recorded.push({ surface: seg.surface, file: await video.path(), ...(sideVideo ? { backdrop: await sideVideo.path() } : {}) });
     }
     return recorded;
   } catch (err) {
     await ctx?.close().catch(() => undefined);
+    await side?.ctx.close().catch(() => undefined);
     // A failed run leaves nothing that could be mistaken for a finished video.
     fs.rmSync(SEGMENT_DIR, { recursive: true, force: true });
     const msg = err instanceof Error ? err.message.split("\n")[0] : String(err);

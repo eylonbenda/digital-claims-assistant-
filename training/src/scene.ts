@@ -12,8 +12,17 @@ export type StepCtx = {
   shared: Record<string, string>;
 };
 
-/** `caption` is shown before `run`; the recorder holds on it after `run` returns. */
-export type Step = { name: string; caption?: string; run: (c: StepCtx) => Promise<void> };
+/**
+ * Order per step: `before` → caption appears → `run` → hold on the caption.
+ * `before` is for the action that leaves the previous screen (e.g. pressing "next"), so
+ * a caption never sits over a screen it does not describe.
+ */
+export type Step = {
+  name: string;
+  caption?: string;
+  before?: (c: StepCtx) => Promise<void>;
+  run: (c: StepCtx) => Promise<void>;
+};
 /** `title` becomes a full-frame chapter card before the first step. */
 export type Segment = { surface: Surface; title?: string; steps: Step[] };
 export type Scene = { id: string; segments: Segment[] };

@@ -13,7 +13,7 @@ const HTML = `<html dir="rtl"><body style="margin:0;height:2000px">
 
 async function open(surface: Surface): Promise<Page> {
   const viewport = surface === "phone" ? { width: 390, height: 844 } : { width: 1280, height: 720 };
-  const page = await (await browser.newContext({ viewport })).newPage();
+  const page = await (await browser.newContext({ viewport })).newPage(); // phone here is the 390x844 the tests assert against
   await page.setContent(HTML);
   return page;
 }
@@ -69,4 +69,26 @@ test("title card covers the frame and then goes away", async () => {
   assert.ok(box.width >= 1280 && box.height >= 720);
   await p;
   assert.equal(await card.isVisible(), false);
+});
+
+test("with a caption page, the caption goes there and not onto the phone", async () => {
+  const phone = await open("phone");
+  const side = await open("desktop");
+  const stage = await attachStage(phone, "phone", { captionPage: side });
+  await stage.caption("הלקוח פותח את הקישור");
+  assert.equal(await cap(side).textContent(), "הלקוח פותח את הקישור");
+  assert.equal(await cap(side).getAttribute("dir"), "rtl");
+  assert.equal((await cap(phone).textContent()) ?? "", "");
+  // the side caption must stay clear of the area the phone clip is composited onto
+  const box = (await cap(side).boundingBox())!;
+  assert.ok(box.x + box.width <= 760, `caption reaches x=${box.x + box.width}`);
+});
+
+test("the cursor still lives on the phone page when captions are elsewhere", async () => {
+  const phone = await open("phone");
+  const side = await open("desktop");
+  const stage = await attachStage(phone, "phone", { captionPage: side });
+  await stage.click(phone.getByRole("button", { name: "אישור" }));
+  assert.equal(await phone.title(), "clicked");
+  assert.equal(await phone.locator("[data-stage-cursor][data-on]").count(), 1);
 });

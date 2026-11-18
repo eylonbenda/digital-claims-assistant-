@@ -48,7 +48,12 @@ export async function showPdf(page: Page, pdfPath: string, stage: Stage, scrollM
   if (error) throw new Error(`pdf viewer: ${error}`);
   await stage.hold(1500);
   // Smooth scroll to the bottom, driven from Node so the pace is the same on any machine.
-  const max = Number(await page.evaluate("document.documentElement.scrollHeight - window.innerHeight"));
+  // Stop with the top of the last page in view: forms usually end in a half-empty page.
+  const max = Number(await page.evaluate(`(() => {
+    const all = document.documentElement.scrollHeight - window.innerHeight;
+    const pages = document.querySelectorAll("canvas");
+    return pages.length > 1 ? Math.min(all, pages[pages.length - 1].offsetTop - 20) : all;
+  })()`));
   const ticks = Math.max(1, Math.round(scrollMs / 40));
   for (let i = 1; i <= ticks; i++) {
     await page.evaluate(`window.scrollTo(0, ${Math.round((max * i) / ticks)})`);
