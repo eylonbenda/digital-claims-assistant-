@@ -554,6 +554,13 @@ cd web ; npm run dev
 - Unit-tested: `failure.test.ts` (new), plus new cases in `email.test.ts`, `ingest.test.ts`, `route.test.ts` (inbound webhook), `details.test.ts`.
 - `docs/app-map.md` (`/dashboard/settings`, `email/` module row, `/api/agents/me`, `/api/inbound/email`), `docs/claim-management.md` (§ ניהול התביעה מול המבטחת), `docs/architecture.md` (`claim_emails.delivery_failed`) updated.
 
+### Done since last sync (2026-11-18, PR #129 — delete a claim opened by mistake)
+- **No new migration.** A whole claim can now be permanently removed from its own cockpit header: new **`DELETE /api/claims/[id]`**, guarded by the pure `web/src/lib/claims/delete.ts` (`deleteBlocker`, shared by the route and the page) — blocked once `effectiveHandling` is non-null (sent, including legacy hand-ticked claims) or an outbound email exists on the claim, else `409` pointing at "עדכון סטטוס → סגירה". `status` itself (closed/abandoned) never blocks — a never-sent claim closed by mistake is still a mistake.
+- Route deletes the `claims` row first (service client, compare-and-set on `handling_status is null`, so a concurrent send wins and the delete gets `409`), then removes the `claim_documents`/`generated_forms` Storage objects whose paths it read beforehand — row-then-objects so a failed removal only orphans a blob, never leaves a row pointing at nothing. `claim_emails.claim_id` is `on delete set null`, so mail filed on the deleted claim survives and returns to the inbox as unfiled.
+- New `DeleteClaimButton.tsx` in `CockpitHeader.tsx`: a quiet "מחיקת תיק" text button shown only while the page's own `deleteBlocker` check allows it, with a confirm dialog naming the client and file count; the route re-checks regardless of what the page saw.
+- Unit-tested: `delete.test.ts` (guard), `route.test.ts` (happy path, 401/404/409s).
+- Spec: [superpowers/specs/2026-11-18-delete-claim-design.md](superpowers/specs/2026-11-18-delete-claim-design.md). `docs/app-map.md` (new `/api/claims/[id]` DELETE row) already updated in the same PR.
+
 ### Done since last sync (2026-11-18, PR #128 — "new email" dashboard badge covers any non-business sender)
 - **No migration.** `web/src/app/dashboard/page.tsx` only.
 - **Fix:** the "מייל חדש" badge/activity-sort query was narrowed to `claim_emails.kind = 'insurer'`, which — per PR #119 above — never actually matches today since insurer domains aren't confirmed yet (every insurer classifies as `other`), so the badge was effectively dead. The query now takes any inbound mail that isn't `kind = 'business'`, so a reply from an insurer, a client, or anyone else filed on a claim surfaces it.
