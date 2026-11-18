@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-17**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-18**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -553,3 +553,7 @@ cd web ; npm run dev
 - **New email setup block in settings** (`/dashboard/settings`, `EmailSetup.tsx`, shown only when email is on for the business): the read-only system address (copy button), an editable `claims_mailbox` saved on its own via `PATCH /api/agents/me` (new `parseClaimsMailbox` in `web/src/lib/agents/details.ts`, rejects the system's own inbound domain), the last-received date, and a collapsed M365 redirect-rule walkthrough + the insurer domain list, for insurer mail that still lands directly in the business's own inbox.
 - Unit-tested: `failure.test.ts` (new), plus new cases in `email.test.ts`, `ingest.test.ts`, `route.test.ts` (inbound webhook), `details.test.ts`.
 - `docs/app-map.md` (`/dashboard/settings`, `email/` module row, `/api/agents/me`, `/api/inbound/email`), `docs/claim-management.md` (§ ניהול התביעה מול המבטחת), `docs/architecture.md` (`claim_emails.delivery_failed`) updated.
+
+### Done since last sync (2026-11-18, PR #128 — "new email" dashboard badge covers any non-business sender)
+- **No migration.** `web/src/app/dashboard/page.tsx` only.
+- **Fix:** the "מייל חדש" badge/activity-sort query was narrowed to `claim_emails.kind = 'insurer'`, which — per PR #119 above — never actually matches today since insurer domains aren't confirmed yet (every insurer classifies as `other`), so the badge was effectively dead. The query now takes any inbound mail that isn't `kind = 'business'`, so a reply from an insurer, a client, or anyone else filed on a claim surfaces it.
