@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadEmailFeature } from "@/lib/email/load";
 import SidebarNav from "./SidebarNav";
 import TopBar from "./TopBar";
 
@@ -18,6 +19,9 @@ export default async function DashboardLayout({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Null when email is off for this business: the inbox entry is then not shown.
+  const inbox = (await loadEmailFeature(supabase, user.id))?.unmatched ?? null;
+
   return (
     <div className="app-shell min-h-screen bg-canvas text-ink lg:flex">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-e border-line bg-white lg:flex">
@@ -33,7 +37,7 @@ export default async function DashboardLayout({
         </Link>
 
         <div className="px-5 pb-2 text-xs text-muted">סביבת עבודה</div>
-        <SidebarNav />
+        <SidebarNav inbox={inbox} />
 
         <div className="mt-auto border-t border-line p-4">
           <div className="truncate text-xs text-muted" dir="ltr" title={user.email ?? undefined}>
@@ -56,7 +60,7 @@ export default async function DashboardLayout({
             />
           </Link>
           <div className="flex items-center gap-2">
-            <SidebarNav compact />
+            <SidebarNav compact inbox={inbox} />
             <LogoutButton />
           </div>
         </header>

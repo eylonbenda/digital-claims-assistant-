@@ -183,6 +183,25 @@ describe("composeDashboard — activity (0930-08)", () => {
     expect(d.map((c) => c.claim_id)).toEqual(["late-upload", "old-link-just-submitted", "new-empty-link"]);
   });
 
+  it("flags a fresh insurer email, after a submission or an upload", () => {
+    const d = compose(
+      [
+        cl({ id: "mail", submitted_at: daysFromNow(-5), last_email_at: daysFromNow(-1 / 24) }),
+        cl({ id: "old-mail", submitted_at: daysFromNow(-5), last_email_at: daysFromNow(-3) }),
+        cl({ id: "just-submitted", submitted_at: daysFromNow(-0.2), last_email_at: daysFromNow(-0.1) }),
+        cl({ id: "upload-too", submitted_at: daysFromNow(-5), last_upload_at: daysFromNow(-0.1), last_email_at: daysFromNow(-0.05) }),
+      ],
+      q(),
+      null,
+    );
+    const by = Object.fromEntries(d.map((c) => [c.claim_id, c]));
+    expect(by.mail.fresh).toBe("email");
+    expect(by.mail.activity_at).toBe(daysFromNow(-1 / 24));
+    expect(by["old-mail"].fresh).toBeNull();
+    expect(by["just-submitted"].fresh).toBe("submitted");
+    expect(by["upload-too"].fresh).toBe("upload");
+  });
+
   it("flags a fresh submission, and a document that arrived after submit", () => {
     const d = compose(
       [
