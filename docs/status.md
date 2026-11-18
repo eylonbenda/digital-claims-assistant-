@@ -560,3 +560,7 @@ cd web ; npm run dev
 - New `DeleteClaimButton.tsx` in `CockpitHeader.tsx`: a quiet "מחיקת תיק" text button shown only while the page's own `deleteBlocker` check allows it, with a confirm dialog naming the client and file count; the route re-checks regardless of what the page saw.
 - Unit-tested: `delete.test.ts` (guard), `route.test.ts` (happy path, 401/404/409s).
 - Spec: [superpowers/specs/2026-11-18-delete-claim-design.md](superpowers/specs/2026-11-18-delete-claim-design.md). `docs/app-map.md` (new `/api/claims/[id]` DELETE row) already updated in the same PR.
+
+### Done since last sync (2026-11-18, PR #128 — "new email" dashboard badge covers any non-business sender)
+- **No migration.** `web/src/app/dashboard/page.tsx` only.
+- **Fix:** the "מייל חדש" badge/activity-sort query was narrowed to `claim_emails.kind = 'insurer'`, which — per PR #119 above — never actually matches today since insurer domains aren't confirmed yet (every insurer classifies as `other`), so the badge was effectively dead. The query now takes any inbound mail that isn't `kind = 'business'`, so a reply from an insurer, a client, or anyone else filed on a claim surfaces it.
