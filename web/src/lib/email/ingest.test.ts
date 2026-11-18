@@ -58,7 +58,12 @@ describe("ingestInbound", () => {
     const store = fakeStore();
     const result = await ingestInbound(email({ attachments: [file("אישור.pdf")] }), store, opts);
 
-    expect(result).toEqual({ outcome: "stored", emailId: "email-1", agentId: "agent-cohen", claimId: CLAIM, kind: "insurer" });
+    expect(result).toMatchObject({
+      outcome: "stored", emailId: "email-1", agentId: "agent-cohen", claimId: CLAIM, kind: "insurer",
+      // Handed on for the copy to the business.
+      alias: "cohen", claimsMailbox: "claims@garage.co.il",
+    });
+    expect(result.outcome === "stored" && result.files.map((f) => f.filename)).toEqual(["אישור.pdf"]);
     expect(store.emails).toHaveLength(1);
     expect(store.emails[0]).toMatchObject({
       id: "email-1", agent_id: "agent-cohen", claim_id: CLAIM, direction: "inbound", kind: "insurer",

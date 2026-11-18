@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { serverError } from "@/lib/observability/report";
-import { parseBusinessDetails } from "@/lib/agents/details";
+import { parseBusinessDetails, parseClaimsMailbox } from "@/lib/agents/details";
+import { emailConfig } from "@/lib/email/config";
 
 // The agents table has a read-own-row policy and no update policy, so writes go
 // through the service client, keyed strictly on the authenticated user's id.
@@ -31,6 +32,27 @@ export async function PATCH(request: Request) {
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   const body = await request.json().catch(() => null);
+
+  // The email block saves the claims mailbox on its own. inbound_alias is not
+  // accepted from anyone: it is a write credential that we set.
+  const mailbox = parseClaimsMailbox(body);
+  if (!("absent" in mailbox)) {
+    if (!mailbox.ok) return Response.json({ error: mailbox.error }, { status: 400 });
+    const cfg = emailConfig();
+    if (mailbox.value && cfg && mailbox.value.endsWith(`@${cfg.inboundDomain}`)) {
+      return Response.json({ error: "זו כתובת של המערכת — יש להזין את תיבת התביעות של העסק" }, { status: 400 });
+    }
+    const { data, error } = await createServiceClient()
+      .from("agents")
+      .update({ claims_mailbox: mailbox.value })
+      .eq("auth_user_id", user.id)
+      .select("claims_mailbox")
+      .maybeSingle();
+    if (error) return serverError("/api/agents/me", error);
+    if (!data) return Response.json({ error: "not found" }, { status: 404 });
+    return Response.json(data);
+  }
+
   const parsed = parseBusinessDetails(body);
   if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
 

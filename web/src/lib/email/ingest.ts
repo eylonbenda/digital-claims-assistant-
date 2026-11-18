@@ -44,7 +44,18 @@ export type EmailStore = {
 
 export type IngestResult =
   | { outcome: "own_mail" | "duplicate" | "unknown_alias" }
-  | { outcome: "stored"; emailId: string; agentId: string; claimId: string | null; kind: EmailKind };
+  | {
+      outcome: "stored";
+      emailId: string;
+      agentId: string;
+      claimId: string | null;
+      kind: EmailKind;
+      // What the copy to the business needs: who it goes to, the address it is sent
+      // from, and the files as they were stored (empty when they were dropped).
+      alias: string;
+      claimsMailbox: string | null;
+      files: { filename: string; content: Uint8Array }[];
+    };
 
 // Stores one inbound message and files it on a claim when it can. Anything it
 // throws is a failure the caller answers with a non-200, so the provider retries:
@@ -76,10 +87,13 @@ export async function ingestInbound(
   // not exist until the files do. A failure here leaves at most orphan files, and
   // the retry stores the message whole.
   const attachments: AttachmentRow[] = [];
+  const files: { filename: string; content: Uint8Array }[] = [];
   if (!dropped) {
     for (const [i, a] of email.attachments.entries()) {
       const path = `emails/${agent.id}/${emailId}/${storageName(i, a.filename)}`;
-      await store.upload(path, await a.download(), a.mime);
+      const content = await a.download();
+      await store.upload(path, content, a.mime);
+      files.push({ filename: a.filename || "file", content });
       attachments.push({
         email_id: emailId, filename: a.filename || "file", mime: a.mime, size_bytes: a.size, storage_path: path,
       });
@@ -105,5 +119,8 @@ export async function ingestInbound(
   });
   if (attachments.length) await store.insertAttachments(attachments);
 
-  return { outcome: "stored", emailId, agentId: agent.id, claimId: match?.claimId ?? null, kind };
+  return {
+    outcome: "stored", emailId, agentId: agent.id, claimId: match?.claimId ?? null, kind,
+    alias: alias!, claimsMailbox: agent.claims_mailbox, files,
+  };
 }

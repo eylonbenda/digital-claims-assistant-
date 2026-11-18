@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { FailureStore } from "./failure";
 import type { EmailStore } from "./ingest";
 
 const BUCKET = "claim-docs";
@@ -43,6 +44,29 @@ export function supabaseEmailStore(svc: SupabaseClient): EmailStore {
     },
     async insertAttachments(rows) {
       const { error } = await svc.from("claim_email_attachments").insert(rows);
+      if (error) throw error;
+    },
+  };
+}
+
+// FailureStore over Supabase. handling_status is deliberately not touched.
+export function supabaseFailureStore(svc: SupabaseClient): FailureStore {
+  return {
+    async markDeliveryFailed(providerId) {
+      const { data, error } = await svc
+        .from("claim_emails")
+        .update({ delivery_failed: true })
+        .eq("provider_id", providerId)
+        .eq("direction", "outbound")
+        .eq("delivery_failed", false)
+        .select("claim_id");
+      if (error) throw error;
+      return data?.length ? { claimId: (data[0].claim_id as string | null) ?? null } : null;
+    },
+    async addTask(claimId, title) {
+      const { error } = await svc
+        .from("tasks")
+        .insert({ claim_id: claimId, title, source: "manual", due_at: new Date().toISOString() });
       if (error) throw error;
     },
   };

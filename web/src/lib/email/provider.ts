@@ -57,6 +57,12 @@ export function verifyWebhook(cfg: EmailConfig, rawBody: string, headers: Header
   }
 }
 
+/** The outbound message a bounce / failure event is about; null for any other event. */
+export function readDeliveryFailure(event: ProviderEvent): { providerId: string } | null {
+  if (event.type !== "email.bounced" && event.type !== "email.failed") return null;
+  return { providerId: event.data.email_id };
+}
+
 const splitRefs = (value: string | undefined): string[] => (value ? value.split(/\s+/).filter(Boolean) : []);
 
 /** The full inbound message behind an `email.received` event; null for any other event. */
