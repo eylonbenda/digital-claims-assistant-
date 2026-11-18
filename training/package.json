@@ -9,7 +9,8 @@
     "fixtures": "tsx src/make-fixtures.ts",
     "test": "node --import tsx --test \"src/__tests__/*.test.ts\" \"promo/__tests__/*.test.ts\"",
     "typecheck": "tsc --noEmit",
-    "promo:spike": "tsx promo/renderer.ts spike"
+    "promo:spike": "tsx promo/renderer.ts spike",
+    "promo:fixtures": "tsx promo/make-fixtures.ts"
   },
   "devDependencies": {
     "@fontsource/frank-ruhl-libre": "^5.3.0",
