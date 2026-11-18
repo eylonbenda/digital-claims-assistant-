@@ -131,6 +131,8 @@ describe("budget / storageName", () => {
     expect(storageName(1, "a/../../b.jpg")).not.toMatch(/\.\.|\//);
     expect(storageName(0, "")).toBe("0-file");
     expect(storageName(0, "חשבונית")).toBe("0-file");
+    expect(storageName(4, "אישור.PDF")).toBe("4-file.pdf");
+    expect(storageName(5, "scan.final.jpg")).toBe("5-scan.final.jpg");
     expect(storageName(3, "x".repeat(200) + ".pdf").length).toBeLessThanOrEqual(82);
   });
 });

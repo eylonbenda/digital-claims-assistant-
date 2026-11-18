@@ -1,0 +1,49 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { EmailStore } from "./ingest";
+
+const BUCKET = "claim-docs";
+
+// EmailStore over Supabase, for the service client (the webhook has no user session).
+// Every error is thrown: ingest treats a throw as "try again", and a swallowed read
+// error here would look like "no such message" or "no claims" and misfile mail.
+export function supabaseEmailStore(svc: SupabaseClient): EmailStore {
+  return {
+    async hasProviderId(providerId) {
+      const { data, error } = await svc.from("claim_emails").select("id").eq("provider_id", providerId).maybeSingle();
+      if (error) throw error;
+      return !!data;
+    },
+    async agentByAlias(alias) {
+      const { data, error } = await svc
+        .from("agents").select("id, claims_mailbox").eq("inbound_alias", alias).maybeSingle();
+      if (error) throw error;
+      return data ? { id: data.id as string, claims_mailbox: (data.claims_mailbox as string | null) ?? null } : null;
+    },
+    async claimIds(agentId) {
+      const { data, error } = await svc.from("claims").select("id").eq("agent_id", agentId);
+      if (error) throw error;
+      return (data ?? []).map((c) => c.id as string);
+    },
+    async threadIndex(agentId) {
+      const { data, error } = await svc
+        .from("claim_emails").select("message_id, claim_id")
+        .eq("agent_id", agentId).not("claim_id", "is", null).not("message_id", "is", null);
+      if (error) throw error;
+      return new Map((data ?? []).map((r) => [r.message_id as string, r.claim_id as string]));
+    },
+    async upload(path, bytes, mime) {
+      const { error } = await svc.storage.from(BUCKET).upload(path, bytes, {
+        contentType: mime ?? "application/octet-stream",
+      });
+      if (error) throw error;
+    },
+    async insertEmail(row) {
+      const { error } = await svc.from("claim_emails").insert(row);
+      if (error) throw error;
+    },
+    async insertAttachments(rows) {
+      const { error } = await svc.from("claim_email_attachments").insert(rows);
+      if (error) throw error;
+    },
+  };
+}
