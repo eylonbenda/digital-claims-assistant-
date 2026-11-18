@@ -54,3 +54,4 @@ A claim has 4 tracks (`claim_type`): `own_policy`, `third_party_report` ("דוח
 | `docs/assumptions-canvas.md` | assumption tracker |
 | `docs/accidentStatementPdf/` | the source insurer PDFs — 14 files / 13 insurers (inventory + traps in `form-field-map.md`) |
 | `poc/README.md` | the original coordinate-mapping method write-up |
+| `training/README.md` | scripted training videos — how to re-record one (`npm run record`), the dev-only guard, how to add a video |
