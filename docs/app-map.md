@@ -19,7 +19,10 @@ Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod che
 | Route | Who | What |
 |---|---|---|
 | `/` | public | marketing landing page ("OpenTik"), Hebrew/RTL |
-| `/login` | agent | Supabase Auth sign-in |
+| `/login` | agent | Supabase Auth sign-in; links to `/login/forgot` |
+| `/login/forgot` | public | request a password-reset email (`AuthCard` shell, always answers success) |
+| `/auth/confirm` | public, token-gated | invite / password-reset email landing (`?token_hash=&type=invite\|recovery`) — renders a button only; the one-time token is spent on click (`POST /api/auth/confirm`), not on page load, so mail scanners' GETs don't burn it |
+| `/auth/set-password` | agent (signed in via email link) | choose a password after `/auth/confirm`, then redirects to `/dashboard` |
 | `/c/[token]` | client | token-gated collection wizard (no login) |
 | `/dashboard` | agent | **one unified claims list** — `ClaimsList.tsx`, one row per claim **including closed** (no separate archive table). A search box (name, or phone/plate by digits, ≥3; matches the client plate and any third-party plate; closed claims show only under "הכל" and only while a search is active), **stage chips with counts** — הכל · צריך אותך · אצל הלקוח · לפני שליחה למבטחת · נשלח למבטחת · ממתין לתשלום · סגורים — and rows ordered by latest activity (link created / client submitted / document uploaded / handling status changed) with a "חדש"/"מסמך חדש" badge within a day; the "צריך אותך" chip sorts by overdue days instead. Filter + page mirrored into `?stage=` / `?p=` via `replaceState` (`useUrlStage`/`useUrlPage` in `Pager.tsx`; the old `?tp=` is gone); 25 rows per page (`paginate.ts`). **No send/skip on the list** — reminders live in the cockpit header. `RefreshOnFocus.tsx` (client, `router.refresh()` on tab-visible/focus, throttled to once a minute) picks up activity while the tab sits open. The AI brief only loads when `briefEnabled()` (`web/src/lib/dashboard/flags.ts`, `BRIEF_ENABLED=1`) is on — off by default since 2026-09-27 — and then only adds the 🤖 line; ordering and `needs_action` never depend on it. With it off: no model call, no day-cache read, no `after()` warm; when on, a cold cache renders rules-only immediately, warms the ranking via `after()`, and mounts `BriefAutoRefresh.tsx` (`router.refresh()` at 55s and 115s) |
 | `/dashboard/[id]` | agent | claim **cockpit** — a persistent header (identity + one primary next action) over tabs: סקירה (claim facts, classification, tasks, checklist, doc upload, notes, **סכומים** amounts card) / שליחה למבטחת (prepare-and-confirm panel, only shown while there is something to send) / טופס ההודעה / קבצים (active tab mirrored in `?tab=`) |
@@ -88,6 +91,9 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | `/api/brief/refresh` | POST | re-run the morning-brief ranking |
 | `/api/outbound/events` | POST | record one outbound-queue decision (`sent` / `skipped`) — rejects an unknown `task_key`, RLS ownership probe on the claim, service-role insert into `outbound_events` |
 | `/api/auth/login` · `/api/auth/logout` | POST | session |
+| `/api/auth/confirm` | POST | exchange an invite/recovery `token_hash` for a session (`verifyOtp`) |
+| `/api/auth/forgot` | POST | send a password-reset email; always `{ok:true}` — doesn't reveal whether the address has an account |
+| `/api/auth/set-password` | POST | set the signed-in user's password (no current-password check — the session came from the email link) |
 | `/api/health` | GET | public schema-drift check: `200 {ok, configured, schema:{expected, actual, status}}` when `public.schema_migrations` has every migration the build was made with (`EXPECTED_SCHEMA_VERSIONS`, baked in `next.config.ts` from `web/db/migrations/`); **503** when behind (`missing:[…]`), table missing, or DB unreachable. No Supabase env → 200 `status:"skipped"` locally, 503 on Vercel production. Logic: `web/src/lib/schema-version.ts`. Curled by `.github/workflows/post-deploy-health.yml` |
 | `/api/version` | GET | live build: `{commit (short VERCEL_GIT_COMMIT_SHA, "local" off-Vercel), env (VERCEL_ENV), expectedSchema}` |
 

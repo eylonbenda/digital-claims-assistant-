@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-16**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-18**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -535,3 +535,10 @@ cd web ; npm run dev
 ### Done since last sync (2026-11-16, PR #117 — pure core for the email relay)
 - **No migration.** New `web/src/lib/email/` (`config.ts`, `send.ts`, `classify.ts`, `match.ts`, `forward.ts`, `budget.ts`, `types.ts` + `email.test.ts`) — pure logic only, building toward the email-relay phase 1 design (`docs/superpowers/specs/2026-11-15-email-relay-phase1-design.md`): planning an outbound relay to the business's own claims mailbox (`planSend`, reusing `submission/compose.ts`), classifying/matching inbound mail to a claim (`classifyKind`, `matchClaim`), and planning the copy filed to the business mailbox (`planForward`). **Not yet wired to any API route, provider SDK, or migration** — `agents.claims_mailbox`/`inbound_alias` and the `claim_emails` tables from the design spec don't exist yet.
 - Unit-tested: `email.test.ts`.
+
+### Done since last sync (2026-11-18, PR #125 — invite landing, set-password and forgot-password flow)
+- **No migration.** New `/auth/confirm` (`web/src/app/auth/confirm/`) — the landing page for both Supabase invite and password-reset email links (`?token_hash=&type=invite|recovery`); it renders a button rather than verifying on load, because a mail scanner's GET would otherwise burn the one-time token before the real click. `POST /api/auth/confirm` spends the token (`verifyOtp`) and starts the session.
+- New `/auth/set-password` (+ `POST /api/auth/set-password`) — reached after confirm; sets the password of the now-signed-in user (`supabase.auth.updateUser`), no current-password prompt. Shared `MIN_PASSWORD_LENGTH` (`web/src/lib/auth/password.ts`) between the form and the route.
+- New `/login/forgot` (+ `POST /api/auth/forgot`) — requests a reset email (`resetPasswordForEmail`); always answers `{ok:true}` so the endpoint can't be used to probe which emails have accounts. Linked from `/login`.
+- Shared `AuthCard`/`AuthError` shell + input/button classes in `web/src/app/auth/AuthCard.tsx`, reused by all three surfaces.
+- **Needs a one-time, per-project Supabase Dashboard change (dev and prod, by hand)**: Auth → URL Configuration → Site URL, plus the Invite-user and Reset-password email templates repointed at `/auth/confirm` instead of the default `{{ .ConfirmationURL }}`. Steps added to the provisioning checklist above (§5–6).
