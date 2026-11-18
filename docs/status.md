@@ -566,6 +566,10 @@ cd web ; npm run dev
 - Unit-tested: `delete.test.ts` (guard), `route.test.ts` (happy path, 401/404/409s).
 - Spec: [superpowers/specs/2026-11-18-delete-claim-design.md](superpowers/specs/2026-11-18-delete-claim-design.md). `docs/app-map.md` (new `/api/claims/[id]` DELETE row) already updated in the same PR.
 
+### Done since last sync (2026-11-18, PR #128 — "new email" dashboard badge covers any non-business sender)
+- **No migration.** `web/src/app/dashboard/page.tsx` only.
+- **Fix:** the "מייל חדש" badge/activity-sort query was narrowed to `claim_emails.kind = 'insurer'`, which — per PR #119 above — never actually matches today since insurer domains aren't confirmed yet (every insurer classifies as `other`), so the badge was effectively dead. The query now takes any inbound mail that isn't `kind = 'business'`, so a reply from an insurer, a client, or anyone else filed on a claim surfaces it.
+
 ### Done since last sync (2026-11-18, PR #125 — invite landing, set-password and forgot-password flow)
 - **No migration.** New `/auth/confirm` (`web/src/app/auth/confirm/`) — the landing page for both Supabase invite and password-reset email links (`?token_hash=&type=invite|recovery`); it renders a button rather than verifying on load, because a mail scanner's GET would otherwise burn the one-time token before the real click. `POST /api/auth/confirm` spends the token (`verifyOtp`) and starts the session.
 - New `/auth/set-password` (+ `POST /api/auth/set-password`) — reached after confirm; sets the password of the now-signed-in user (`supabase.auth.updateUser`), no current-password prompt. Shared `MIN_PASSWORD_LENGTH` (`web/src/lib/auth/password.ts`) between the form and the route.
