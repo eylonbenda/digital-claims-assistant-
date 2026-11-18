@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -78,6 +79,13 @@ export default function LoginPage() {
             {busy ? "נכנס…" : "כניסה"}
           </button>
         </form>
+
+        <Link
+          href="/login/forgot"
+          className="mt-4 block text-center text-sm text-blue-600 hover:underline"
+        >
+          שכחתי סיסמה
+        </Link>
       </div>
     </div>
   );

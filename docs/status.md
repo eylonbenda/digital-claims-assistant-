@@ -94,8 +94,13 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
    SUPABASE_SERVICE_ROLE_KEY=...
    ANTHROPIC_API_KEY=...
    ```
-5. Create a test agent user in Supabase Auth (Dashboard → Authentication → Users → Invite / Add user)
-6. `cd web && npm run dev` → go to `/login` → create a claim → send link → fill wizard → see it appear in dashboard
+5. Point Supabase Auth at the app (Dashboard → Authentication) — **per project, dev and prod, by hand** like migrations:
+   - **URL Configuration → Site URL** = the app's origin (`http://localhost:3000` on dev, the Vercel domain on prod). The default is localhost, so on prod an unset Site URL sends every invite link to the inviter's own machine.
+   - **Emails → Templates → Invite user**: link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite`
+   - **Emails → Templates → Reset password**: link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`
+   - The default `{{ .ConfirmationURL }}` links do **not** work with this app: they return the session in a URL `#fragment` nothing reads, and a mail scanner's GET burns the one-time token (`otp_expired`). `/auth/confirm` only renders a button; the token is spent on the click.
+6. Onboard a user: Authentication → Users → **Invite user** with their real email. They land on `/auth/confirm` → `/auth/set-password` → `/dashboard`; the `001` trigger creates their `agents` row. Forgotten passwords are self-service from `/login/forgot`.
+7. `cd web && npm run dev` → go to `/login` → create a claim → send link → fill wizard → see it appear in dashboard
 
 ### Done since last sync (2026-06-28 → 29)
 - **Document upload** (wizard step 9): `POST /api/claims/documents` → private `claim-docs` bucket, with magic-byte sniffing (`web/src/lib/files/sniff.ts`) + client-side compression.
