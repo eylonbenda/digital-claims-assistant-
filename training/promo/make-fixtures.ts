@@ -1,23 +1,10 @@
-// Draws the upload files for the promo: illustrated documents and car pictures with no
-// "דוגמה" stamp. Documents carry grey bars instead of values, so no frame shows data.
+// Draws the upload files for the promo: documents that look like phone photos of the real
+// thing (fictional details only, see fixture-docs.ts) and illustrated car pictures.
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
+import { licenceBack, licenceFront, registration } from "./fixture-docs.ts";
 import { PROMO_FIXTURE_DIR } from "./fixtures.ts";
-
-const bars = (widths: number[]) => widths.map((w) =>
-  `<div style="height:22px;width:${w}%;background:#cbd5e1;border-radius:11px;margin:20px 0"></div>`).join("");
-
-const doc = (title: string, colour: string, photo: boolean, widths: number[]) => `
-<div id="card" style="position:relative;width:1000px;height:630px;background:#f8fafc;border-radius:36px;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;box-shadow:inset 0 0 0 3px #e2e8f0">
-  <div style="background:${colour};color:#fff;font-size:44px;font-weight:800;padding:28px 44px">${title}</div>
-  <div style="display:flex;gap:44px;padding:36px 44px">
-    ${photo ? `<div style="width:220px;height:280px;border-radius:20px;background:#e2e8f0;position:relative;overflow:hidden;flex:none">
-      <div style="position:absolute;left:65px;top:50px;width:90px;height:90px;border-radius:50%;background:#94a3b8"></div>
-      <div style="position:absolute;left:25px;top:165px;width:170px;height:170px;border-radius:50%;background:#94a3b8"></div></div>` : ""}
-    <div style="flex:1">${bars(widths)}</div>
-  </div>
-</div>`;
 
 // A car seen from behind in a parking bay, with the damaged area darker and creased.
 const car = (body: string, sky: string, zoom: number, shiftX: number, shiftY: number) => `
@@ -46,9 +33,9 @@ const car = (body: string, sky: string, zoom: number, shiftX: number, shiftY: nu
 </div>`;
 
 const CARDS: Record<string, string> = {
-  "licence-front.png": doc("רישיון נהיגה", "#0f766e", true, [70, 52, 62, 40]),
-  "licence-back.png": doc("רישיון נהיגה · צד אחורי", "#0f766e", false, [82, 64, 74, 50, 58]),
-  "registration.png": doc("רישיון רכב", "#1d4ed8", false, [58, 78, 46, 70, 62]),
+  "licence-front.png": licenceFront,
+  "licence-back.png": licenceBack,
+  "registration.png": registration,
   "car-1.png": car("#e5e7eb", "linear-gradient(#dbeafe,#f1f5f9 62%)", 1, 0, 0),
   "car-2.png": car("#e5e7eb", "linear-gradient(#dbeafe,#f1f5f9 62%)", 2.1, 150, -60),
   "car-3.png": car("#e5e7eb", "linear-gradient(#e0e7ff,#f8fafc 62%)", 1.35, -70, -20),
