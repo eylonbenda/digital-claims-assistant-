@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { templates, fillForm } from "@/lib/formfill";
 import { allThirdParties, toClaimData, type State } from "@/lib/collection/claim-state";
+import { effectiveClaimData, garageNameDefault } from "@/lib/formfill/effective";
 import { after } from "next/server";
 import { runEngine } from "@/lib/tasks/runner";
 import { warmAnalysis } from "@/lib/claims/analysis-cache";
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
 
   const { data: claim } = await svc
     .from("claims")
-    .select("id, status, created_at, summary_json")
+    .select("id, agent_id, status, created_at, summary_json")
     .eq("access_token", token)
     .single();
 
@@ -115,7 +116,19 @@ export async function POST(request: Request) {
   if (policyInsurer && policyInsurer in templates) {
     try {
       const template = templates[policyInsurer as keyof typeof templates];
-      const pdf = await fillForm(template, toClaimData(collected as unknown as State));
+      // A garage's own name pre-fills garage.name. Errors (e.g. migration 014 not
+      // applied yet) just mean no default.
+      const { data: business } = await svc
+        .from("agents")
+        .select("name, kind")
+        .eq("id", claim.agent_id)
+        .maybeSingle();
+      const formData =
+        effectiveClaimData(
+          { collected: collected as unknown as State },
+          { garageName: garageNameDefault(business) },
+        ) ?? toClaimData(collected as unknown as State);
+      const pdf = await fillForm(template, formData);
       const formPath = `${claim.id}/forms/${policyInsurer}-${Date.now()}.pdf`;
       const { error: upErr } = await svc.storage
         .from(BUCKET)
