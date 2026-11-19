@@ -23,11 +23,25 @@ function doc(key: string, label: string, docType: string, done = true): Computed
 }
 
 describe("directory", () => {
-  test("ships with no live unverified addresses", () => {
+  test("every address is well-formed and its domain is listed for inbound labelling", () => {
     for (const entry of Object.values(INSURER_DIRECTORY)) {
-      expect(entry.claimsEmail).toBeNull();
-      expect(entry.verified).toBe(false);
+      for (const addr of [entry.policyEmail, entry.thirdPartyEmail]) {
+        if (addr === null) continue;
+        expect(addr).toMatch(/^[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]{2,}$/);
+        expect(entry.domains).toContain(addr.split("@")[1]);
+      }
     }
+  });
+  test("the addresses the user supplied on 2026-11-19", () => {
+    const d = INSURER_DIRECTORY;
+    expect([d.clal.policyEmail, d.clal.thirdPartyEmail]).toEqual(["tviot-r@clal-ins.co.il", null]);
+    expect([d.migdal.policyEmail, d.migdal.thirdPartyEmail]).toEqual(["cart@migdal.co.il", "avitalmi@migdal.co.il"]);
+    expect([d.menora.policyEmail, d.menora.thirdPartyEmail]).toEqual(["merkazd@menora.co.il", "merkazd@menora.co.il"]);
+    expect([d.shomera.policyEmail, d.shomera.thirdPartyEmail]).toEqual(["tvihesder@shomera.co.il", null]);
+    expect([d.ayalon.policyEmail, d.ayalon.thirdPartyEmail]).toEqual(["tviot_rechev@ayalon-ins.co.il", "kalgimel@ayalon-ins.co.il"]);
+    expect([d.hachshara.policyEmail, d.hachshara.thirdPartyEmail]).toEqual(["hesder2@hcsra.co.il", null]);
+    expect([d.libra.policyEmail, d.libra.thirdPartyEmail]).toEqual([null, "tviotg@lbr.co.il"]);
+    expect([d.phoenix.policyEmail, d.phoenix.thirdPartyEmail]).toEqual([null, null]);
   });
   test("covers every wizard insurer key", () => {
     for (const k of ["migdal", "menora", "phoenix", "clal", "shomera", "aig"]) {
@@ -108,12 +122,40 @@ describe("composeSubmission", () => {
     expect(r).toBeNull();
   });
 
-  test("insurerKey resolves but recipient stays null while unverified", () => {
+  test("insurerKey resolves but recipient stays null without a directory address", () => {
     const r = composeSubmission({ claim: CLAIM, checklist, docs, forms, demandForms: [] });
     if (!r) throw new Error("expected submission");
     expect(r.insurerKey).toBe("phoenix");
     expect(r.recipient).toBeNull();
     expect(r.verified).toBe(false);
+  });
+
+  test("own policy goes to the policy insurer's policy desk", () => {
+    const r = composeSubmission({
+      claim: { ...CLAIM, claimType: "own_policy", policyInsurer: "migdal", atFaultInsurer: "ayalon" },
+      checklist, docs, forms, demandForms: [],
+    });
+    expect(r).toMatchObject({ insurerKey: "migdal", recipient: "cart@migdal.co.il", verified: true });
+  });
+
+  test.each(["third_party_report", "third_party_settlement"] as const)(
+    "%s goes to the at-fault insurer's third-party desk",
+    (claimType) => {
+      const r = composeSubmission({
+        claim: { ...CLAIM, claimType, policyInsurer: "clal", atFaultInsurer: "מגדל" },
+        checklist, docs, forms, demandForms: [],
+      });
+      expect(r).toMatchObject({ insurerKey: "migdal", recipient: "avitalmi@migdal.co.il", verified: true });
+    },
+  );
+
+  test("a desk we have no address for falls back to manual entry", () => {
+    // Clal: policy address only.
+    const r = composeSubmission({
+      claim: { ...CLAIM, atFaultInsurer: "clal" },
+      checklist, docs, forms, demandForms: [],
+    });
+    expect(r).toMatchObject({ insurerKey: "clal", recipient: null, verified: false });
   });
 
   test("attachments = generated form + uploaded mandatory docs with Hebrew labels", () => {

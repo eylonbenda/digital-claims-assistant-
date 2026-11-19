@@ -1,6 +1,6 @@
 import type { ComputedItem } from "@/lib/claims/checklist";
 import type { ClaimType } from "@/lib/tasks/types";
-import { INSURER_DIRECTORY } from "./directory";
+import { INSURER_DIRECTORY, claimsAddress } from "./directory";
 import { matchInsurer } from "./match";
 import { buildSubject } from "./subject";
 import { buildBody } from "./body";
@@ -21,7 +21,7 @@ export type SubmissionClaim = {
 
 export type Submission = {
   insurerKey: string | null;
-  recipient: string | null; // directory address, only when verified
+  recipient: string | null; // directory address for this track, else null (manual entry)
   cc: string[];
   verified: boolean;
   subject: string;
@@ -47,6 +47,9 @@ export function composeSubmission(input: {
       ? claim.policyInsurer
       : matchInsurer(claim.atFaultInsurer);
   const entry = insurerKey ? INSURER_DIRECTORY[insurerKey] : undefined;
+  // Own-policy claims go to the insurer's policy desk; both third-party tracks go to
+  // the at-fault insurer's third-party desk.
+  const recipient = entry ? claimsAddress(entry, claim.claimType === "own_policy" ? "own_policy" : "third_party") : null;
 
   // Attachments: the latest generated accident-notice form, then every uploaded
   // doc on this track's checklist, labeled in Hebrew.
@@ -81,9 +84,9 @@ export function composeSubmission(input: {
 
   return {
     insurerKey: insurerKey ?? null,
-    recipient: entry?.verified ? entry.claimsEmail : null,
-    cc: entry?.verified ? entry.cc : [],
-    verified: entry?.verified ?? false,
+    recipient,
+    cc: recipient && entry ? entry.cc : [],
+    verified: recipient !== null,
     subject: buildSubject(claim),
     body: buildBody(
       claim,
