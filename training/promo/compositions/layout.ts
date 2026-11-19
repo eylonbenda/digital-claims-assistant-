@@ -13,7 +13,9 @@ export const CANVAS = "#f6f8fc";
 export const CTA_GREEN = "#1faa55";
 export const SOFT_BLUE = "#9db8ff"; // brand blue lifted for use on the ink background
 
-export type CaptureRef = { src: string; width: number; height: number; points?: Record<string, { x: number; y: number }>;
+export type CaptureRef = { src: string; width: number; height: number;
+  cssWidth?: number; // the width of the app's window when the capture was taken
+  marks?: Record<string, { x: number; y: number; w: number; h: number; px: number }>;
   avoid?: { what: "login" | "agent-word"; x: number; y: number; w: number; h: number }[];
 };
 export type BeatProps = {
@@ -24,10 +26,7 @@ export type BeatProps = {
   copy: PromoCopy;
   captures: Record<CaptureId, CaptureRef>;
   insurers: string[];
-  photos: Photos;
 };
-// The pictures the "client" sends, as data URIs: the drawn fixtures, or the operator's own.
-export type Photos = { licenceFront: string; licenceBack: string; registration: string; cars: string[] };
 // What a beat puts on screen. `backdrop` is the part that changes the background (a reveal,
 // a curtain): it stays when the beat's content leaves. `end` is the colour the beat ends on.
 export type Scene = { body: string; background: string; backdrop?: string; end?: string };
@@ -56,17 +55,17 @@ export type Layout = {
   copy: Rect; visual: Rect;
   headline: number; label: number; small: number;
   windowAspect: number; // shape of a browser window's page in this output
-  minText: number;      // the smallest type a screen inside the video may use
+  minText: number;      // the smallest the app's own text may be once a capture is on screen
 };
 
 export function layoutFor(ratio: Ratio, kind: VisualKind = "wide"): Layout {
   const { width, height } = SIZE[ratio];
   const safe = safeRect(ratio);
-  const minText = Math.ceil(Math.min(width, height) * 0.0225);
+  const minText = Math.ceil(Math.min(width, height) * 0.021);
   if (ratio === "16x9") {
     const copyW = 700, gap = 64;
     return {
-      ratio, width, height, safe, minText, row: true, windowAspect: 4 / 3,
+      ratio, width, height, safe, minText, row: true, windowAspect: 1.1,
       copy: { x: safe.x + safe.width - copyW, y: safe.y, width: copyW, height: safe.height },
       visual: { x: safe.x, y: safe.y, width: safe.width - copyW - gap, height: safe.height },
       headline: 92, label: 70, small: 30,
@@ -75,7 +74,7 @@ export function layoutFor(ratio: Ratio, kind: VisualKind = "wide"): Layout {
   if (ratio === "1x1") {
     const type = { headline: 72, label: 54, small: 27 };
     if (kind === "tall") { // a phone beside its caption uses a square frame far better than one below it
-      const copyW = 450, gap = 36;
+      const copyW = 360, gap = 36; // narrow: the phone must be wide enough for its text to read
       return {
         ratio, width, height, safe, minText, row: true, windowAspect: 4 / 3, ...type,
         copy: { x: safe.x + safe.width - copyW, y: safe.y, width: copyW, height: safe.height },
@@ -84,7 +83,7 @@ export function layoutFor(ratio: Ratio, kind: VisualKind = "wide"): Layout {
     }
     const copyH = 262, gap = 22;
     return {
-      ratio, width, height, safe, minText, row: false, windowAspect: 4 / 3, ...type,
+      ratio, width, height, safe, minText, row: false, windowAspect: 1.5, ...type,
       copy: { x: safe.x, y: safe.y, width: safe.width, height: copyH },
       visual: { x: safe.x, y: safe.y + copyH + gap, width: safe.width, height: safe.height - copyH - gap },
     };

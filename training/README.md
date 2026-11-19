@@ -117,20 +117,31 @@ While designing, `npm run promo:preview -- garage 9x16` writes one still per bea
 | any wording, the phone number | `promo/copy.ts`, then `promo:render` |
 | beat order and lengths | `promo/beats.ts` |
 | how a beat looks | `promo/compositions/` (`opening`, `product`, `closing`) |
+| where the camera rests on a screen, and when | the `T` tables and `rest(...)` calls in `promo/compositions/product.ts` |
 | which app screens are shown | `promo/capture.ts` + `CAPTURE_IDS` in `promo/manifest.ts`, then `promo:capture` |
 
-**What is real.** Every product picture is a capture of the real app on demo data, and the
-form is the real filled PDF. The chat thread in the opening is a drawing of life *without*
+**What is real.** Every screen is a capture of the real app on demo data, and the form is
+the real filled PDF. Nothing inside a screen is redrawn: the only things drawn over a capture
+are a tap, an outline and one pill, and a test fails if anything else appears in a screen.
+
+**How the screens stay readable.** A full desktop page is too dense for a two-second shot,
+so the app is captured in a narrow window (520px for the office, 320px for the client's
+phone) at a high pixel density. Those are the app's own responsive layouts, and in them its
+text is large for the frame. Each capture is a whole page; the camera travels down it and
+rests on one thing at a time. The capture stage measures where the named parts of each
+screen are (`marks` in the manifest) and how large their text is, so the camera follows the
+app after a layout change, and a test fails if the app's text would be shown smaller than
+2.1% of the video's short side. The chat thread in the opening is a drawing of life *without*
 the product and is deliberately not our interface. Insurer names are listed only while that
 insurer's template exists in `web/src/lib/formfill/templates/`.
 
 **What must stay true.** No number, testimonial or customer name that is not real; the copy
 is qualitative until there is a pilot figure approved for marketing. No "סוכן" in the
-garage version: the app itself says it in places, so the crops in `product.ts` keep those
-regions (and the side menu, which shows the demo login) out of frame. Check this again
-after changing a crop or a capture.
+garage version: the app and the insurer's form say it in places. The capture stage marks
+every place it appears (in the app's pages and in the PDF's own text), and `product.ts`
+refuses to build a shot whose camera would pass over one. The same goes for the demo login.
 
-**Car photos.** The uploads are drawn pictures in `fixtures/promo/` (`npm run
+**Car photos.** They show in the case's files tab. The uploads are drawn pictures in `fixtures/promo/` (`npm run
 promo:fixtures`). To use real ones, put three or more images in `fixtures/promo/user/`
 (git-ignored) and capture again. Use only photos with no legible plate, no person and no
 customer's identifiable car, and look at every frame that shows them before publishing.

@@ -16,6 +16,10 @@ after(async () => { await browser.close(); });
 
 const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO8e/fufwAIkgNmFkKrVQAAAABJRU5ErkJggg==", "base64");
 
+// Every part a composition may point the camera at, somewhere in the stand-in.
+const MARKS = Object.fromEntries(["question", "answer", "licence", "registration", "photos", "next", "title", "name", "tabs", "verdict", "filled", "generate"]
+  .map((name, i) => [name, { x: 0.1, y: 0.05 + i * 0.07, w: 0.5, h: 0.04, px: 16 }]));
+
 // An out dir holding stand-in captures, recorded as belonging to `audience`.
 function outDirWithCaptures(folder: Audience, audience: Audience): string {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), "promo-out-"));
@@ -25,7 +29,7 @@ function outDirWithCaptures(folder: Audience, audience: Audience): string {
     audience, capturedAt: new Date().toISOString(),
     captures: CAPTURE_IDS.map((id) => {
       fs.writeFileSync(path.join(dir, `${id}.png`), PIXEL);
-      return { id, file: `${id}.png`, width: 780, height: 1560, surface: "phone" as const };
+      return { id, file: `${id}.png`, width: 780, height: 1560, surface: "phone" as const, cssWidth: 320, marks: MARKS };
     }),
   };
   fs.writeFileSync(path.join(dir, "manifest.json"), JSON.stringify(manifest));

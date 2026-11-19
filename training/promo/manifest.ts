@@ -4,23 +4,28 @@ import { OUT_DIR } from "../src/env.ts";
 import type { Audience } from "./copy.ts";
 
 // The moments of the real app the promo shows. Compositions refer to captures by these ids.
+// The app is captured in a narrow window and at a high pixel density, so its own text is
+// large and sharp when a capture fills a frame of the video. The "docs" stills are the same
+// step of the client's form as each document lands; "case-*" and "form-tab" are whole pages.
 export const CAPTURE_IDS = [
-  "client-question", "client-licence", "client-photos", "client-sent",
-  "dashboard-submitted", "cockpit-overview", "cockpit-files", "form-tab",
+  "client-question", "client-docs-0", "client-docs-1", "client-docs-2", "client-docs-3", "client-sent",
+  "case-overview", "case-files", "form-tab",
   "pdf-page-1",
 ] as const;
 export type CaptureId = (typeof CAPTURE_IDS)[number];
 
-// `points`: where named controls sit in the still (0..1 on each axis), measured at capture
-// time so a tap lands on the control even after the app's layout shifts.
-export type Point = { x: number; y: number };
+// `marks`: where named parts of the app sit in the still (0..1 on each axis) and how large
+// their text is in the app's own pixels. Measured at capture time, so the camera, a tap or a
+// highlight lands on the part even after the app's layout shifts.
+export type Mark = { x: number; y: number; w: number; h: number; px: number };
 // `avoid`: parts of the still that must not appear in a video (0..1 on each axis). "login" is
 // the demo account's address; "agent-word" is the app saying "סוכן", which the garage version
 // must not show. Found in the page at capture time, so a layout change cannot slip one in.
 export type Avoid = { what: "login" | "agent-word"; x: number; y: number; w: number; h: number };
 export type Capture = {
   id: CaptureId; file: string; width: number; height: number; surface: "phone" | "desktop" | "pdf";
-  points?: Record<string, Point>;
+  cssWidth?: number; // the width of the app's window when this was taken, in the app's pixels
+  marks?: Record<string, Mark>;
   avoid?: Avoid[];
 };
 export type Manifest = { audience: Audience; capturedAt: string; captures: Capture[] };

@@ -8,7 +8,6 @@ import { OUT_DIR, TRAINING_ROOT } from "../src/env.ts";
 import { beatsFor, type Cut } from "./beats.ts";
 import { AUDIENCES, insurersWithTemplate, resolveCopy, type Audience } from "./copy.ts";
 import { film } from "./compositions/index.ts";
-import { promoPhotos } from "./fixtures.ts";
 import type { CaptureRef } from "./compositions/layout.ts";
 import { captureDir, readManifest, type CaptureId } from "./manifest.ts";
 import { frameAt, prepare } from "./renderer.ts";
@@ -23,7 +22,7 @@ if (!AUDIENCES.includes(audience) || !RATIOS.includes(ratio) || !["full", "short
 const manifest = readManifest(audience);
 const dir = captureDir(audience);
 const captures = Object.fromEntries(manifest.captures.map((c) => [
-  c.id, { src: `data:image/png;base64,${fs.readFileSync(path.join(dir, c.file)).toString("base64")}`, width: c.width, height: c.height, points: c.points, avoid: c.avoid },
+  c.id, { src: `data:image/png;base64,${fs.readFileSync(path.join(dir, c.file)).toString("base64")}`, width: c.width, height: c.height, cssWidth: c.cssWidth, marks: c.marks, avoid: c.avoid },
 ])) as unknown as Record<CaptureId, CaptureRef>;
 const insurers = insurersWithTemplate(path.join(TRAINING_ROOT, "..", "web", "src", "lib", "formfill", "templates"));
 
@@ -32,7 +31,7 @@ fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage();
 // The whole cut is one document; each still is taken at the given fractions of its beat.
-const comp = film({ audience, cut, ratio, copy: resolveCopy(audience), captures, insurers, photos: promoPhotos() });
+const comp = film({ audience, cut, ratio, copy: resolveCopy(audience), captures, insurers });
 await prepare(page, comp, ratio);
 let n = 0, t0 = 0;
 for (const beat of beatsFor(cut)) {

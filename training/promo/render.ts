@@ -10,7 +10,6 @@ import { OUTPUTS, totalMs, type Output } from "./beats.ts";
 import { insurersWithTemplate, resolveCopy } from "./copy.ts";
 import { film } from "./compositions/index.ts";
 import type { CaptureRef } from "./compositions/layout.ts";
-import { promoPhotos } from "./fixtures.ts";
 import { captureDir, readManifest, type CaptureId } from "./manifest.ts";
 import { encodeFrames, renderFrames } from "./renderer.ts";
 
@@ -37,7 +36,7 @@ function loadCaptures(o: Output, outDir: string): Record<CaptureId, CaptureRef> 
   const dir = captureDir(o.audience, outDir);
   return Object.fromEntries(manifest.captures.map((c) => [
     c.id,
-    { src: `data:image/png;base64,${fs.readFileSync(path.join(dir, c.file)).toString("base64")}`, width: c.width, height: c.height, points: c.points, avoid: c.avoid },
+    { src: `data:image/png;base64,${fs.readFileSync(path.join(dir, c.file)).toString("base64")}`, width: c.width, height: c.height, cssWidth: c.cssWidth, marks: c.marks, avoid: c.avoid },
   ])) as Record<CaptureId, CaptureRef>;
 }
 
@@ -58,7 +57,7 @@ export async function renderOutput(browser: Browser, o: Output, opts: RenderOpts
   try {
     await encodeFrames(partial, o.ratio, async (write) => {
       // One document for the whole cut, so a beat can leave while the next arrives.
-      const whole = film({ audience: o.audience, cut: o.cut, ratio: o.ratio, copy, captures, insurers, photos: promoPhotos() });
+      const whole = film({ audience: o.audience, cut: o.cut, ratio: o.ratio, copy, captures, insurers });
       frames += await renderFrames(page, whole, o.ratio, (image) => write(image));
     }, { durationMs: totalMs(o.cut), music: opts.music });
     const bytes = fs.statSync(partial).size;
