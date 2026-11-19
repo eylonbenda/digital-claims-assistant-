@@ -592,3 +592,9 @@ cd web ; npm run dev
 - `compose.ts` picks the recipient by track — `own_policy` gets `policyEmail`, both third-party tracks (`third_party_report`/`third_party_settlement`) get the at-fault insurer's `thirdPartyEmail` — instead of the old single verified/unverified address; `verified` on the composed `Submission` is now just "did we have an address for this track," not a separate manual flag.
 - Unit-tested: new cases in `submission.test.ts` covering per-track address selection.
 - `docs/app-map.md` (`submission/` module row), `docs/claim-management.md` (§ ניהול התביעה מול המבטחת) updated.
+
+### Done since last sync (2026-11-19, PR #137 — landing page redesign around collection, documents and claim tracking)
+- **No migration.** Pure presentation change on `web/src/app/page.tsx`; the hero's before/after animation moves into its own `web/src/components/landing/BeforeAfter.tsx`, joined by two new illustrative mocks, `WizardMock.tsx` and `DashboardMock.tsx`. Spec: `superpowers/specs/2026-11-19-landing-redesign-design.md`.
+- **The page now narrates the product as three chapters** — `#collect` / `#documents` / `#manage`, jumped to from a sticky header nav — instead of the old flat pains → "how it works" steps → form-proof → CTA sequence. Each chapter keeps its own copy block plus a mock; the filled-form proof shot (`web/public/landing/form-sample.png`) now lives under the "documents" chapter.
+- **Closes the insurer-strip gap flagged since PR #40/#44.** `INSURERS` lists all **15** templated insurers (matching `formfill/templates/`), not just the original 9 — כלל and שומרה (among others) now appear.
+- Copy-only changes: the agent entry link reads "כניסה למערכת" (was "כניסת סוכנים"); the meta title/description and footer line now describe the full collect-to-payment lifecycle rather than just the WhatsApp chase.
