@@ -572,3 +572,11 @@ cd web ; npm run dev
 ### Done since last sync (2026-11-18, PR #128 — "new email" dashboard badge covers any non-business sender)
 - **No migration.** `web/src/app/dashboard/page.tsx` only.
 - **Fix:** the "מייל חדש" badge/activity-sort query was narrowed to `claim_emails.kind = 'insurer'`, which — per PR #119 above — never actually matches today since insurer domains aren't confirmed yet (every insurer classifies as `other`), so the badge was effectively dead. The query now takes any inbound mail that isn't `kind = 'business'`, so a reply from an insurer, a client, or anyone else filed on a claim surfaces it.
+
+### Done since last sync (2026-11-19 — ווישור (WeSure) template)
+- **No migration.** New `web/src/lib/formfill/templates/wesure.ts` + bundled `assets/wesure.pdf` ("הודעה על מקרה ביטוח - רכב", 3 pages), registered in `formfill/index.ts` (now 14 templated insurers). `claim-state.ts` `INSURERS`, the dashboard's `INSURER_LABEL` and `submission/directory.ts` gain `wesure` (intake address unverified, like the rest).
+- 76 fields incl. vehicle type / police / fault / third-party-handling consent / garage-arrangement checkboxes; two third-party blocks; three witnesses. Render-verified on the sample claim.
+- Three-segment date blanks (`__ / __ / __`): each date is anchored so its second `/` lands on the printed slash — otherwise the slash cuts a digit.
+- **Known cosmetic:** ID fields are per-digit combs; the engine has no letter-spacing, so digits overlap the tick marks (same as clal/phoenix).
+- **Not mapped (no canonical key):** סוג מקרה row, claim number, entrance/floor/PO box, registered owner / lien holder, licence-revoked, day of week, accident street/road/area split, visibility, fault reasoning, deductible consent, damage-spot checkboxes, TP vehicle make/year/colour, TP driver's separate ID/address/phone, witness relation, declaration ID.
+- אנקור: no form in the repo yet.
