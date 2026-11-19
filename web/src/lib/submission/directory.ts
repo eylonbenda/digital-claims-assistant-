@@ -40,6 +40,8 @@ export const INSURER_DIRECTORY: Record<string, DirectoryEntry> = {
   shomera: entry("שומרה"),
   haklai: entry("חקלאי"),
   kash: entry("קש"),
+  wesure: entry("ווישור"),
+  anchor: entry("אנקור"),
 };
 
 /** Every known insurer mail domain, for classifying inbound mail. */
