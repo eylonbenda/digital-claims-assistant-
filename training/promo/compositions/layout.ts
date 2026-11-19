@@ -24,7 +24,13 @@ export type BeatProps = {
   copy: PromoCopy;
   captures: Record<CaptureId, CaptureRef>;
   insurers: string[];
+  photos: Photos;
 };
+// The pictures the "client" sends, as data URIs: the drawn fixtures, or the operator's own.
+export type Photos = { licenceFront: string; licenceBack: string; registration: string; cars: string[] };
+// What a beat puts on screen. `backdrop` is the part that changes the background (a reveal,
+// a curtain): it stays when the beat's content leaves. `end` is the colour the beat ends on.
+export type Scene = { body: string; background: string; backdrop?: string; end?: string };
 
 export type Rect = { x: number; y: number; width: number; height: number };
 
@@ -50,15 +56,17 @@ export type Layout = {
   copy: Rect; visual: Rect;
   headline: number; label: number; small: number;
   windowAspect: number; // shape of a browser window's page in this output
+  minText: number;      // the smallest type a screen inside the video may use
 };
 
 export function layoutFor(ratio: Ratio, kind: VisualKind = "wide"): Layout {
   const { width, height } = SIZE[ratio];
   const safe = safeRect(ratio);
+  const minText = Math.ceil(Math.min(width, height) * 0.0225);
   if (ratio === "16x9") {
     const copyW = 700, gap = 64;
     return {
-      ratio, width, height, safe, row: true, windowAspect: 4 / 3,
+      ratio, width, height, safe, minText, row: true, windowAspect: 4 / 3,
       copy: { x: safe.x + safe.width - copyW, y: safe.y, width: copyW, height: safe.height },
       visual: { x: safe.x, y: safe.y, width: safe.width - copyW - gap, height: safe.height },
       headline: 92, label: 70, small: 30,
@@ -69,14 +77,14 @@ export function layoutFor(ratio: Ratio, kind: VisualKind = "wide"): Layout {
     if (kind === "tall") { // a phone beside its caption uses a square frame far better than one below it
       const copyW = 450, gap = 36;
       return {
-        ratio, width, height, safe, row: true, windowAspect: 4 / 3, ...type,
+        ratio, width, height, safe, minText, row: true, windowAspect: 4 / 3, ...type,
         copy: { x: safe.x + safe.width - copyW, y: safe.y, width: copyW, height: safe.height },
         visual: { x: safe.x, y: safe.y, width: safe.width - copyW - gap, height: safe.height },
       };
     }
     const copyH = 262, gap = 22;
     return {
-      ratio, width, height, safe, row: false, windowAspect: 4 / 3, ...type,
+      ratio, width, height, safe, minText, row: false, windowAspect: 4 / 3, ...type,
       copy: { x: safe.x, y: safe.y, width: safe.width, height: copyH },
       visual: { x: safe.x, y: safe.y + copyH + gap, width: safe.width, height: safe.height - copyH - gap },
     };
@@ -85,7 +93,7 @@ export function layoutFor(ratio: Ratio, kind: VisualKind = "wide"): Layout {
   // the apps' own buttons cover only its lower edge.
   const copyH = 330, gap = 40, top = safe.y + copyH + gap;
   return {
-    ratio, width, height, safe, row: false, windowAspect: 0.85,
+    ratio, width, height, safe, minText, row: false, windowAspect: 0.85,
     copy: { x: safe.x, y: safe.y, width: safe.width, height: copyH },
     visual: { x: safe.x, y: top, width: safe.width, height: Math.round(height * 0.955) - top },
     headline: 96, label: 76, small: 36,
@@ -104,13 +112,15 @@ export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
 
 // Collects keyframes. Every animation runs on the composition's own clock: `startMs` is a
 // delay from the beat's first frame and fill is "both", so seeking to any time is exact.
+// `offset` is where that beat starts when several beats share one document.
 export class Sheet {
+  offset = 0;
   private rules: string[] = [];
   private n = 0;
   anim(keyframes: string, startMs: number, durMs: number, easing = "cubic-bezier(.2,.8,.2,1)"): string {
     const name = `k${this.n++}`;
     this.rules.push(`@keyframes ${name}{${keyframes}}`);
-    return `animation:${name} ${Math.max(1, Math.round(durMs))}ms ${easing} ${Math.round(startMs)}ms both;`;
+    return `animation:${name} ${Math.max(1, Math.round(durMs))}ms ${easing} ${Math.round(startMs + this.offset)}ms both;`;
   }
   rise(startMs: number, px = 46, durMs = 600): string {
     return this.anim(`from{opacity:0;transform:translateY(${px}px)}to{opacity:1;transform:none}`, startMs, durMs);

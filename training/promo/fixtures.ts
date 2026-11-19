@@ -5,6 +5,16 @@ import { TRAINING_ROOT } from "../src/env.ts";
 export const PROMO_FIXTURE_DIR = path.join(TRAINING_ROOT, "fixtures", "promo");
 const IMAGE = /\.(png|jpe?g|webp)$/i;
 
+// The same files as data URIs, for the compositions that draw them inside a screen.
+export function promoPhotos(dir = PROMO_FIXTURE_DIR): { licenceFront: string; licenceBack: string; registration: string; cars: string[] } {
+  const uri = (file: string) => {
+    const ext = path.extname(file).slice(1).toLowerCase();
+    return `data:image/${ext === "jpg" ? "jpeg" : ext};base64,${fs.readFileSync(file).toString("base64")}`;
+  };
+  const f = promoFixtures(dir);
+  return { licenceFront: uri(f.licenceFront), licenceBack: uri(f.licenceBack), registration: uri(f.registration), cars: f.cars.slice(0, 3).map(uri) };
+}
+
 export type PromoFixtures = { licenceFront: string; licenceBack: string; registration: string; cars: string[] };
 
 // The files the "client" uploads in the promo. Documents are always the drawn ones. Car

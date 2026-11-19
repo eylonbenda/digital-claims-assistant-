@@ -6,10 +6,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { OUT_DIR, TRAINING_ROOT } from "../src/env.ts";
-import { OUTPUTS, beatsFor, totalMs, type Output } from "./beats.ts";
+import { OUTPUTS, totalMs, type Output } from "./beats.ts";
 import { insurersWithTemplate, resolveCopy } from "./copy.ts";
-import { compose } from "./compositions/index.ts";
-import type { BeatProps, CaptureRef } from "./compositions/layout.ts";
+import { film } from "./compositions/index.ts";
+import type { CaptureRef } from "./compositions/layout.ts";
+import { promoPhotos } from "./fixtures.ts";
 import { captureDir, readManifest, type CaptureId } from "./manifest.ts";
 import { encodeFrames, renderFrames } from "./renderer.ts";
 
@@ -56,10 +57,9 @@ export async function renderOutput(browser: Browser, o: Output, opts: RenderOpts
   let frames = 0;
   try {
     await encodeFrames(partial, o.ratio, async (write) => {
-      for (const beat of beatsFor(o.cut)) {
-        const props: BeatProps = { audience: o.audience, cut: o.cut, ratio: o.ratio, durationMs: beat.durationMs, copy, captures, insurers };
-        frames += await renderFrames(page, compose(beat.id, props), o.ratio, (image) => write(image));
-      }
+      // One document for the whole cut, so a beat can leave while the next arrives.
+      const whole = film({ audience: o.audience, cut: o.cut, ratio: o.ratio, copy, captures, insurers, photos: promoPhotos() });
+      frames += await renderFrames(page, whole, o.ratio, (image) => write(image));
     }, { durationMs: totalMs(o.cut), music: opts.music });
     const bytes = fs.statSync(partial).size;
     if (bytes > MAX_BYTES) throw new Error(`${o.file} is over 16 MB (${(bytes / 1024 / 1024).toFixed(1)} MB)`);

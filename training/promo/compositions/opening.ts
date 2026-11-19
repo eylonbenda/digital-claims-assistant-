@@ -1,13 +1,12 @@
-import type { Composition } from "../renderer.ts";
-import { CANVAS, INK, SOFT_BLUE, Sheet, box, brandSvg, copyBlock, esc, layoutFor, page, type BeatProps, type Layout } from "./layout.ts";
+import { CANVAS, INK, SOFT_BLUE, Sheet, box, brandSvg, copyBlock, esc, layoutFor, type BeatProps, type Layout, type Scene } from "./layout.ts";
 
 // "." ends a sentence; each sentence gets its own line.
 export const sentences = (s: string): string[] => s.split(/(?<=\.)\s+/).filter(Boolean);
 
 // The chase: the thread every office knows, filling up under the hook line.
 // This is a drawing of life WITHOUT the product: a plain bubble thread, not our interface.
-export function chase(p: BeatProps): Composition {
-  const l = layoutFor(p.ratio), s = new Sheet(), T = p.durationMs;
+export function chase(p: BeatProps, s: Sheet): Scene {
+  const l = layoutFor(p.ratio), T = p.durationMs;
   const hookSize = Math.round(l.headline * 0.8);
   const hook = sentences(p.copy.hook).map((line, i) =>
     `<p class="hl" data-copy="hook-${i}" style="font-size:${hookSize}px;color:${i === 0 ? "#fff" : SOFT_BLUE};${s.rise(60 + i * 260, 40, 520)}">${esc(line)}</p>`).join("");
@@ -29,7 +28,7 @@ export function chase(p: BeatProps): Composition {
   const thread = `<div style="${box(l.visual)}display:flex;align-items:${l.row ? "center" : "flex-start"};justify-content:center">
     <div data-frame="thread" style="width:${cardW}px;background:#efeae2;border-radius:${Math.round(font * 1.1)}px;padding:${pad}px;display:flex;flex-direction:column;gap:${Math.round(font * 0.42)}px;box-shadow:0 30px 80px rgba(0,0,0,.35);${s.rise(0, 60, 500)}">${bubbles}</div>
   </div>`;
-  return { html: page(l, INK, s, copyBlock(l, hook) + thread), durationMs: T };
+  return { body: copyBlock(l, hook) + thread, background: INK };
 }
 
 // A column of lines centred in the safe area, for the beats that are words only.
@@ -44,12 +43,12 @@ export function reveal(s: Sheet, l: Layout, colour: string, startMs: number, dur
 }
 
 // The turn: the noise clears, and the answer is one line.
-export function turn(p: BeatProps): Composition {
-  const l = layoutFor(p.ratio), s = new Sheet(), T = p.durationMs;
+export function turn(p: BeatProps, s: Sheet): Scene {
+  const l = layoutFor(p.ratio), T = p.durationMs;
   const logoW = Math.round(Math.min(l.safe.width * 0.62, 640));
-  const body = reveal(s, l, CANVAS, 0, T * 0.3) + centred(l, `
+  const body = centred(l, `
     <img data-frame="logo" src="${brandSvg("logo.svg")}" alt="" style="width:${logoW}px;display:block;${s.rise(T * 0.16, 40, 560)}">
     ${sentences(p.copy.turn).map((line, i) => `<p class="hl" data-copy="turn-${i}" style="font-size:${l.headline}px;${i === 1 ? "color:#1d4ed8;" : ""}${s.rise(T * (0.3 + i * 0.13), 50, 600)}">${esc(line)}</p>`).join("")}
   `, Math.round(l.headline * 0.22));
-  return { html: page(l, INK, s, body), durationMs: T };
+  return { body, backdrop: reveal(s, l, CANVAS, 0, T * 0.3), background: INK, end: CANVAS };
 }

@@ -7,7 +7,8 @@ import path from "node:path";
 import { OUT_DIR, TRAINING_ROOT } from "../src/env.ts";
 import { beatsFor, type Cut } from "./beats.ts";
 import { AUDIENCES, insurersWithTemplate, resolveCopy, type Audience } from "./copy.ts";
-import { compose } from "./compositions/index.ts";
+import { film } from "./compositions/index.ts";
+import { promoPhotos } from "./fixtures.ts";
 import type { CaptureRef } from "./compositions/layout.ts";
 import { captureDir, readManifest, type CaptureId } from "./manifest.ts";
 import { frameAt, prepare } from "./renderer.ts";
@@ -30,12 +31,16 @@ const out = path.join(OUT_DIR, "promo", "preview");
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage();
-let n = 0;
+// The whole cut is one document; each still is taken at the given fractions of its beat.
+const comp = film({ audience, cut, ratio, copy: resolveCopy(audience), captures, insurers, photos: promoPhotos() });
+await prepare(page, comp, ratio);
+let n = 0, t0 = 0;
 for (const beat of beatsFor(cut)) {
-  const comp = compose(beat.id, { audience, cut, ratio, durationMs: beat.durationMs, copy: resolveCopy(audience), captures, insurers });
-  await prepare(page, comp, ratio);
-  const file = path.join(out, `${audience}-${ratio}-${cut}-${n++}-${beat.id}.jpg`);
-  fs.writeFileSync(file, await frameAt(page, comp.durationMs * Number(fraction)));
-  console.log(file);
+  for (const f of fraction.split(",")) {
+    const file = path.join(out, `${audience}-${ratio}-${cut}-${n}-${beat.id}-${f}.jpg`);
+    fs.writeFileSync(file, await frameAt(page, t0 + beat.durationMs * Number(f)));
+    console.log(file);
+  }
+  n++; t0 += beat.durationMs;
 }
 await browser.close();
