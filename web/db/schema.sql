@@ -47,6 +47,9 @@ create table agents (
   -- inbound mail) and the local part of the system address. A null alias = email off.
   claims_mailbox text,
   inbound_alias text unique,
+  -- migration 014: garage | agent; null = unknown. A garage's name pre-fills the
+  -- accident notice's garage.name.
+  kind text check (kind in ('garage', 'agent')),
   created_at timestamptz not null default now()
 );
 

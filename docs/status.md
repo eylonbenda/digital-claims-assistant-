@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-18**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-19**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -37,6 +37,14 @@ Vercel deploys **code**, not **schema**. There is no auto-migration. So:
 
 **The trap:** a merged PR whose migration you forgot to apply to prod deploys green, then 500s at runtime on the missing column/table. Migrations are a *two-place* change — code by merge, schema by hand.
 **PII rule:** schema flows **up** (dev → prod); production data never flows **down** to dev (חוק הגנת הפרטיות).
+
+### Email in prod — setup and turning it on per business (live since 2026-11-18)
+Provider is Resend; system addresses are `<alias>@in.opentik.co.il`.
+- **Prod env (once):** `EMAIL_PROVIDER_API_KEY`, `EMAIL_WEBHOOK_SECRET`, `EMAIL_INBOUND_DOMAIN=in.opentik.co.il`, Production scope, then redeploy. The Resend webhook URL must be **`https://www.opentik.co.il/api/inbound/email`**. The bare apex 308-redirects to `www`, and Resend does not follow redirects. Events: `email.received`, `email.bounced`, `email.failed`.
+- **Probe:** an unsigned `curl -X POST -d '{}' https://www.opentik.co.il/api/inbound/email` returns `503 email is not configured` when an env var is missing in the live deploy, and `401 invalid signature` when all three are set. A 401 does not prove the secret matches Resend's; only a real inbound message does.
+- **Per business:** run by hand in the prod SQL editor (no UI on purpose; the alias is a write credential): `update agents set inbound_alias = '<name>-<4 random chars>', claims_mailbox = '<their existing claims address>' where id = '<agents.id>' and auth_user_id = '<auth user id>' returning id, inbound_alias, claims_mailbox;`. Expect exactly one row. The random suffix keeps the address hard to guess. Pick the alias for good, since changing it later breaks replies to earlier threads. `claims_mailbox` must not be on `in.opentik.co.il`.
+- **Enabled so far:** the user's prod test account (end-to-end send + reply verified 2026-11-18) and the client garage "sagi" (`aa6525f0…`, 2026-11-19).
+- **What inbound mail does not do:** nothing reads the content or changes claim status. Mail is filed on a claim by subject id or thread, else waits in "דואר נכנס". The business gets a copy prefixed `[OpenTik]`, except when its claims mailbox was already on the message (Reply All), which is deliberate dedupe.
 
 ---
 
@@ -576,3 +584,9 @@ cd web ; npm run dev
 - New `/login/forgot` (+ `POST /api/auth/forgot`) — requests a reset email (`resetPasswordForEmail`); always answers `{ok:true}` so the endpoint can't be used to probe which emails have accounts. Linked from `/login`.
 - Shared `AuthCard`/`AuthError` shell + input/button classes in `web/src/app/auth/AuthCard.tsx`, reused by all three surfaces.
 - **Needs a one-time, per-project Supabase Dashboard change (dev and prod, by hand)**: Auth → URL Configuration → Site URL, plus the Invite-user and Reset-password email templates repointed at `/auth/confirm` instead of the default `{{ .ConfirmationURL }}`. Steps added to the provisioning checklist above (§5–6).
+
+### Done since last sync (2026-11-19, PR #132 — garage's own name pre-fills שם המוסך)
+- ⚠️ **This branch adds `web/db/migrations/014_agents_kind.sql`.** Apply it to dev **and** to prod (`claims-pilot`) by hand before the merge goes live — see the promote-to-prod checklist above. It adds `agents.kind` (`'garage' | 'agent'`, nullable, no default) with no app UI to set it yet — set by hand per business (`update agents set kind = 'garage' where id = '<agent id>';`). Until applied (or until set for a given business), the `agents` read for `kind` just comes back null and the pre-fill silently doesn't fire.
+- **Only a garage's own name is a sensible default for "שם המוסך"** — an insurance agency's name must never land in the garage box, so the pre-fill only fires when `agents.kind = 'garage'`. New `garageNameDefault()` (`web/src/lib/formfill/effective.ts`) gates it; `effectiveClaimData()` takes an optional `{ garageName }` and only applies it to data **derived** from `collected` — once the agent saves the form editor, `form_data` is authoritative, including a garage name they deliberately cleared. Wired at both fill sites: submit-time auto-fill (`POST /api/claims/submit`) and the on-demand regenerate route (`GET /api/claims/[id]/form/[insurer]`), each reading `agents.name`/`kind` independently so a pre-migration 500 on `kind` degrades to "no default," not a broken fill.
+- **`garage.name`/`garage.is_arrangement` mapped on Migdal** (`web/src/lib/formfill/templates/migdal.ts`) — the first template to carry the garage fields that already existed in the canonical `ClaimData` schema. Garage fields (name/phone/address/is_arrangement) also added to the dashboard `FormFieldEditor` so the agent can see/edit them regardless of template.
+- Unit-tested: `web/src/lib/formfill/effective.test.ts`.
