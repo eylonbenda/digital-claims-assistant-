@@ -162,6 +162,16 @@ const migdal: Template = {
       page: 2,
       options: { yes: [428, 370] },
     },
+    // ט. "אבקש לתקן את הרכב במוסך הסדר ________." — single checkbox (box centre (428,337)
+    // via boxdetect.mjs, X at centre minus ~4,4) + a blank line for the garage name from
+    // the label's left end (x≈308, baseline 335) to the trailing "." (x≈137).
+    {
+      key: "garage.is_arrangement",
+      type: "checkbox",
+      page: 2,
+      options: { yes: [424, 333] },
+    },
+    { key: "garage.name", page: 2, right: 300, y: 336, size: 9 },
     // Signature block at page bottom — two boxes found via mupdf pixel-scan
     // (dark-pixel edges at scale=8): signature box x=[31,143.5], date box
     // x=[465.6,541.5], both y=[101.9,130.3]. Labels "חתימת המבוטח" / "תאריך"
