@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-18**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-19**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -564,3 +564,9 @@ cd web ; npm run dev
 ### Done since last sync (2026-11-18, PR #128 — "new email" dashboard badge covers any non-business sender)
 - **No migration.** `web/src/app/dashboard/page.tsx` only.
 - **Fix:** the "מייל חדש" badge/activity-sort query was narrowed to `claim_emails.kind = 'insurer'`, which — per PR #119 above — never actually matches today since insurer domains aren't confirmed yet (every insurer classifies as `other`), so the badge was effectively dead. The query now takes any inbound mail that isn't `kind = 'business'`, so a reply from an insurer, a client, or anyone else filed on a claim surfaces it.
+
+### Done since last sync (2026-11-19, PR #132 — garage's own name pre-fills שם המוסך)
+- ⚠️ **This branch adds `web/db/migrations/014_agents_kind.sql`.** Apply it to dev **and** to prod (`claims-pilot`) by hand before the merge goes live — see the promote-to-prod checklist above. It adds `agents.kind` (`'garage' | 'agent'`, nullable, no default) with no app UI to set it yet — set by hand per business (`update agents set kind = 'garage' where id = '<agent id>';`). Until applied (or until set for a given business), the `agents` read for `kind` just comes back null and the pre-fill silently doesn't fire.
+- **Only a garage's own name is a sensible default for "שם המוסך"** — an insurance agency's name must never land in the garage box, so the pre-fill only fires when `agents.kind = 'garage'`. New `garageNameDefault()` (`web/src/lib/formfill/effective.ts`) gates it; `effectiveClaimData()` takes an optional `{ garageName }` and only applies it to data **derived** from `collected` — once the agent saves the form editor, `form_data` is authoritative, including a garage name they deliberately cleared. Wired at both fill sites: submit-time auto-fill (`POST /api/claims/submit`) and the on-demand regenerate route (`GET /api/claims/[id]/form/[insurer]`), each reading `agents.name`/`kind` independently so a pre-migration 500 on `kind` degrades to "no default," not a broken fill.
+- **`garage.name`/`garage.is_arrangement` mapped on Migdal** (`web/src/lib/formfill/templates/migdal.ts`) — the first template to carry the garage fields that already existed in the canonical `ClaimData` schema. Garage fields (name/phone/address/is_arrangement) also added to the dashboard `FormFieldEditor` so the agent can see/edit them regardless of template.
+- Unit-tested: `web/src/lib/formfill/effective.test.ts`.
