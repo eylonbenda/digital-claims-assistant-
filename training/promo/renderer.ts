@@ -17,7 +17,18 @@ export type Composition = { html: string; durationMs: number };
 const LOAD_FONTS = `(async () => {
   await Promise.all([...document.fonts].map((f) => f.load().catch(() => null)));
   await document.fonts.ready;
-  return [...new Set([...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replace(/["']/g, "")))];
+  const name = (f) => f.family.replace(/["']/g, "");
+  const faces = [...document.fonts];
+  return {
+    loaded: [...new Set(faces.filter((f) => f.status === "loaded").map(name))],
+    failed: [...new Set(faces.filter((f) => f.status !== "loaded").map((f) => name(f) + " " + f.weight))],
+  };
+})()`;
+
+// Every picture must have decoded: a broken capture would otherwise render as a blank screen.
+const LOAD_IMAGES = `(async () => {
+  await Promise.all([...document.images].map((i) => i.decode().catch(() => null)));
+  return [...document.images].filter((i) => !i.complete || i.naturalWidth === 0).length;
 })()`;
 
 const seek = (ms: number) => `(() => {
@@ -28,11 +39,15 @@ const seek = (ms: number) => `(() => {
 export async function prepare(page: Page, comp: Composition, ratio: Ratio): Promise<void> {
   await page.setViewportSize(SIZE[ratio]);
   await page.setContent(comp.html, { waitUntil: "load" });
-  const loaded = (await page.evaluate(LOAD_FONTS)) as string[];
+  // One missing weight is enough to refuse: Chromium would fake it and the video would
+  // ship in the wrong letterforms without anyone being told.
+  const fonts = (await page.evaluate(LOAD_FONTS)) as { loaded: string[]; failed: string[] };
+  if (fonts.failed.length) throw new Error(`font not loaded: ${fonts.failed.join(", ")}`);
   for (const family of REQUIRED_FAMILIES) {
-    if (!loaded.includes(family)) throw new Error(`font not loaded: ${family}`);
+    if (!fonts.loaded.includes(family)) throw new Error(`font not loaded: ${family}`);
   }
-  await page.evaluate(`Promise.all([...document.images].map((i) => i.decode().catch(() => null)))`);
+  const broken = Number(await page.evaluate(LOAD_IMAGES));
+  if (broken > 0) throw new Error(`picture failed to load (${broken}) — capture again with \`npm run promo:capture\``);
   await page.evaluate(seek(0));
 }
 
@@ -61,16 +76,20 @@ export function buildEncodeArgs(outPath: string, ratio: Ratio, opts: EncodeOpts)
     "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "mjpeg", "-i", "-",
   ];
   if (opts.music) {
-    const fade = 1.5;
-    args.push("-i", opts.music, "-af", `afade=t=out:st=${Math.max(0, seconds - fade).toFixed(3)}:d=${fade},apad`);
+    // Looped, so a track shorter than the video still reaches the fade at the end; `-t`
+    // below cuts a longer one.
+    const fade = Math.min(1.5, seconds / 2);
+    args.push("-stream_loop", "-1", "-i", opts.music, "-af", `afade=t=out:st=${(seconds - fade).toFixed(3)}:d=${fade}`);
   } else {
     args.push("-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"); // some players dislike video-only files
   }
   args.push(
     "-map", "0:v", "-map", "1:a",
-    "-vf", `scale=${width}:${height},format=yuv420p`,
+    // HD video is BT.709. Converted and tagged as such, or players shift the brand colours.
+    "-vf", `scale=${width}:${height}:out_color_matrix=bt709:out_range=tv,format=yuv420p`,
     "-r", String(FPS),
     "-c:v", "libx264", "-preset", "slow", "-crf", "19", "-pix_fmt", "yuv420p",
+    "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv",
     "-c:a", "aac", "-b:a", opts.music ? "128k" : "32k",
     "-t", seconds.toFixed(3),
     "-movflags", "+faststart",
@@ -92,9 +111,19 @@ export async function encodeFrames(
   proc.stderr.on("data", (d) => { stderr += String(d); });
   proc.stdin.on("error", () => { /* ffmpeg exited early; the close handler reports it */ });
   const closed = new Promise<number | null>((resolve, reject) => { proc.on("error", reject); proc.on("close", resolve); });
+  // A frame is written when ffmpeg has taken it. If ffmpeg dies first (disk full, killed, bad
+  // arguments) the pipe never drains, so each write also listens for the process ending.
+  let ended = false;
+  proc.on("close", () => { ended = true; });
+  const died = () => new Error(`ffmpeg exited before the video was finished:\n${stderr.trim().split("\n").slice(-20).join("\n")}`);
   const write = (image: Buffer) => new Promise<void>((resolve, reject) => {
-    if (proc.exitCode !== null) return reject(new Error(`ffmpeg exited early:\n${stderr.trim()}`));
-    if (proc.stdin.write(image)) resolve(); else proc.stdin.once("drain", resolve);
+    if (ended) return reject(died());
+    const onClose = () => reject(died());
+    proc.once("close", onClose);
+    proc.stdin.write(image, (err) => {
+      proc.off("close", onClose);
+      if (err) reject(died()); else resolve();
+    });
   });
   try {
     await feed(write);

@@ -13,7 +13,9 @@ export const CANVAS = "#f6f8fc";
 export const CTA_GREEN = "#1faa55";
 export const SOFT_BLUE = "#9db8ff"; // brand blue lifted for use on the ink background
 
-export type CaptureRef = { src: string; width: number; height: number; points?: Record<string, { x: number; y: number }> };
+export type CaptureRef = { src: string; width: number; height: number; points?: Record<string, { x: number; y: number }>;
+  avoid?: { what: "login" | "agent-word"; x: number; y: number; w: number; h: number }[];
+};
 export type BeatProps = {
   audience: Audience;
   cut: Cut;

@@ -113,3 +113,25 @@ test("a beat's duration is the one it was given", () => {
   const c = compose("turn", { audience: "agent", cut: "full", ratio: "16x9", durationMs: 3000, copy: resolveCopy("agent"), captures, insurers });
   assert.equal(c.durationMs, 3000);
 });
+
+// A crop must never show what the capture marked as off limits.
+const marked = (what: "login" | "agent-word") => ({
+  ...captures,
+  "dashboard-submitted": { ...captures["dashboard-submitted"], avoid: [{ what, x: 0.55, y: 0.45, w: 0.05, h: 0.03 }] },
+});
+const caseProps = (audience: "garage" | "agent", caps: Record<CaptureId, CaptureRef>): BeatProps =>
+  ({ audience, cut: "full", ratio: "1x1", durationMs: 6000, copy: resolveCopy(audience), captures: caps, insurers });
+
+test("a crop that would show the demo login is refused for both audiences", () => {
+  for (const audience of AUDIENCES) assert.throws(() => compose("caseFile", caseProps(audience, marked("login"))), /dashboard-submitted.*login/);
+});
+
+test("a crop that would show the word for agent is refused in the garage version only", () => {
+  assert.throws(() => compose("caseFile", caseProps("garage", marked("agent-word"))), /dashboard-submitted.*agent-word/);
+  assert.doesNotThrow(() => compose("caseFile", caseProps("agent", marked("agent-word"))));
+});
+
+test("a marked region outside the crop is fine", () => {
+  const caps = { ...captures, "dashboard-submitted": { ...captures["dashboard-submitted"], avoid: [{ what: "login" as const, x: 0.85, y: 0.9, w: 0.1, h: 0.03 }] } };
+  assert.doesNotThrow(() => compose("caseFile", caseProps("garage", caps)));
+});

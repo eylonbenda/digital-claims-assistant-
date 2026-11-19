@@ -36,7 +36,7 @@ function loadCaptures(o: Output, outDir: string): Record<CaptureId, CaptureRef> 
   const dir = captureDir(o.audience, outDir);
   return Object.fromEntries(manifest.captures.map((c) => [
     c.id,
-    { src: `data:image/png;base64,${fs.readFileSync(path.join(dir, c.file)).toString("base64")}`, width: c.width, height: c.height, points: c.points },
+    { src: `data:image/png;base64,${fs.readFileSync(path.join(dir, c.file)).toString("base64")}`, width: c.width, height: c.height, points: c.points, avoid: c.avoid },
   ])) as Record<CaptureId, CaptureRef>;
 }
 

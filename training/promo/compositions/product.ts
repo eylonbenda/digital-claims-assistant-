@@ -1,7 +1,7 @@
 // The three product moments. Every picture here is a capture of the real app on demo data.
 import type { Composition } from "../renderer.ts";
 import type { CaptureId } from "../manifest.ts";
-import { browserFrame, cropLayer, mapPoint, phoneFrame, tap, type Crop, type Frame } from "./device.ts";
+import { browserFrame, cropLayer, mapPoint, phoneFrame, region, tap, type Crop, type Frame } from "./device.ts";
 import { CANVAS, Sheet, copyBlock, esc, layoutFor, page, type BeatProps, type CaptureRef, type Layout, type VisualKind } from "./layout.ts";
 
 // A capture on screen for part of a scene. `at` and `tap.at` are fractions of the scene.
@@ -19,8 +19,8 @@ const LICENCE: Shot = { id: "client-licence", wide: WHOLE, at: 0.23 };
 const PHOTOS: Shot = { id: "client-photos", wide: WHOLE, at: 0.49, tap: { point: "next", at: 0.67 } };
 const SENT: Shot = { id: "client-sent", wide: WHOLE, at: 0.75 };
 
-const DASHBOARD: Shot = { id: "dashboard-submitted", wide: { cx: 0.54, cy: 0.5, w: 0.52 }, tall: { cx: 0.62, cy: 0.54, w: 0.36 }, at: 0, tap: { point: "claim", at: 0.2 } };
-const OVERVIEW: Shot = { id: "cockpit-overview", wide: { cx: 0.405, cy: 0.56, w: 0.79 }, tall: { cx: 0.55, cy: 0.5, w: 0.5 }, at: 0.32 };
+const DASHBOARD: Shot = { id: "dashboard-submitted", wide: { cx: 0.58, cy: 0.5, w: 0.44 }, tall: { cx: 0.62, cy: 0.54, w: 0.36 }, at: 0, tap: { point: "claim", at: 0.2 } };
+const OVERVIEW: Shot = { id: "cockpit-overview", wide: { cx: 0.55, cy: 0.5, w: 0.5 }, tall: { cx: 0.55, cy: 0.5, w: 0.5 }, at: 0.32 };
 const FILES: Shot = { id: "cockpit-files", wide: { cx: 0.6, cy: 0.42, w: 0.4 }, tall: { cx: 0.64, cy: 0.45, w: 0.32 }, at: 0.67 };
 // Centred on the "fill the form" button wherever the page put it.
 const formCrop = (w: number, lift: number): CropOf => (cap) => {
@@ -32,6 +32,18 @@ const FORM_TAB: Shot = { id: "form-tab", wide: formCrop(0.56, 0.06), tall: formC
 const PDF_WIDE: Crop = { cx: 0.5, cy: 0.37, w: 1 };
 const PDF_TALL: Crop = { cx: 0.69, cy: 0.37, w: 0.62 };
 
+// Refuses a crop that would put the demo login, or (for a garage) the app's word for agent,
+// on screen. The capture stage marks where those are.
+function assertClean(p: BeatProps, id: CaptureId, crop: Crop, aspect: number): void {
+  const r = region(p.captures[id], crop, aspect);
+  for (const a of p.captures[id].avoid ?? []) {
+    if (a.what === "agent-word" && p.audience !== "garage") continue;
+    if (a.x < r.x + r.w && r.x < a.x + a.w && a.y < r.y + r.h && r.y < a.y + a.h) {
+      throw new Error(`the ${id} crop for ${p.ratio} would show the ${a.what} — move the crop in compositions/product.ts`);
+    }
+  }
+}
+
 const at = (shot: Shot, time: number, tapAt?: number): Shot => ({ ...shot, at: time, tap: shot.tap && tapAt !== undefined ? { ...shot.tap, at: tapAt } : undefined });
 
 function shots(s: Sheet, l: Layout, p: BeatProps, frame: Frame, list: Shot[], t0: number, dur: number): string {
@@ -41,6 +53,7 @@ function shots(s: Sheet, l: Layout, p: BeatProps, frame: Frame, list: Shot[], t0
     const cap = p.captures[shot.id];
     const pick = (tall && shot.tall) || shot.wide;
     const crop = typeof pick === "function" ? pick(cap) : pick;
+    assertClean(p, shot.id, crop, frame.aspect);
     const start = t0 + shot.at * dur, end = t0 + (list[i + 1]?.at ?? 1) * dur;
     // A slow push-in keeps a still alive while it is on screen. The tap rides inside it,
     // so it stays on its control.

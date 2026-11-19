@@ -14,9 +14,14 @@ export type CaptureId = (typeof CAPTURE_IDS)[number];
 // `points`: where named controls sit in the still (0..1 on each axis), measured at capture
 // time so a tap lands on the control even after the app's layout shifts.
 export type Point = { x: number; y: number };
+// `avoid`: parts of the still that must not appear in a video (0..1 on each axis). "login" is
+// the demo account's address; "agent-word" is the app saying "סוכן", which the garage version
+// must not show. Found in the page at capture time, so a layout change cannot slip one in.
+export type Avoid = { what: "login" | "agent-word"; x: number; y: number; w: number; h: number };
 export type Capture = {
   id: CaptureId; file: string; width: number; height: number; surface: "phone" | "desktop" | "pdf";
   points?: Record<string, Point>;
+  avoid?: Avoid[];
 };
 export type Manifest = { audience: Audience; capturedAt: string; captures: Capture[] };
 

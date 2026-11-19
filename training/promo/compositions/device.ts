@@ -3,9 +3,9 @@ import { BRAND, INK, box, type CaptureRef, type Rect, type Sheet, fit } from "./
 // A region of a capture: its centre and width as fractions of the capture. The height
 // follows from the frame it is shown in, so a crop never distorts.
 export type Crop = { cx: number; cy: number; w: number };
-type Region = { x: number; y: number; w: number; h: number };
+export type Region = { x: number; y: number; w: number; h: number };
 
-function region(cap: CaptureRef, crop: Crop, aspect: number): Region {
+export function region(cap: CaptureRef, crop: Crop, aspect: number): Region {
   let w = Math.min(1, crop.w);
   let h = (w * cap.width) / aspect / cap.height;
   if (h > 1) { h = 1; w = (h * cap.height * aspect) / cap.width; }

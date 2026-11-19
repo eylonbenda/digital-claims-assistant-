@@ -22,7 +22,7 @@ if (!AUDIENCES.includes(audience) || !RATIOS.includes(ratio) || !["full", "short
 const manifest = readManifest(audience);
 const dir = captureDir(audience);
 const captures = Object.fromEntries(manifest.captures.map((c) => [
-  c.id, { src: `data:image/png;base64,${fs.readFileSync(path.join(dir, c.file)).toString("base64")}`, width: c.width, height: c.height, points: c.points },
+  c.id, { src: `data:image/png;base64,${fs.readFileSync(path.join(dir, c.file)).toString("base64")}`, width: c.width, height: c.height, points: c.points, avoid: c.avoid },
 ])) as unknown as Record<CaptureId, CaptureRef>;
 const insurers = insurersWithTemplate(path.join(TRAINING_ROOT, "..", "web", "src", "lib", "formfill", "templates"));
 

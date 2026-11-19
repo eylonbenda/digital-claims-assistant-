@@ -11,7 +11,7 @@ import { PHONE_UA, loginAndCheckDatabase, stubVehicleLookup } from "../src/recor
 import { seed } from "../src/seed.ts";
 import { AUDIENCES, COPY, type Audience } from "./copy.ts";
 import { promoFixtures } from "./fixtures.ts";
-import { CAPTURE_IDS, captureDir, checkManifest, type Capture, type CaptureId, type Manifest, type Point } from "./manifest.ts";
+import { CAPTURE_IDS, captureDir, checkManifest, type Capture, type CaptureId, type Avoid, type Manifest, type Point } from "./manifest.ts";
 
 const SCALE = 2;
 const DESKTOP = { width: 1280, height: 800 };
@@ -20,6 +20,27 @@ const TIMEOUT_MS = 15_000;
 
 const nextButton = (page: Page) => page.getByRole("button", { name: new RegExp("^(בוא נתחיל|המשך|שליחה לטיפול)$") });
 const next = (page: Page) => nextButton(page).click();
+
+// Runs in the page: where each needle is drawn inside the viewport, as fractions of it.
+const findText = (needles: [string, string][]) => `(() => {
+  const needles = ${JSON.stringify(needles)}, out = [];
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n; (n = walker.nextNode());) {
+    const text = n.nodeValue || "";
+    for (const [what, needle] of needles) {
+      for (let i = text.indexOf(needle); i >= 0; i = text.indexOf(needle, i + 1)) {
+        const range = document.createRange();
+        range.setStart(n, i); range.setEnd(n, i + needle.length);
+        for (const b of range.getClientRects()) {
+          if (b.width > 0 && b.bottom > 0 && b.top < innerHeight && b.right > 0 && b.left < innerWidth) {
+            out.push({ what, x: b.left / innerWidth, y: b.top / innerHeight, w: b.width / innerWidth, h: b.height / innerHeight });
+          }
+        }
+      }
+    }
+  }
+  return out;
+})()`;
 
 async function settle(page: Page): Promise<void> {
   await page.evaluate("document.fonts.ready");
@@ -89,10 +110,11 @@ export async function capturePromo(env: Env, audience: Audience): Promise<Manife
       if (!b) throw new Error(`the "${name}" control is not on screen for ${id}`);
       points[name] = { x: (b.x + b.width / 2) / view.width, y: (b.y + b.height / 2) / view.height };
     }
+    const avoid = (await page.evaluate(findText([["agent-word", "סוכן"], ["login", env.demoEmail.split("@")[0]]]))) as Avoid[];
     const file = `${id}.png`;
     await page.screenshot({ path: path.join(dir, file) });
     const vp = page.viewportSize()!;
-    captures.push({ id, file, width: vp.width * SCALE, height: vp.height * SCALE, surface, points });
+    captures.push({ id, file, width: vp.width * SCALE, height: vp.height * SCALE, surface, points, avoid });
     console.log(`  · ${audience}/${id}`);
   };
   const authFile = path.join(dir, "auth.json");
