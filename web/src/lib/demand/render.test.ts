@@ -204,7 +204,9 @@ describe("damages and pagination", () => {
       }
     }
     expect(breaks).toBeGreaterThan(0);
-  });
+    // 14 full PDF renders: ~1s alone, but it has crossed vitest's 5s default when the
+    // whole suite runs in parallel on a loaded machine.
+  }, 30_000);
 
   it("the acceptance doc stays on one page", async () => {
     const doc = buildDemandData({
