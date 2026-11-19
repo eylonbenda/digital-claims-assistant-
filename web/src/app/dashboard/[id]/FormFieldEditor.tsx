@@ -145,6 +145,25 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    // The garage repairing the vehicle — printed on the forms that have a מוסך box.
+    title: "מוסך",
+    fields: [
+      { path: "garage.name", label: "שם המוסך" },
+      { path: "garage.phone", label: "טלפון המוסך", type: "tel", validate: validatePhone },
+      { path: "garage.address", label: "כתובת המוסך" },
+      {
+        path: "garage.is_arrangement",
+        label: "מוסך הסדר",
+        bool: true,
+        options: [
+          { value: "", label: "לא ידוע" },
+          { value: "true", label: "כן" },
+          { value: "false", label: "לא" },
+        ],
+      },
+    ],
+  },
+  {
     title: "נזקים",
     fields: [
       { path: "damage.insured_vehicle", label: "נזק לרכב המבוטח" },
