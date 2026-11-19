@@ -100,51 +100,47 @@ moments, an outcome line, and a WhatsApp call to action. Two audience versions (
 It is made in two stages, so wording and design can change without touching the app:
 
 ```bash
-npm run promo:capture   # needs the app running, like `record`. Saves sharp stills of the real app.
-npm run promo:render    # needs only those stills. About 20 minutes for all ten files.
+npm run promo:footage   # needs the app running, like `record`. Records the real app live.
+npm run promo:edit      # needs only those recordings. Writes the ten files.
 ```
 
-`promo:capture` follows every safety rule of `record` (same guard, same demo account, same
-stubbed vehicle lookup) and seeds the demo business as "מוסך הדגמה" or "סוכנות הדגמה".
-`promo:render` takes `--audience`, `--ratio` and `--cut` to render a subset, for example
-`npm run promo:render -- --audience garage --ratio 9x16`.
-
-While designing, `npm run promo:preview -- garage 9x16` writes one still per beat to
-`out/promo/preview/` in a few seconds.
+`promo:footage` follows every safety rule of `record` (same guard, same demo account, same
+stubbed vehicle lookup) and seeds the demo business as "מוסך הדגמה" or "סוכנות הדגמה"; pass
+`garage` or `agent` to record one audience. `promo:edit` takes `--audience`, `--ratio` and
+`--cut`, for example `npm run promo:edit -- --audience garage --ratio 9x16`.
 
 | To change | Edit |
 |---|---|
-| any wording, the phone number | `promo/copy.ts`, then `promo:render` |
-| beat order and lengths | `promo/beats.ts` |
-| how a beat looks | `promo/compositions/` (`opening`, `product`, `closing`) |
-| where the camera rests on a screen, and when | the `T` tables and `rest(...)` calls in `promo/compositions/product.ts` |
-| which app screens are shown | `promo/capture.ts` + `CAPTURE_IDS` in `promo/manifest.ts`, then `promo:capture` |
+| any wording, the phone number | `promo/copy.ts`, then `promo:edit` |
+| the drawn opening and closing | `promo/compositions/` (`opening`, `closing`), lengths in `promo/beats.ts` |
+| what the app is filmed doing, and the marks the edit cuts on | `promo/footage.ts`, then `promo:footage` |
+| which takes are used, their speed, where screens sit per shape | the `Take` lists and `planFor` in `promo/edit.ts` |
 
-**What is real.** Every screen is a capture of the real app on demo data, and the form is
-the real filled PDF. Nothing inside a screen is redrawn: the only things drawn over a capture
-are a tap, an outline and one pill, and a test fails if anything else appears in a screen.
-
-**How the screens stay readable.** A full desktop page is too dense for a two-second shot,
-so the app is captured in a narrow window (520px for the office, 320px for the client's
-phone) at a high pixel density. Those are the app's own responsive layouts, and in them its
-text is large for the frame. Each capture is a whole page; the camera travels down it and
-rests on one thing at a time. The capture stage measures where the named parts of each
-screen are (`marks` in the manifest) and how large their text is, so the camera follows the
-app after a layout change, and a test fails if the app's text would be shown smaller than
-2.1% of the video's short side. The chat thread in the opening is a drawing of life *without*
-the product and is deliberately not our interface. Insurer names are listed only while that
-insurer's template exists in `web/src/lib/formfill/templates/`.
+**What is real.** The product part is a live recording of the real app on demo data, driven
+like the training video (cursor, taps, uploads), and the form is the real filled PDF. The
+phone is recorded once; the office is recorded once per output shape (1280px wide for 16:9,
+720px for square and vertical), so each shape shows the app's own layout for that width at a
+readable size. One thing is hidden on the real screens: the demo account's login address.
+The chat thread in the opening is a drawing of life *without* the product and is
+deliberately not our interface. Insurer names are listed only while that insurer's template
+exists in `web/src/lib/formfill/templates/`.
 
 **What must stay true.** No number, testimonial or customer name that is not real; the copy
 is qualitative until there is a pilot figure approved for marketing. No "סוכן" in the
-garage version: the app and the insurer's form say it in places. The capture stage marks
-every place it appears (in the app's pages and in the PDF's own text), and `product.ts`
-refuses to build a shot whose camera would pass over one. The same goes for the demo login.
+garage version: the recorder fails if the word is on screen at any of its checkpoints, and
+the scroll over the insurer's form starts below the printed line that says it. If a form
+template or the app's layout changes, look at the frames again.
 
-**Car photos.** They show in the case's files tab. The uploads are drawn pictures in `fixtures/promo/` (`npm run
-promo:fixtures`). To use real ones, put three or more images in `fixtures/promo/user/`
-(git-ignored) and capture again. Use only photos with no legible plate, no person and no
-customer's identifiable car, and look at every frame that shows them before publishing.
+**Uploads.** The documents are props made to look like phone photos (`promo/fixture-docs.ts`,
+`npm run promo:fixtures`): fictional details from `src/demo.ts`, no state emblem, a
+silhouette for a face. Car pictures are drawn unless three or more real photos are in
+`fixtures/promo/user/` (git-ignored). Use only photos with no legible plate (blur it), no
+person and no customer's identifiable car, strip their metadata, and look at every frame
+that shows them before publishing.
+
+**The earlier cut.** `promo:capture` + `promo:render` build the same ten file names from
+stills with a travelling camera (`compositions/product.ts`). It is kept for its layout tests
+and as a fallback; the live cut is the one to publish.
 
 **Music.** None is shipped. Set `PROMO_MUSIC` in `.env.local` to a track you hold a licence
 for; it is mixed under the video and faded out. The video length never changes.
@@ -153,9 +149,8 @@ for; it is mixed under the video and faded out. The video length never changes.
 video gives up the top 14% and bottom 20% to the apps' own buttons), never overlap a
 picture, and still fit when 25% longer. A wording change that breaks this fails `npm test`.
 
-**Adding a beat** (for example claim management): add the stills to `capture.ts` and
-`CAPTURE_IDS`, write a scene in `compositions/product.ts`, add its id to `BeatId` and to a
-cut in `beats.ts`.
+**Adding a beat** (for example claim management): record it in `footage.ts` with marks at its
+start and end, and add a `screen(...)` call with its takes and its line of copy in `edit.ts`.
 
 ## Known app quirk
 

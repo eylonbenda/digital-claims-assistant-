@@ -16,13 +16,18 @@ import { startRecording, type Recording } from "./screencast.ts";
 
 // The app's own layouts at their usual sizes, recorded at 1.5× so a 1080p frame is sharp.
 const SCALE = 1.5;
-export const DESK = { width: 1280, height: 720 };
+// The office is recorded once per output shape, in the app's own layout for that width.
+export type Shape = "wide" | "square" | "tall";
+export const SHAPES: Shape[] = ["wide", "square", "tall"];
+export const DESK: Record<Shape, { width: number; height: number }> = {
+  wide: { width: 1280, height: 720 }, square: { width: 720, height: 720 }, tall: { width: 720, height: 900 },
+};
 export const PHONE = { width: 390, height: 720 };
 const even = (n: number) => 2 * Math.floor((n * SCALE) / 2); // H.264 needs even sides
 const px = (v: { width: number; height: number }) => ({ width: even(v.width), height: even(v.height) });
 const TIMEOUT_MS = 15_000;
 
-export type Footage = { audience: Audience; recordedAt: string; phone: Recording; office: Recording; form: Recording };
+export type Footage = { audience: Audience; recordedAt: string; phone: Recording; desk: Record<Shape, { office: Recording; form: Recording }> };
 export const footageDir = (audience: Audience, outDir = OUT_DIR) => path.join(outDir, "promo", "footage", audience);
 
 const nextButton = (page: Page) => page.getByRole("button", { name: new RegExp("^(בוא נתחיל|המשך|שליחה לטיפול)$") });
@@ -48,8 +53,11 @@ async function assertClean(page: Page, audience: Audience, env: Env, where: stri
 async function showForm(page: Page, pdf: Buffer): Promise<void> {
   const origin = "http://training.local", pdfjs = path.join(TRAINING_ROOT, "node_modules", "pdfjs-dist", "build");
   const viewer = `<!doctype html><html><head><meta charset="utf-8"><style>
-    body{margin:0;background:#3c4a60;display:flex;justify-content:center;padding:0 0 40px}
-    canvas{background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.35);width:1180px}
+    html{overflow-x:hidden}
+    body{margin:0;background:#3c4a60;padding:0 0 40px}
+    canvas{display:block;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.35);width:1180px;position:relative;left:calc((100vw - 1180px) / 2)}
+    /* A narrow window shows the right-hand part of the page, where the values are, at a readable size. */
+    @media (max-width:1000px){canvas{width:1280px;left:calc(100vw - 1280px)}}
   </style></head><body><script type="module">
     import * as pdfjs from "/pdf.min.mjs";
     pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
@@ -98,9 +106,9 @@ export async function recordFootage(env: Env, audience: Audience): Promise<Foota
   const authFile = path.join(dir, "auth.json");
   let at = "login";
   const browser = await chromium.launch();
-  const open = async (kind: "desk" | "phone"): Promise<{ ctx: BrowserContext; page: Page }> => {
+  const open = async (kind: "desk" | "phone", shape: Shape = "wide"): Promise<{ ctx: BrowserContext; page: Page }> => {
     const ctx = await browser.newContext({
-      viewport: kind === "desk" ? DESK : PHONE, deviceScaleFactor: SCALE, locale: "he-IL", timezoneId: "Asia/Jerusalem", acceptDownloads: true,
+      viewport: kind === "desk" ? DESK[shape] : PHONE, deviceScaleFactor: SCALE, locale: "he-IL", timezoneId: "Asia/Jerusalem", acceptDownloads: true,
       ...(kind === "phone" ? { isMobile: true, hasTouch: true, userAgent: PHONE_UA } : { storageState: authFile }),
     });
     await stubVehicleLookup(ctx);
@@ -228,15 +236,17 @@ export async function recordFootage(env: Env, audience: Audience): Promise<Foota
     await prep.ctx.close();
 
     // ── The office: the claim arrived complete ──
-    at = "office";
-    const office = await open("desk");
+    const deskRecs = {} as Footage["desk"];
+    for (const shape of SHAPES) {
+    at = `office (${shape})`;
+    const office = await open("desk", shape);
     const desk = office.page, stage = await attachStage(desk, "desktop");
     await desk.goto(`${env.baseUrl}/dashboard`);
     const row = desk.getByRole("link", { name: demo.client.name }).first();
     await row.waitFor();
     await desk.waitForTimeout(600);
     await assertClean(desk, audience, env, "the dashboard");
-    const rec2 = await startRecording(desk, path.join(dir, "office.mp4"), px(DESK));
+    const rec2 = await startRecording(desk, path.join(dir, `office-${shape}.mp4`), px(DESK[shape]));
     await desk.waitForTimeout(500);
     rec2.mark("arrived");
     await stage.highlight(row, 1300);
@@ -270,12 +280,12 @@ export async function recordFootage(env: Env, audience: Audience): Promise<Foota
     const officeRec = await rec2.stop();
 
     // ── The form fills itself ──
-    at = "form";
+    at = `form (${shape})`;
     await desk.evaluate("window.scrollTo(0, 0)");
     await desk.getByRole("tab", { name: "טופס ההודעה" }).click();
     await desk.getByText("טופס ממולא").first().waitFor();
     await desk.waitForTimeout(600);
-    const rec3 = await startRecording(desk, path.join(dir, "form.mp4"), px(DESK));
+    const rec3 = await startRecording(desk, path.join(dir, `form-${shape}.mp4`), px(DESK[shape]));
     await desk.waitForTimeout(400);
     rec3.mark("tab");
     await stage.highlight(desk.getByText("טופס ממולא").first(), 1400);
@@ -305,9 +315,11 @@ export async function recordFootage(env: Env, audience: Audience): Promise<Foota
     rec3.mark("pdf-end");
     const formRec = await rec3.stop();
     await office.ctx.close();
+    deskRecs[shape] = { office: officeRec, form: formRec };
+    }
 
     fs.rmSync(authFile, { force: true }); // a session file is not a deliverable
-    const footage: Footage = { audience, recordedAt: new Date().toISOString(), phone: phoneRec, office: officeRec, form: formRec };
+    const footage: Footage = { audience, recordedAt: new Date().toISOString(), phone: phoneRec, desk: deskRecs };
     fs.writeFileSync(path.join(dir, "footage.json"), JSON.stringify(footage, null, 2));
     return footage;
   } catch (err) {
@@ -330,7 +342,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     for (const audience of asked ? [asked as Audience] : AUDIENCES) {
       console.log(`recording ${audience}`);
       const f = await recordFootage(env, audience);
-      for (const k of ["phone", "office", "form"] as const) console.log(`  · ${k} ${f[k].seconds.toFixed(1)}s ${JSON.stringify(f[k].marks)}`);
+      console.log(`  · phone ${f.phone.seconds.toFixed(1)}s`);
+      for (const sh of SHAPES) console.log(`  · ${sh}: office ${f.desk[sh].office.seconds.toFixed(1)}s, form ${f.desk[sh].form.seconds.toFixed(1)}s`);
     }
   })().catch((e) => { console.error(String(e instanceof Error ? e.message : e)); process.exit(1); });
 }
