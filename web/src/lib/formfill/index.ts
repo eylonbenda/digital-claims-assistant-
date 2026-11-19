@@ -12,6 +12,7 @@ import clal from "./templates/clal";
 import kash from "./templates/kash";
 import haklai from "./templates/haklai";
 import wesure from "./templates/wesure";
+import anchor from "./templates/anchor";
 
 // Registry of insurer templates. Add a new insurer = add one template file here.
 export const templates = {
@@ -29,6 +30,7 @@ export const templates = {
   kash,
   haklai,
   wesure,
+  anchor,
 } as const;
 export type InsurerKey = keyof typeof templates;
 
