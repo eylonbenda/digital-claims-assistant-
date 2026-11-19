@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { templates, fillForm } from "@/lib/formfill";
 import type { Template } from "@/lib/formfill/engine";
-import { effectiveClaimData, type ClaimSummaryJson } from "@/lib/formfill/effective";
+import { effectiveClaimData, garageNameDefault, type ClaimSummaryJson } from "@/lib/formfill/effective";
 
 export const runtime = "nodejs"; // needs fs to read the template PDF + font
 
@@ -80,8 +80,18 @@ export async function GET(
 
   if (!claim) return Response.json({ error: "claim not found" }, { status: 404 });
 
+  // A garage's own name pre-fills garage.name (only until the form is edited). Errors
+  // (e.g. migration 014 not applied yet) just mean no default.
+  const { data: business } = await supabase
+    .from("agents")
+    .select("name, kind")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
   // Prefer the agent's edited form_data; fall back to the client's submission.
-  const claimData = effectiveClaimData(claim.summary_json as ClaimSummaryJson);
+  const claimData = effectiveClaimData(claim.summary_json as ClaimSummaryJson, {
+    garageName: garageNameDefault(business),
+  });
   if (!claimData) {
     return Response.json(
       { error: "no collected data yet — the client hasn't submitted the form" },
