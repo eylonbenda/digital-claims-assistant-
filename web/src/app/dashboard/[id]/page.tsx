@@ -67,6 +67,8 @@ const INSURER_LABEL: Record<string, string> = {
   shomera: "שומרה",
   haklai: "חקלאי",
   kash: "קש",
+  wesure: "ווישור",
+  anchor: "אנקור",
 };
 
 const TYPE_LABEL: Record<string, string> = {
