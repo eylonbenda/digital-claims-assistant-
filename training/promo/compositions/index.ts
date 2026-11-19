@@ -1,4 +1,4 @@
-import { beatsFor, type BeatId } from "../beats.ts";
+import { beatsFor, type Beat, type BeatId } from "../beats.ts";
 import type { Composition } from "../renderer.ts";
 import { endCard, outcome } from "./closing.ts";
 import { Sheet, layoutFor, page, type BeatProps, type Scene } from "./layout.ts";
@@ -20,7 +20,12 @@ const LEAVE_MS = 340;
 // leaves softly in its last third of a second, so no beat ends on a hard cut, and a change
 // of background colour is always drawn (a reveal), never jumped.
 export function film(props: Omit<BeatProps, "durationMs">): Composition {
-  const beats = beatsFor(props.cut), s = new Sheet(), l = layoutFor(props.ratio);
+  return filmOf(beatsFor(props.cut), props);
+}
+
+// The same, for any run of beats (the live-footage cut renders its opening and closing so).
+export function filmOf(beats: Beat[], props: Omit<BeatProps, "durationMs">): Composition {
+  const s = new Sheet(), l = layoutFor(props.ratio);
   let t0 = 0, colour: string | undefined, first = "";
   const layers = beats.map((b, i) => {
     s.offset = t0;
