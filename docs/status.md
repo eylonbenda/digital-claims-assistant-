@@ -38,6 +38,14 @@ Vercel deploys **code**, not **schema**. There is no auto-migration. So:
 **The trap:** a merged PR whose migration you forgot to apply to prod deploys green, then 500s at runtime on the missing column/table. Migrations are a *two-place* change — code by merge, schema by hand.
 **PII rule:** schema flows **up** (dev → prod); production data never flows **down** to dev (חוק הגנת הפרטיות).
 
+### Email in prod — setup and turning it on per business (live since 2026-11-18)
+Provider is Resend; system addresses are `<alias>@in.opentik.co.il`.
+- **Prod env (once):** `EMAIL_PROVIDER_API_KEY`, `EMAIL_WEBHOOK_SECRET`, `EMAIL_INBOUND_DOMAIN=in.opentik.co.il`, Production scope, then redeploy. The Resend webhook URL must be **`https://www.opentik.co.il/api/inbound/email`**. The bare apex 308-redirects to `www`, and Resend does not follow redirects. Events: `email.received`, `email.bounced`, `email.failed`.
+- **Probe:** an unsigned `curl -X POST -d '{}' https://www.opentik.co.il/api/inbound/email` returns `503 email is not configured` when an env var is missing in the live deploy, and `401 invalid signature` when all three are set. A 401 does not prove the secret matches Resend's; only a real inbound message does.
+- **Per business:** run by hand in the prod SQL editor (no UI on purpose; the alias is a write credential): `update agents set inbound_alias = '<name>-<4 random chars>', claims_mailbox = '<their existing claims address>' where id = '<agents.id>' and auth_user_id = '<auth user id>' returning id, inbound_alias, claims_mailbox;`. Expect exactly one row. The random suffix keeps the address hard to guess. Pick the alias for good, since changing it later breaks replies to earlier threads. `claims_mailbox` must not be on `in.opentik.co.il`.
+- **Enabled so far:** the user's prod test account (end-to-end send + reply verified 2026-11-18) and the client garage "sagi" (`aa6525f0…`, 2026-11-19).
+- **What inbound mail does not do:** nothing reads the content or changes claim status. Mail is filed on a claim by subject id or thread, else waits in "דואר נכנס". The business gets a copy prefixed `[OpenTik]`, except when its claims mailbox was already on the message (Reply All), which is deliberate dedupe.
+
 ---
 
 ## Where we are (mapped to the build order in [mvp-scope.md](mvp-scope.md))
