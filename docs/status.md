@@ -102,8 +102,13 @@ Beyond the original build order, the **task engine** (phase-2 active workflow, p
    SUPABASE_SERVICE_ROLE_KEY=...
    ANTHROPIC_API_KEY=...
    ```
-5. Create a test agent user in Supabase Auth (Dashboard → Authentication → Users → Invite / Add user)
-6. `cd web && npm run dev` → go to `/login` → create a claim → send link → fill wizard → see it appear in dashboard
+5. Point Supabase Auth at the app (Dashboard → Authentication) — **per project, dev and prod, by hand** like migrations:
+   - **URL Configuration → Site URL** = the app's origin (`http://localhost:3000` on dev, the Vercel domain on prod). The default is localhost, so on prod an unset Site URL sends every invite link to the inviter's own machine.
+   - **Emails → Templates → Invite user**: link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite`
+   - **Emails → Templates → Reset password**: link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`
+   - The default `{{ .ConfirmationURL }}` links do **not** work with this app: they return the session in a URL `#fragment` nothing reads, and a mail scanner's GET burns the one-time token (`otp_expired`). `/auth/confirm` only renders a button; the token is spent on the click.
+6. Onboard a user: Authentication → Users → **Invite user** with their real email. They land on `/auth/confirm` → `/auth/set-password` → `/dashboard`; the `001` trigger creates their `agents` row. Forgotten passwords are self-service from `/login/forgot`.
+7. `cd web && npm run dev` → go to `/login` → create a claim → send link → fill wizard → see it appear in dashboard
 
 ### Done since last sync (2026-06-28 → 29)
 - **Document upload** (wizard step 9): `POST /api/claims/documents` → private `claim-docs` bucket, with magic-byte sniffing (`web/src/lib/files/sniff.ts`) + client-side compression.
@@ -572,6 +577,13 @@ cd web ; npm run dev
 ### Done since last sync (2026-11-18, PR #128 — "new email" dashboard badge covers any non-business sender)
 - **No migration.** `web/src/app/dashboard/page.tsx` only.
 - **Fix:** the "מייל חדש" badge/activity-sort query was narrowed to `claim_emails.kind = 'insurer'`, which — per PR #119 above — never actually matches today since insurer domains aren't confirmed yet (every insurer classifies as `other`), so the badge was effectively dead. The query now takes any inbound mail that isn't `kind = 'business'`, so a reply from an insurer, a client, or anyone else filed on a claim surfaces it.
+
+### Done since last sync (2026-11-18, PR #125 — invite landing, set-password and forgot-password flow)
+- **No migration.** New `/auth/confirm` (`web/src/app/auth/confirm/`) — the landing page for both Supabase invite and password-reset email links (`?token_hash=&type=invite|recovery`); it renders a button rather than verifying on load, because a mail scanner's GET would otherwise burn the one-time token before the real click. `POST /api/auth/confirm` spends the token (`verifyOtp`) and starts the session.
+- New `/auth/set-password` (+ `POST /api/auth/set-password`) — reached after confirm; sets the password of the now-signed-in user (`supabase.auth.updateUser`), no current-password prompt. Shared `MIN_PASSWORD_LENGTH` (`web/src/lib/auth/password.ts`) between the form and the route.
+- New `/login/forgot` (+ `POST /api/auth/forgot`) — requests a reset email (`resetPasswordForEmail`); always answers `{ok:true}` so the endpoint can't be used to probe which emails have accounts. Linked from `/login`.
+- Shared `AuthCard`/`AuthError` shell + input/button classes in `web/src/app/auth/AuthCard.tsx`, reused by all three surfaces.
+- **Needs a one-time, per-project Supabase Dashboard change (dev and prod, by hand)**: Auth → URL Configuration → Site URL, plus the Invite-user and Reset-password email templates repointed at `/auth/confirm` instead of the default `{{ .ConfirmationURL }}`. Steps added to the provisioning checklist above (§5–6).
 
 ### Done since last sync (2026-11-19 — ווישור (WeSure) + אנקור (Anchor) templates)
 - **No migration.** New `web/src/lib/formfill/templates/wesure.ts` + bundled `assets/wesure.pdf` ("הודעה על מקרה ביטוח - רכב", 3 pages), registered in `formfill/index.ts` (now 14 templated insurers). `claim-state.ts` `INSURERS`, the dashboard's `INSURER_LABEL` and `submission/directory.ts` gain `wesure` (intake address unverified, like the rest).
