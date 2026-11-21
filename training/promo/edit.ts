@@ -167,6 +167,11 @@ export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR): P
         { rec: desk.form, from: "tab", to: "tab-end", speed: 1.25 },
         { rec: desk.form, from: "pdf", to: "pdf-end", speed: 1.3 },
       ], p.desk, deskCaption(p, copy.form), pill);
+    // What happens after the form goes out. The short cut has no room for it.
+    if (!short) {
+      if (!desk.handling) throw new Error(`the footage for ${audience} has no claim-handling recording — run promo:footage again`);
+      await screen("handling", [{ rec: desk.handling, from: "status", to: "status-end", speed: 1.2 }], p.desk, deskCaption(p, copy.handling), pill);
+    }
     clips.push({ file: w("closing.mp4"), seconds: await drawn(browser, ratio, w("closing.mp4"), short ? pick("endCard") : pick("outcome", "endCard"), props) });
 
     const whole = dissolve(clips.map((_, i) => `c${i}`), clips.map((c) => c.seconds), short ? 0.35 : JOIN, "j");

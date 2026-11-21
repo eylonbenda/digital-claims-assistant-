@@ -125,6 +125,16 @@ The chat thread in the opening is a drawing of life *without* the product and is
 deliberately not our interface. Insurer names are listed only while that insurer's template
 exists in `web/src/lib/formfill/templates/`.
 
+**The claim-handling beat** (full cuts only). After the form is filmed, the recorder confirms
+the track and marks the claim as sent through the app's own routes (`classify`, `submission`),
+off camera, then films the office changing the status with the insurer in the real dialog.
+Each shape films the same step, so before each one the demo claim is put back to "sent, six
+days ago" straight in the dev database (scoped to the demo agent's claim). Inbound mail is not
+shown: it is filed on a claim but does not change the status by itself, and the video must
+not suggest otherwise.
+
+**Narration.** The script is `promo/narration.md`, one line per beat. No voice is mixed yet.
+
 **What must stay true.** No number, testimonial or customer name that is not real; the copy
 is qualitative until there is a pilot figure approved for marketing. No "סוכן" in the
 garage version: the recorder fails if the word is on screen at any of its checkpoints, and
@@ -149,7 +159,7 @@ for; it is mixed under the video and faded out. The video length never changes.
 video gives up the top 14% and bottom 20% to the apps' own buttons), never overlap a
 picture, and still fit when 25% longer. A wording change that breaks this fails `npm test`.
 
-**Adding a beat** (for example claim management): record it in `footage.ts` with marks at its
+**Adding a beat** (the claim-handling one is the model): record it in `footage.ts` with marks at its
 start and end, and add a `screen(...)` call with its takes and its line of copy in `edit.ts`.
 
 ## Known app quirk
