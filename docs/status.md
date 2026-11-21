@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-19**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-21**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -598,3 +598,7 @@ cd web ; npm run dev
 - **The page now narrates the product as three chapters** — `#collect` / `#documents` / `#manage`, jumped to from a sticky header nav — instead of the old flat pains → "how it works" steps → form-proof → CTA sequence. Each chapter keeps its own copy block plus a mock; the filled-form proof shot (`web/public/landing/form-sample.png`) now lives under the "documents" chapter.
 - **Closes the insurer-strip gap flagged since PR #40/#44.** `INSURERS` lists all **15** templated insurers (matching `formfill/templates/`), not just the original 9 — כלל and שומרה (among others) now appear.
 - Copy-only changes: the agent entry link reads "כניסה למערכת" (was "כניסת סוכנים"); the meta title/description and footer line now describe the full collect-to-payment lifecycle rather than just the WhatsApp chase.
+
+### Done since last sync (2026-11-21, PR #140 — cockpit tab survives the send tab disappearing)
+- **No migration.** `web/src/app/dashboard/[id]/CockpitTabs.tsx`, new `web/src/lib/cockpit/tabs.ts` (+ test).
+- **Fixes a blank pane:** `CockpitTabs` only validated `initialTab` against the visible tabs once, at mount. If the agent had the שליחה למבטחת tab open and the claim then got marked sent client-side (removing that tab), the open tab stayed `"send"` with no matching pane. The new pure `shownTab(tabs, chosen)` (`lib/cockpit/tabs.ts`) is re-derived every render and falls back to `overview` once the chosen tab stops existing.
