@@ -13,7 +13,7 @@
 Other scripts: `npm run build` · `npm run lint` · `npm run test` (Vitest, `web/vitest.config.ts`) · `npm run brand` · `npm run brand:wordmark` · `npm run test:brand` (brand assets — see §5) · `npm run check:rls` / `npm run test:rls` (`web/scripts/check-rls.mjs` — fails on any `public` table missing `enable row level security`; see [architecture.md](architecture.md#5-security--privacy-from-day-one)). `npm run test:scripts` (migration-guard unit tests — see §5).
 Deploy topology (prod vs. preview Supabase projects) and the promote-to-prod checklist live in [status.md](status.md).
 
-**Training videos** live outside `web/`, in the standalone [`training/`](../training/README.md) package: Playwright drives a locally running app on seeded demo data in the dev database and renders captioned `.mp4` walkthroughs (`cd training && npm run record -- 01-accident-notice`). It has its own `package.json` and tests (`npm test`); nothing in `web/` depends on it.
+**Training videos** live outside `web/`, in the standalone [`training/`](../training/README.md) package: Playwright drives a locally running app on seeded demo data in the dev database and renders captioned `.mp4` walkthroughs (`cd training && npm run record -- 01-accident-notice`). It has its own `package.json` and tests (`npm test`); nothing in `web/` depends on it. The same package renders the **promo video** for prospects (`npm run promo:capture`, then `npm run promo:render`; see "Promo video" in its README).
 
 ---
 
