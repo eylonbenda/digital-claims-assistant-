@@ -37,11 +37,14 @@ Principle: the Next.js layer is the only boundary facing the client. No client t
 ```
 agencies        (id, name, created_at)
 agents          (id, agency_id → agencies, auth_user_id, name, email, phone,
-                 claims_mailbox, inbound_alias)  -- email relay (migration 013):
-                 -- claims_mailbox = the business's existing claims address (cc'd on
+                 claims_mailbox, inbound_alias, kind)
+                 -- claims_mailbox/inbound_alias — email relay (migration 013):
+                 --   claims_mailbox = the business's existing claims address (cc'd on
                  --   every send, sent a copy of every inbound message); inbound_alias
                  --   is the local part of alias@in.<domain>, a write credential set by
                  --   us (never the agent) — null alias means the feature is off
+                 -- kind: garage | agent | null=unknown (migration 014) — a garage's own
+                 --   name pre-fills garage.name on the accident-notice form
 claims          (id, agent_id → agents, client_name, client_phone,
                  claim_type, status, urgent bool, access_token (unique),
                  policy_insurer, at_fault_insurer,

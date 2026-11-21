@@ -13,7 +13,7 @@ import {
   type SummaryJson,
 } from "@/lib/claims/analysis-cache";
 import { toClaimData, type State } from "@/lib/collection/claim-state";
-import { effectiveClaimData, type ClaimSummaryJson } from "@/lib/formfill/effective";
+import { effectiveClaimData, garageNameDefault, type ClaimSummaryJson } from "@/lib/formfill/effective";
 import { templates } from "@/lib/formfill";
 import ClaimDocuments, { type DocView } from "./ClaimDocuments";
 import FormGenerator, { type InsurerOption } from "./FormGenerator";
@@ -31,6 +31,7 @@ import NotesPanel, { type NoteView } from "./NotesPanel";
 import TasksPanel, { type TaskView } from "./TasksPanel";
 import { deriveCockpit, type TabKey } from "@/lib/cockpit/derive";
 import { effectiveHandling } from "@/lib/handling/effective";
+import { deleteBlocker } from "@/lib/claims/delete";
 import { loadQueue } from "@/lib/outbound/load";
 import { isRepairPriced, FORM_KIND } from "@/lib/forms/kinds";
 import { buildSubmission, type SubmissionSource } from "@/lib/submission/build";
@@ -66,6 +67,8 @@ const INSURER_LABEL: Record<string, string> = {
   shomera: "שומרה",
   haklai: "חקלאי",
   kash: "קש",
+  wesure: "ווישור",
+  anchor: "אנקור",
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -157,7 +160,7 @@ export default async function ClaimDetailPage({
 
   // RLS-scoped reads (claim_belongs_to_me): the claimant-uploaded docs, the
   // auto-generated accident-notice form(s), and the agent's notes.
-  const [{ data: rows }, { data: formRows }, { data: noteRows }, { data: taskRows }, { data: tpRows }, { data: agentRow }] = await Promise.all([
+  const [{ data: rows }, { data: formRows }, { data: noteRows }, { data: taskRows }, { data: tpRows }, { data: agentRow }, { data: agentKindRow }] = await Promise.all([
     supabase
       .from("claim_documents")
       .select("id, type, storage_path, mime, uploaded_at")
@@ -180,6 +183,9 @@ export default async function ClaimDetailPage({
       .order("due_at", { ascending: true }),
     supabase.from("third_parties").select("plate, insurer").eq("claim_id", id),
     supabase.from("agents").select("id, name").eq("auth_user_id", user.id).maybeSingle(),
+    // Separate from agentRow on purpose: before migration 014 is applied `kind` doesn't
+    // exist and this read errors — that must only disable the garage-name default.
+    supabase.from("agents").select("name, kind").eq("auth_user_id", user.id).maybeSingle(),
   ]);
   const notes: NoteView[] = noteRows ?? [];
   const tasks: TaskView[] = taskRows ?? [];
@@ -215,7 +221,9 @@ export default async function ClaimDetailPage({
   // Canonical data that fills the accident-notice form: the agent's edits if any,
   // else the client's submission. Drives the editable form-field panel.
   const formSummary = claim.summary_json as ClaimSummaryJson;
-  const formClaimData = effectiveClaimData(formSummary);
+  const formClaimData = effectiveClaimData(formSummary, {
+    garageName: garageNameDefault(agentKindRow),
+  });
   const formDataEdited = !!formSummary?.form_data;
   // Who a demand form (third_party_report) is addressed to — same rule as generation.
   const demandAddresseeKey = demandAddressee(
@@ -355,6 +363,15 @@ export default async function ClaimDetailPage({
   const emailFeature = await loadEmailFeature(supabase, user.id);
   const claimEmails = emailFeature ? ((await loadClaimEmails(supabase, claim.id)) ?? []) : [];
 
+  // "מחיקת תיק" is offered only while nothing went out; the route re-checks.
+  const canDelete =
+    deleteBlocker({
+      handlingStatus: ((claim as Record<string, unknown>).handling_status as string | null) ?? null,
+      checklistState,
+      claimType: claim.claim_type,
+      hasOutboundEmail: claimEmails.some((e) => e.direction === "outbound"),
+    }) === null;
+
   const chaseLabels = chaseableLabels(blockingMissing);
   // The one due reminder for this claim (outbound queue); null falls back to the ad-hoc chase.
   const claimOpen = claim.status !== "closed" && claim.status !== "abandoned";
@@ -417,6 +434,8 @@ export default async function ClaimDetailPage({
             chaseLabels,
             pendingSend,
             claimOpen,
+            canDelete,
+            fileCount: (rows ?? []).length + (formRows ?? []).length,
             uploadUrl: `${origin}/c/${claim.access_token}`,
             handlingEffective,
             handlingDays: handlingChangedAt

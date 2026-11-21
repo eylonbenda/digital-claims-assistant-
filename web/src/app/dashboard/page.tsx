@@ -121,13 +121,16 @@ export default async function DashboardPage() {
   const lastUploadBy = new Map<string, string>();
   for (const d of docRows ?? []) if (!lastUploadBy.has(d.claim_id)) lastUploadBy.set(d.claim_id, d.uploaded_at);
 
-  // Newest insurer email filed on each claim (RLS-scoped). Best-effort: before
-  // migration 013 the table is missing, and the list then simply has no email activity.
+  // Newest inbound email filed on each claim, from anyone but the business itself
+  // (RLS-scoped). Not narrowed to kind "insurer": that label depends on a domain list
+  // that is never complete, and a message filed on a claim by subject id or thread is
+  // a reply worth surfacing whoever sent it. Best-effort: before migration 013 the
+  // table is missing, and the list then simply has no email activity.
   const { data: emailRows } = await supabase
     .from("claim_emails")
     .select("claim_id, received_at")
     .eq("direction", "inbound")
-    .eq("kind", "insurer")
+    .neq("kind", "business")
     .not("claim_id", "is", null)
     .order("received_at", { ascending: false });
   const lastEmailBy = new Map<string, string>();
