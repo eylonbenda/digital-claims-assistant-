@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>OpenTik — דף לסוכן ביטוח</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&family=Secular+One&display=swap" rel="stylesheet">
+<style>
+  /* ===== פרטי קשר — לעדכן לפני הדפסה ===== */
+  :root {
+    --ink: #182438;
+    --muted: #556176;
+    --blue: #1d4ed8;      /* כחול המותג = כחול הדיו בטופס הממולא */
+    --paper: #ffffff;
+    --shop: #eef1f6;      /* אפור רצפת מוסך */
+    --plate: #ffcc00;     /* צהוב לוחית רישוי — פעם אחת בלבד, על המחיר */
+  }
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--paper); }
+  body {
+    font-family: "Heebo", Arial, sans-serif;
+    color: var(--ink);
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .page {
+    width: 210mm; height: 297mm; overflow: hidden;
+    padding: 13mm 14mm 12mm;
+    display: flex; flex-direction: column;
+  }
+
+  /* ---- ראש ---- */
+  .top { display: flex; align-items: center; justify-content: space-between; }
+  .top img { height: 8.5mm; }
+  .top span { font-size: 10.5pt; color: var(--muted); font-weight: 500; }
+
+  /* ---- hero: הכותרת מימין, הטופס הממולא משמאל ---- */
+  .hero {
+    display: grid; grid-template-columns: 1fr 76mm; gap: 8mm;
+    margin-top: 8mm; align-items: start;
+  }
+  h1 {
+    font-family: "Secular One", "Heebo", sans-serif;
+    font-weight: 400; font-size: 25pt; line-height: 1.15; letter-spacing: -0.2pt;
+  }
+  h1 .line { display: block; }
+  h1 .result { color: var(--blue); }
+  .lede { margin-top: 5mm; font-size: 12pt; line-height: 1.55; color: var(--muted); max-width: 88mm; }
+
+  .sheet {
+    position: relative; margin-top: 2mm;
+    transform: rotate(-2.2deg);
+    border: 0.3mm solid #c9d0db; background: #fff;
+    box-shadow: 1.2mm 1.6mm 0 var(--shop);
+    height: 60mm; overflow: hidden;
+  }
+  .sheet img { width: 100%; display: block; }
+  .sheet::after { /* קצה התחתון נמוג — "יש עוד בטופס" */
+    content: ""; position: absolute; inset: auto 0 0 0; height: 14mm;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), #fff);
+  }
+  .sheet-cap {
+    margin-top: 4mm; font-size: 9pt; color: var(--muted); text-align: center;
+  }
+
+  /* ---- איך זה עובד: רצף אמיתי, לכן ממוספר ---- */
+  .flow {
+    margin-top: 7mm; padding: 5mm 0;
+    border-top: 0.4mm solid var(--ink); border-bottom: 0.4mm solid var(--ink);
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm;
+  }
+  .step { display: grid; grid-template-columns: 9mm 1fr; gap: 3mm; align-items: start; }
+  .num {
+    font-family: "Secular One", sans-serif; font-size: 22pt; line-height: 1;
+    color: var(--blue);
+  }
+  .step h3 { font-size: 12pt; font-weight: 800; line-height: 1.3; }
+  .step p { margin-top: 1.4mm; font-size: 10pt; line-height: 1.5; color: var(--muted); }
+
+  /* ---- מה זה נותן לבעלים ---- */
+  .gain { margin-top: 7mm; display: grid; grid-template-columns: 1fr 58mm; gap: 9mm; }
+  h2 { font-size: 15pt; font-weight: 800; margin-bottom: 3.5mm; }
+  .gain ul { list-style: none; display: grid; gap: 3.6mm; }
+  .gain li { font-size: 11pt; line-height: 1.5; padding-right: 5mm; position: relative; }
+  .gain li::before {
+    content: ""; position: absolute; right: 0; top: 2.3mm;
+    width: 2mm; height: 2mm; background: var(--blue);
+  }
+  .gain li b { font-weight: 800; }
+
+  .pilot {
+    margin-top: 5mm; padding: 3mm 4mm; font-size: 10pt; line-height: 1.5;
+    border-right: 1mm solid var(--blue); background: #eaf0fe;
+  }
+  .pilot b { font-weight: 800; color: var(--blue); }
+
+  .proof { background: var(--shop); padding: 5mm 5mm 4mm; align-self: start; }
+  .proof div + div { margin-top: 3.5mm; padding-top: 3.5mm; border-top: 0.3mm solid #d3d9e3; }
+  .proof strong { display: block; font-family: "Secular One", sans-serif; font-weight: 400; font-size: 20pt; line-height: 1.05; }
+  .proof span { font-size: 9.5pt; color: var(--muted); line-height: 1.4; }
+
+  /* ---- המבטחות ---- */
+  .insurers { margin-top: 6mm; margin-bottom: 6mm; }
+  .insurers p { display: flex; flex-wrap: wrap; row-gap: 1mm; font-size: 9.6pt; line-height: 1.6; color: var(--ink); }
+  .insurers p span { white-space: nowrap; }
+  .insurers p span::after { content: "/"; color: #98a2b3; margin: 0 1.6mm; }
+  .insurers p span:last-child::after { content: none; }
+
+  /* ---- תחתית: מחיר + קשר ---- */
+  .bottom {
+    margin-top: auto; display: grid; grid-template-columns: 70mm 1fr; gap: 0;
+    border: 0.4mm solid var(--ink);
+  }
+  .price { background: var(--plate); padding: 5mm 6mm; border-left: 0.4mm solid var(--ink); }
+  .price .amount { font-family: "Secular One", sans-serif; font-size: 30pt; line-height: 1; }
+  .price .amount small { font-family: "Heebo", sans-serif; font-size: 11pt; font-weight: 700; }
+  .price .nis { font-family: "Heebo", sans-serif; font-weight: 800; font-size: 24pt; }
+  .price p { margin-top: 2mm; font-size: 10pt; font-weight: 500; line-height: 1.45; }
+
+  .contact { padding: 5mm 6mm; display: flex; flex-direction: column; justify-content: center; }
+  .contact h3 { font-size: 13pt; font-weight: 800; }
+  .contact p { margin-top: 1.5mm; font-size: 11pt; line-height: 1.6; }
+  .contact .phone { font-size: 17pt; font-weight: 800; direction: ltr; unicode-bidi: isolate; display: inline-block; }
+  .contact .site { margin-right: 3mm; }
+  .contact .site { color: var(--blue); font-weight: 700; direction: ltr; unicode-bidi: isolate; display: inline-block; }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <header class="top">
+    <img src="../../web/public/brand/wordmark.svg" alt="OpenTik">
+    <span>עוזר התביעות הדיגיטלי לסוכני ביטוח</span>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>
+        <span class="line">המבוטח שלך עבר תאונה.</span>
+        <span class="line">הוא ממלא הכל מהטלפון.</span>
+        <span class="line result">אתה מקבל תיק מוכן.</span>
+      </h1>
+      <p class="lede">שולחים למבוטח קישור בוואטסאפ. הוא מצלם, מעלה ועונה לבד, והסוכנות מקבלת טופס "הודעה על תאונה" ממולא למבטחת שלו, ותיק מסודר עם כל המסמכים.</p>
+    </div>
+    <div>
+      <div class="sheet"><img src="../../web/public/landing/form-sample.png" alt="טופס הודעה על תאונה שמולא אוטומטית"></div>
+      <p class="sheet-cap">כך נראה הטופס שהמערכת ממלאת (פרטים לדוגמה)</p>
+    </div>
+  </section>
+
+  <section class="flow" aria-label="איך זה עובד">
+    <div class="step">
+      <span class="num">1</span>
+      <div>
+        <h3>שולחים קישור</h3>
+        <p>לחיצה אחת מהמערכת, והקישור יוצא למבוטח בוואטסאפ.</p>
+      </div>
+    </div>
+    <div class="step">
+      <span class="num">2</span>
+      <div>
+        <h3>המבוטח ממלא לבד</h3>
+        <p>פרטי האירוע, תמונות, רישיון נהיגה, רישיון רכב ופרטי הצד השני.</p>
+      </div>
+    </div>
+    <div class="step">
+      <span class="num">3</span>
+      <div>
+        <h3>התיק מוכן</h3>
+        <p>טופס ההודעה של המבטחת שלו, ממולא, וכל המסמכים במקום אחד.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="gain">
+    <div>
+      <h2>מה זה נותן לסוכנות</h2>
+      <ul>
+        <li><b>המבוטח נשאר אצלך.</b> תאונה היא הרגע שבו הלקוח בודק את הסוכן. טיפול מהיר וחלק הוא הסיבה שהוא מחדש את הפוליסה ולא עובר לישיר.</li>
+        <li><b>התביעה לא נתקעת.</b> כל המסמכים נאספים מההתחלה, ופחות סבבים מול המבטחת.</li>
+        <li><b>אותה פקידה, יותר תיקים.</b> בלי לרדוף אחרי רישיונות ותמונות בטלפון, ובלי למלא טפסים ביד.</li>
+      </ul>
+      <p class="pilot"><b>גם צד ג':</b> פרטי הצד השני, הביטוח שלו ותיאור האירוע נאספים כבר בפנייה הראשונה, ולא אחרי שבועיים של טלפונים.</p>
+    </div>
+    <aside class="proof" aria-label="מהשטח">
+      <div><strong><bdi dir="ltr">50+</bdi></strong><span>תביעות אמיתיות כבר עברו במערכת</span></div>
+      <div><strong>לבד</strong><span>המבוטחים ממלאים בעצמם, בלי שיחת טלפון</span></div>
+      <div><strong>15</strong><span>מבטחות, טופס מוכן לכל אחת</span></div>
+    </aside>
+  </section>
+
+  <section class="insurers">
+    <h2>המבטחות שהטופס שלהן כבר ממולא</h2>
+    <p>
+      <span>הראל</span><span>מגדל</span><span>כלל</span><span>הפניקס</span><span>מנורה</span><span>איילון</span><span>הכשרה</span><span>שלמה</span><span>ליברה</span><span>AIG</span><span>שומרה</span><span>חקלאי</span><span>קש</span><span>ווישור</span><span>אנקור</span>
+    </p>
+  </section>
+
+  <footer class="bottom">
+    <div class="price">
+      <div class="amount">399 <span class="nis">₪</span> <small>לחודש</small></div>
+      <p>שבועיים ראשונים בחינם.<br>בלי התחייבות.</p>
+    </div>
+    <div class="contact">
+      <h3>רוצה לראות את זה על התביעה הבאה שלך?</h3>
+      <p><span class="phone">[טלפון]</span></p>
+      <p>[שם] <span class="site">opentik.co.il</span></p>
+    </div>
+  </footer>
+
+</main>
+</body>
+</html>
