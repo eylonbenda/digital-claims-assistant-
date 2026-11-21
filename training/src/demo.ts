@@ -24,7 +24,7 @@ export const demoClaim = {
   policyInsurerKey: "harel",
   policyNumber: "40123567",
   insuranceTypeLabel: "מקיף",
-  vehicle: { plate: "12345678", manufacturer: "טויוטה", model: "קורולה", year: "2021", color: "לבן" },
+  vehicle: { plate: "12345678", manufacturer: "אקספנג", model: "G6", year: "2024", color: "לבן" },
   thirdParty: { name: "אבי לוי", phone: "0500000002", plate: "87654321", insurerLabel: "מגדל" },
   accident: {
     date: "2026-11-15",

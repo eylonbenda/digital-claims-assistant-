@@ -62,9 +62,9 @@ export const registration = photo(DESK, 1.8, `<div style="width:980px;height:640
     <div><div style="font-size:16px;color:#374151">משרד התחבורה והבטיחות בדרכים · אגף הרישוי</div><b style="font-size:38px;color:#111827">רישיון רכב</b></div>
     <div dir="ltr" style="border:3px solid #111827;border-radius:8px;padding:6px 18px;font-size:34px;font-weight:800;letter-spacing:2px;background:#fde047">${plate}</div></div>
   ${grid("repeat(4,1fr)", cell("תוצר", d.vehicle.manufacturer) + cell("כינוי מסחרי", d.vehicle.model) + cell("שנת ייצור", d.vehicle.year) + cell("צבע", d.vehicle.color)
-    + cell("סוג הרכב", "פרטי נוסעים") + cell("סוג דלק", "בנזין") + cell("נפח מנוע", "1798") + cell("מספר מושבים", "5"))}
+    + cell("סוג הרכב", "פרטי נוסעים") + cell("סוג דלק", "חשמל") + cell("נפח מנוע", "—") + cell("מספר מושבים", "5"))}
   ${grid("2fr 1fr 1fr", cell("שם בעל הרכב", name) + cell("מספר זהות", d.insured.id_number) + cell("בעלות", "פרטית"))}
-  ${grid("2fr 1fr 1fr", cell("מען", address) + cell("תוקף הרישיון עד", "30.04.2027") + cell("מועד עלייה לכביש", "05/2021"))}
-  ${grid("2fr 1fr 1fr", cell("מספר שילדה", "DEMO0000000000018") + cell("רמת גימור", "GLI") + cell("אגרה", "שולמה"))}
+  ${grid("2fr 1fr 1fr", cell("מען", address) + cell("תוקף הרישיון עד", "30.04.2027") + cell("מועד עלייה לכביש", "05/2024"))}
+  ${grid("2fr 1fr 1fr", cell("מספר שילדה", "DEMO0000000000018") + cell("רמת גימור", "LONG RANGE") + cell("אגרה", "שולמה"))}
   <div style="margin-top:16px;font-size:13px;color:#4b5563">רישיון זה תקף רק בצירוף אישור תשלום. יש להחזיקו ברכב בעת הנסיעה.</div>
 </div>`);
