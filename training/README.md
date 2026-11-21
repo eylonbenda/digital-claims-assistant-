@@ -125,13 +125,22 @@ The chat thread in the opening is a drawing of life *without* the product and is
 deliberately not our interface. Insurer names are listed only while that insurer's template
 exists in `web/src/lib/formfill/templates/`.
 
-**The claim-handling beat** (full cuts only). After the form is filmed, the recorder confirms
-the track and marks the claim as sent through the app's own routes (`classify`, `submission`),
-off camera, then films the office changing the status with the insurer in the real dialog.
-Each shape films the same step, so before each one the demo claim is put back to "sent, six
-days ago" straight in the dev database (scoped to the demo agent's claim). Inbound mail is not
-shown: it is filed on a claim but does not change the status by itself, and the video must
-not suggest otherwise.
+**Working the claim** (full cuts only). Two beats follow the form, filmed on the real screens:
+
+- *Completing and sending.* On the phone the client defers the vehicle registration ("אשלח
+  בהמשך"), so the office sees what is missing and sends the reminder. Off camera the document
+  is then added through the app's own route, and the office is filmed opening the send
+  screen and marking the claim as sent. Where the task list can be shown without the word
+  the garage cut avoids, it is filmed too; otherwise that take is skipped and the edit
+  leaves it out.
+- *Following.* Six days later (the date is moved in the dev database, off camera) the office
+  changes the status with the insurer in the real dialog.
+
+Each output shape films the same steps, so before each one the demo claim is put back to
+its unsent state straight in the dev database (scoped to the demo agent's claim). The demo
+account does not send mail from the app, so the send is the "I sent it from my mailbox"
+confirmation. Inbound mail is not shown: it is filed on a claim but does not change the
+status by itself, and the video must not suggest otherwise.
 
 **Narration.** The script is `promo/narration.md`, one line per beat. No voice is mixed yet.
 

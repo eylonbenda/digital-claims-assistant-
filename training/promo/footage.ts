@@ -28,15 +28,15 @@ const even = (n: number) => 2 * Math.floor((n * SCALE) / 2); // H.264 needs even
 const px = (v: { width: number; height: number }) => ({ width: even(v.width), height: even(v.height) });
 const TIMEOUT_MS = 15_000;
 
-export type Footage = { audience: Audience; recordedAt: string; phone: Recording; desk: Record<Shape, { office: Recording; form: Recording; handling: Recording }> };
+export type Footage = { audience: Audience; recordedAt: string; phone: Recording; desk: Record<Shape, { office: Recording; form: Recording; chase: Recording; handling: Recording }> };
 export const footageDir = (audience: Audience, outDir = OUT_DIR) => path.join(outDir, "promo", "footage", audience);
 
 const nextButton = (page: Page) => page.getByRole("button", { name: new RegExp("^(בוא נתחיל|המשך|שליחה לטיפול)$") });
 
 // The garage's video must not say "agent", and no video may show the demo login.
-async function assertClean(page: Page, audience: Audience, env: Env, where: string): Promise<void> {
+async function unwanted(page: Page, audience: Audience, env: Env): Promise<string[]> {
   const words = [env.demoEmail.split("@")[0], ...(audience === "garage" ? ["סוכן"] : [])];
-  const seen = (await page.evaluate(`(() => {
+  return (await page.evaluate(`(() => {
     const words = ${JSON.stringify(words)}, hit = [];
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n; (n = walker.nextNode());) for (const w of words) {
@@ -47,6 +47,9 @@ async function assertClean(page: Page, audience: Audience, env: Env, where: stri
     }
     return hit;
   })()`)) as string[];
+}
+async function assertClean(page: Page, audience: Audience, env: Env, where: string): Promise<void> {
+  const seen = await unwanted(page, audience, env);
   if (seen.length) throw new Error(`"${seen[0]}" is on screen at ${where}`);
 }
 
@@ -205,10 +208,11 @@ export async function recordFootage(env: Env, audience: Audience): Promise<Foota
     await inputs.nth(0).setInputFiles([fx.licenceBack]); await uploaded(2);
     await phone.waitForTimeout(400);
     await show(1);
-    await inputs.nth(1).setInputFiles([fx.registration]); await uploaded(3);
-    await phone.waitForTimeout(400);
+    // The registration is not at hand: the client promises it for later, as clients do.
+    await tap.click(phone.getByText(new RegExp("אין לי את רישיון ה?רכב")));
+    await phone.waitForTimeout(500);
     await show(2);
-    await inputs.nth(2).setInputFiles(fx.cars.slice(0, 3)); await uploaded(6);
+    await inputs.nth(2).setInputFiles(fx.cars.slice(0, 3)); await uploaded(5);
     await phone.waitForTimeout(900);
     rec.mark("docs-end");
     await nextButton(phone).click();
@@ -321,37 +325,131 @@ export async function recordFootage(env: Env, audience: Audience): Promise<Foota
     deskRecs[shape] = { office: officeRec, form: formRec } as Footage["desk"][Shape];
     }
 
-    // Off camera: the office confirms the track and marks the claim as sent, through the
-    // app's own routes, the way the send screen does.
-    at = "send to the insurer";
+    // Off camera: the office confirms the track, through the app's own route.
+    at = "confirm the track";
     const claimId = claimUrl.split("/").pop() ?? "";
-    const sender = await open("desk");
-    const call = async (method: "patch" | "post", route: string, data: unknown) => {
-      const res = await sender.ctx.request[method](`${env.baseUrl}/api/claims/${claimId}/${route}`, { data });
-      if (!res.ok()) throw new Error(`${route} answered ${res.status()}: ${(await res.text()).slice(0, 120)}`);
-    };
-    await call("patch", "classify", { claim_type: "own_policy" });
-    await call("post", "submission", { recipient: "claims@example.com", subject: "הודעה על תאונה" });
-    await sender.ctx.close();
     const db = createClient(env.supabaseUrl, env.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const ok = (r: { error: { message: string } | null }, what: string) => { if (r.error) throw new Error(`${what} failed: ${r.error.message}`); };
+    const asOffice = await open("desk");
+    const api = `${env.baseUrl}/api/claims/${claimId}`;
+    const answered = async (res: { ok(): boolean; status(): number; text(): Promise<string> }, what: string) => {
+      if (!res.ok()) throw new Error(`${what} answered ${res.status()}: ${(await res.text()).slice(0, 120)}`);
+    };
+    await answered(await asOffice.ctx.request.patch(`${api}/classify`, { data: { claim_type: "own_policy" } }), "classify");
 
-    // ── Following the claim with the insurer ──
+    // ── A document is missing: the office reminds the client ──
     for (const shape of SHAPES) {
-    at = `handling (${shape})`;
-    // Each shape films the same step, so the demo claim is put back to "sent, six days ago".
-    const back = await db.from("claims")
-      .update({ handling_status: "sent", handling_status_changed_at: new Date(Date.now() - 6 * 86_400_000).toISOString() })
-      .eq("id", claimId).eq("agent_id", agentId).select("id");
-    if (back.error || back.data?.length !== 1) throw new Error(`resetting the demo claim failed: ${back.error?.message ?? "no row"}`);
+    at = `missing document (${shape})`;
+    ok(await db.from("outbound_events").delete().eq("claim_id", claimId), "clearing earlier reminders"); // each shape films the first one
+    const office = await open("desk", shape);
+    const desk = office.page, stage = await attachStage(desk, "desktop");
+    // The reminder opens WhatsApp in a new tab; the recording stays in the app.
+    await office.ctx.route(new RegExp("wa\\.me|whatsapp\\.com"), (r) => r.abort());
+    office.ctx.on("page", (p) => { if (p !== desk) p.close().catch(() => undefined); });
+    await desk.goto(claimUrl);
+    const remind = desk.getByRole("button", { name: new RegExp("שלח תזכורת ללקוח") }).first();
+    await remind.waitFor();
+    await desk.getByText(new RegExp("מחכים ל")).first().waitFor();
+    await desk.waitForTimeout(700);
+    await assertClean(desk, audience, env, "the claim with a missing document");
+    const rec = await startRecording(desk, path.join(dir, `chase-${shape}.mp4`), px(DESK[shape]));
+    await desk.waitForTimeout(500);
+    rec.mark("missing");
+    await stage.highlight(desk.getByText(new RegExp("מחכים ל")).first(), 1700);
+    await stage.click(remind);
+    await desk.waitForTimeout(1300);
+    await assertClean(desk, audience, env, "the claim after the reminder");
+    rec.mark("missing-end");
+    deskRecs[shape].chase = await rec.stop();
+    await office.ctx.close();
+    }
+
+    // Off camera: the document arrives and is added to the claim.
+    at = "the missing document arrives";
+    await answered(await asOffice.ctx.request.post(`${api}/documents`, { multipart: {
+      type: "vehicle_reg", file: { name: "registration.png", mimeType: "image/png", buffer: fs.readFileSync(fx.registration) },
+    } }), "adding the document");
+    await asOffice.ctx.close();
+    // What the claim looks like before it is sent, to put it back for each shape.
+    const before = await db.from("claims").select("status, checklist_state").eq("id", claimId).eq("agent_id", agentId).single();
+    ok(before, "reading the demo claim");
+    const tasksBefore = await db.from("tasks").select("id, status, completed_at").eq("claim_id", claimId);
+    ok(tasksBefore, "reading the demo claim's tasks");
+    const kept = (tasksBefore.data ?? []) as { id: string; status: string; completed_at: string | null }[];
+
+    // ── The file is complete: send it to the insurer, then follow it ──
+    for (const shape of SHAPES) {
+    at = `send and follow (${shape})`;
+    ok(await db.from("claims").update({ ...before.data, handling_status: null, handling_status_changed_at: null })
+      .eq("id", claimId).eq("agent_id", agentId), "putting the demo claim back");
+    const now = await db.from("tasks").select("id").eq("claim_id", claimId);
+    ok(now, "listing tasks");
+    const extra = ((now.data ?? []) as { id: string }[]).map((t) => t.id).filter((id) => !kept.some((k) => k.id === id));
+    if (extra.length) ok(await db.from("tasks").delete().in("id", extra), "removing later tasks");
+    for (const t of kept) ok(await db.from("tasks").update({ status: t.status, completed_at: t.completed_at }).eq("id", t.id), "restoring a task");
+
     const office = await open("desk", shape);
     const desk = office.page, stage = await attachStage(desk, "desktop");
     await desk.goto(claimUrl);
-    const sent = desk.getByText("נשלחה למבטחת").first(), update = desk.getByRole("button", { name: "עדכון סטטוס" }).first();
-    await update.waitFor();
+    await desk.getByText("להכין שליחה למבטחת").first().waitFor();
+    const openSend = desk.getByRole("button", { name: new RegExp("^פתח") }).first();
+    await openSend.waitFor();
     await desk.waitForTimeout(700);
-    await assertClean(desk, audience, env, "the sent claim");
+    await assertClean(desk, audience, env, "the complete claim");
+    // The task list is filmed only where it can be shown without the word the garage cut avoids.
+    const task = desk.getByText("פתיחת תביעה מול מבטח הלקוח").first();
+    let taskY = -1;
+    if (await task.count()) {
+      taskY = Number(await task.evaluate((el) => Math.max(0, Math.round(el.getBoundingClientRect().top + scrollY - innerHeight * 0.55))));
+      await desk.evaluate(`window.scrollTo(0, ${taskY})`);
+      await desk.waitForTimeout(250);
+      if ((await unwanted(desk, audience, env)).length) taskY = -1;
+      await desk.evaluate("window.scrollTo(0, 0)");
+      await desk.waitForTimeout(400);
+    }
     const rec4 = await startRecording(desk, path.join(dir, `handling-${shape}.mp4`), px(DESK[shape]));
     await desk.waitForTimeout(500);
+    if (taskY >= 0) {
+      rec4.mark("tasks");
+      if (taskY > 20) await glide(desk, 0, taskY, 900);
+      await stage.highlight(task.locator("xpath=ancestor::li[1]"), 1600);
+      rec4.mark("tasks-end");
+      await desk.evaluate("window.scrollTo(0, 0)");
+      await desk.waitForTimeout(500);
+    }
+    rec4.mark("send");
+    await stage.highlight(desk.getByText("להכין שליחה למבטחת").first(), 1100);
+    await stage.click(openSend);
+    await desk.getByLabel("נמען").fill("claims@example.com");
+    await desk.waitForTimeout(1100);
+    const confirm = desk.getByRole("button", { name: "סומן כנשלח", exact: true });
+    const sendTop = Number(await desk.evaluate("scrollY"));
+    const sendEnd = Number(await confirm.evaluate((el) => Math.round(el.getBoundingClientRect().top + scrollY - innerHeight * 0.7)));
+    if (sendEnd > sendTop) await glide(desk, sendTop, sendEnd, 2400);
+    await desk.waitForTimeout(400);
+    await assertClean(desk, audience, env, "the send screen");
+    await stage.click(confirm);
+    await desk.waitForTimeout(500);
+    await stage.click(desk.getByRole("button", { name: "כן — סמן כנשלח" }));
+    const sent = desk.getByText("נשלחה למבטחת").first(), update = desk.getByRole("button", { name: "עדכון סטטוס" }).first();
+    await sent.waitFor();
+    // The send tab is gone once the claim is sent, and the app leaves the page body empty
+    // until a tab is picked, so the office goes back to the overview.
+    await desk.getByRole("tab", { name: new RegExp("סקירה") }).click();
+    await desk.waitForTimeout(150);
+    await desk.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' })");
+    await desk.waitForTimeout(1000);
+    await stage.highlight(sent, 1400);
+    await assertClean(desk, audience, env, "the sent claim");
+    rec4.mark("send-end");
+
+    // Off camera (cut from the edit): six days pass with no answer.
+    ok(await db.from("claims").update({ handling_status_changed_at: new Date(Date.now() - 6 * 86_400_000).toISOString() })
+      .eq("id", claimId).eq("agent_id", agentId), "ageing the sent claim");
+    await desk.goto(claimUrl);
+    await update.waitFor();
+    await desk.getByText(new RegExp("6 ימים")).first().waitFor();
+    await desk.waitForTimeout(700);
     rec4.mark("status");
     await stage.highlight(sent, 1500);
     await stage.click(update);
@@ -398,7 +496,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
       console.log(`recording ${audience}`);
       const f = await recordFootage(env, audience);
       console.log(`  · phone ${f.phone.seconds.toFixed(1)}s`);
-      for (const sh of SHAPES) console.log(`  · ${sh}: office ${f.desk[sh].office.seconds.toFixed(1)}s, form ${f.desk[sh].form.seconds.toFixed(1)}s, handling ${f.desk[sh].handling.seconds.toFixed(1)}s`);
+      for (const sh of SHAPES) console.log(`  · ${sh}: office ${f.desk[sh].office.seconds.toFixed(1)}s, form ${f.desk[sh].form.seconds.toFixed(1)}s, chase ${f.desk[sh].chase.seconds.toFixed(1)}s, handling ${f.desk[sh].handling.seconds.toFixed(1)}s`);
     }
   })().catch((e) => { console.error(String(e instanceof Error ? e.message : e)); process.exit(1); });
 }

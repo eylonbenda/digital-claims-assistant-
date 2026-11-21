@@ -151,8 +151,8 @@ export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR): P
     await screen("client", short
       ? [{ rec: f.phone, from: "docs", to: "docs-end", speed: 3 }]
       : [
-        { rec: f.phone, from: "questions", to: "questions-end", speed: 1.5, pad: 0.4 },
-        { rec: f.phone, from: "docs", to: "docs-end", speed: 1.5 },
+        { rec: f.phone, from: "questions", to: "questions-end", speed: 1.8, pad: 0.4 },
+        { rec: f.phone, from: "docs", to: "docs-end", speed: 1.7 },
         { rec: f.phone, from: "send", to: "send-end", speed: 1.25 },
       ], p.phone, phonePlate(p, copy.client), false);
     await screen("case", short
@@ -165,12 +165,18 @@ export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR): P
       ? [{ rec: desk.form, from: "pdf", to: "pdf-end", speed: 3 }]
       : [
         { rec: desk.form, from: "tab", to: "tab-end", speed: 1.25 },
-        { rec: desk.form, from: "pdf", to: "pdf-end", speed: 1.3 },
+        { rec: desk.form, from: "pdf", to: "pdf-end", speed: 1.6 },
       ], p.desk, deskCaption(p, copy.form), pill);
     // What happens after the form goes out. The short cut has no room for it.
     if (!short) {
-      if (!desk.handling) throw new Error(`the footage for ${audience} has no claim-handling recording — run promo:footage again`);
-      await screen("handling", [{ rec: desk.handling, from: "status", to: "status-end", speed: 1.2 }], p.desk, deskCaption(p, copy.handling), pill);
+      if (!desk.handling || !desk.chase) throw new Error(`the footage for ${audience} has no claim-handling recording — run promo:footage again`);
+      await screen("work", [
+        { rec: desk.chase, from: "missing", to: "missing-end", speed: 1.2 },
+        // The task list is filmed only where the garage cut can show it.
+        ...(desk.handling.marks.tasks === undefined ? [] : [{ rec: desk.handling, from: "tasks", to: "tasks-end", speed: 1.2 }]),
+        { rec: desk.handling, from: "send", to: "send-end", speed: 1.7 },
+      ], p.desk, deskCaption(p, copy.work), pill);
+      await screen("handling", [{ rec: desk.handling, from: "status", to: "status-end", speed: 1.4 }], p.desk, deskCaption(p, copy.handling), pill);
     }
     clips.push({ file: w("closing.mp4"), seconds: await drawn(browser, ratio, w("closing.mp4"), short ? pick("endCard") : pick("outcome", "endCard"), props) });
 
