@@ -77,7 +77,10 @@ export const TASK_RULES: TaskRule[] = [
     title: "פתיחת תביעה מול מבטח הלקוח",
     dueDays: DUE_OFFSETS.open_claim_with_insurer,
     track: "own_policy",
-    spawnOn: (e) => e.type === "track_confirmed",
+    // Condition-triggered, like submit_to_tp_insurer: it opens on whatever event
+    // clears the last submission blocker. Opening it at track confirm left a task
+    // the handler could not do yet going overdue (pilot ruling 2026-11-23).
+    spawnOn: (_e, ctx) => !ctx.blockingMissing(),
     completeWhen: (ctx) => ctx.milestoneDone("submitted_to_insurer"),
   },
   {
@@ -170,7 +173,8 @@ export const TASK_RULES: TaskRule[] = [
   },
   {
     key: "follow_up_repair",
-    title: "מעקב סיום תיקון",
+    // Closes on payment — the track has no "repair finished" milestone to follow.
+    title: "מעקב סיום תיקון ותשלום",
     dueDays: DUE_OFFSETS.follow_up_repair,
     track: "third_party_settlement",
     spawnOn: (e) =>

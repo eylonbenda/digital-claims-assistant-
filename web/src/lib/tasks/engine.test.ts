@@ -52,8 +52,16 @@ function run(over: {
 }
 
 describe("spawning", () => {
-  it("track_confirmed on own_policy spawns open_claim_with_insurer due +2d", () => {
-    const r = run({ event: { type: "track_confirmed" } });
+  it("own_policy: open_claim_with_insurer waits until nothing blocks the submission", () => {
+    const early = run({ event: { type: "track_confirmed" } });
+    expect(early.spawn.some((s) => s.key === "open_claim_with_insurer")).toBe(false);
+    // …and opens on whatever event clears the last blocker, not only on track confirm.
+    const late = run({ docs: ["drivers_license", "vehicle_reg"], hasForm: true, event: { type: "doc_uploaded", docType: "vehicle_reg" } });
+    expect(late.spawn.some((s) => s.key === "open_claim_with_insurer")).toBe(true);
+  });
+
+  it("own_policy ready at track confirm spawns open_claim_with_insurer due +2d", () => {
+    const r = run({ docs: ["drivers_license", "vehicle_reg"], hasForm: true, event: { type: "track_confirmed" } });
     const t = r.spawn.find((s) => s.key === "open_claim_with_insurer");
     expect(t).toBeDefined();
     expect(t!.track).toBe("own_policy");
@@ -144,6 +152,7 @@ describe("spawning", () => {
 describe("idempotency", () => {
   it("does not spawn when an open task with the same key exists", () => {
     const r = run({
+      docs: ["drivers_license", "vehicle_reg"], hasForm: true,
       event: { type: "track_confirmed" },
       openTasks: [task({ key: "open_claim_with_insurer" })],
     });
@@ -152,7 +161,7 @@ describe("idempotency", () => {
 
   it("re-spawns after the previous task was done, if the condition still fails (spec §10)", () => {
     // openTasks excludes done tasks — a freed key spawns again on replay
-    const r = run({ event: { type: "track_confirmed" }, openTasks: [] });
+    const r = run({ docs: ["drivers_license", "vehicle_reg"], hasForm: true, event: { type: "track_confirmed" }, openTasks: [] });
     expect(r.spawn.some((s) => s.key === "open_claim_with_insurer")).toBe(true);
   });
 
