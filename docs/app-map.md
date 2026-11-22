@@ -78,7 +78,7 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | `/api/claims/[id]/documents/[docId]` | DELETE · PATCH | agent deletes a document, or re-files it under a different type — hidden on closed claims |
 | `/api/claims/[id]/classify` | PATCH | agent confirms the track |
 | `/api/claims/[id]/checklist` | PATCH | tick a milestone |
-| `/api/claims/[id]/tasks` · `/tasks/[taskId]` | POST · PATCH | ad-hoc agent tasks (`source='manual'`) |
+| `/api/claims/[id]/tasks` · `/tasks/[taskId]` | POST · PATCH | ad-hoc agent tasks (`source='manual'`); PATCH also blocks/unblocks or postpones (`due_at`) an engine (`source='template'`) task — refuses `status:'done'` on one (400) |
 | `/api/claims/[id]/notes` | POST | append to the agent scratchpad |
 | `/api/claims/[id]/form-data` | PATCH | agent edits the canonical form fields |
 | `/api/claims/[id]/form/[insurer]` | GET | on-demand fill for one insurer |
