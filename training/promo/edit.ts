@@ -1,6 +1,7 @@
 // The live-footage cut: the drawn opening and closing, and between them the real app,
 // recorded live by `promo:footage` — the phone beside its line of copy, the office with the
 // line as a caption, the way the training video shows it.
+import { config } from "dotenv";
 import { chromium, type Browser } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,6 +13,7 @@ import { BRAND, CANVAS, INK, box, esc, layoutFor, type BeatProps } from "./compo
 import { insurersWithTemplate, resolveCopy } from "./copy.ts";
 import { BODY_FONT, HEADLINE_FONT, fontFaceCss } from "./fonts.ts";
 import { footageDir, type Footage, type Shape } from "./footage.ts";
+import { cues, loadVoice, roomFor, soundtrack, stretch, type Part, type VoiceId } from "./narration.ts";
 import { selectOutputs } from "./render.ts";
 import { encodeFrames, renderFrames } from "./renderer.ts";
 import { ffmpeg, type Recording } from "./screencast.ts";
@@ -19,17 +21,33 @@ import { SIZE, type Ratio } from "./timeline.ts";
 
 const JOIN = 0.45;  // seconds two neighbours share
 const INNER = 0.3;  // the same, between two takes of one screen
+const SLOWEST = 0.8; // footage slowed past this looks wrong; beyond it the last picture is held
 const MAX_BYTES = 16 * 1024 * 1024; // above this WhatsApp recompresses, or refuses, the file
 const TEMPLATES_DIR = path.join(TRAINING_ROOT, "..", "web", "src", "lib", "formfill", "templates");
 
-// A stretch of a recording, between two of its marks, played `speed` times faster.
-type Take = { rec: Recording; from: string; to: string; speed: number; pad?: number };
+// A stretch of a recording, between two of its marks, played `speed` times faster, its
+// last picture then held for `hold` seconds.
+export type Take = { rec: Recording; from: string; to: string; speed: number; pad?: number; hold?: number };
 const at = (rec: Recording, mark: string) => {
   const t = rec.marks[mark];
   if (t === undefined) throw new Error(`the recording has no "${mark}" mark — run promo:footage again`);
   return t;
 };
-const lengthOf = (t: Take) => (at(t.rec, t.to) + (t.pad ?? 0) - at(t.rec, t.from)) / t.speed;
+const span = (t: Take) => at(t.rec, t.to) + (t.pad ?? 0) - at(t.rec, t.from); // seconds of recording
+const lengthOf = (t: Take) => span(t) / t.speed + (t.hold ?? 0);
+const screenSeconds = (takes: Take[]) => takes.reduce((s, t) => s + lengthOf(t), 0) - INNER * (takes.length - 1);
+
+// Makes a screen run at least `need` seconds (the room its narration line takes): every
+// take is slowed by the same share, and what slowing cannot give is a hold at the end.
+export function fit(takes: Take[], need: number): Take[] {
+  const joins = INNER * (takes.length - 1), have = screenSeconds(takes);
+  if (have >= need) return takes;
+  const k = (need + joins) / (have + joins);
+  const slowed = takes.map((t) => ({ ...t, speed: Math.max(t.speed / k, Math.min(t.speed, SLOWEST)) }));
+  const short = need - screenSeconds(slowed);
+  if (short > 1e-6) slowed[slowed.length - 1].hold = (slowed[slowed.length - 1].hold ?? 0) + short;
+  return slowed;
+}
 
 // Joins clips with soft dissolves. Returns the filter and how long the result runs.
 export function dissolve(labels: string[], seconds: number[], fade: number, out: string): { filter: string; seconds: number } {
@@ -45,7 +63,7 @@ export function dissolve(labels: string[], seconds: number[], fade: number, out:
   return { filter: parts.join(";"), seconds: total };
 }
 
-const takeInputs = (takes: Take[]) => takes.flatMap((t) => ["-ss", at(t.rec, t.from).toFixed(3), "-t", (lengthOf(t) * t.speed).toFixed(3), "-i", t.rec.file]);
+const takeInputs = (takes: Take[]) => takes.flatMap((t) => ["-ss", at(t.rec, t.from).toFixed(3), "-t", span(t).toFixed(3), "-i", t.rec.file]);
 const ENCODE = ["-c:v", "libx264", "-preset", "medium", "-crf", "14", "-pix_fmt", "yuv420p", "-r", "30"];
 
 type Box = { x: number; y: number; width: number; height: number };
@@ -118,7 +136,13 @@ async function drawn(browser: Browser, ratio: Ratio, file: string, beats: Beat[]
   return comp.durationMs / 1000;
 }
 
-export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR): Promise<{ file: string; seconds: number; bytes: number }> {
+// `voiceDir` holds one sound file per narration line (see narration.ts); with none the
+// film is silent. `music` is a track mixed under it. Only the full cut is narrated.
+export type EditOpts = { voiceDir?: string; music?: string };
+export const voiceDirFor = (audience: string) => path.join(TRAINING_ROOT, "fixtures", "promo", "voice", audience);
+
+export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR, opts: EditOpts = {}): Promise<{ file: string; seconds: number; bytes: number; narrated: boolean }> {
+  if (opts.music && !fs.existsSync(opts.music)) throw new Error(`PROMO_MUSIC points at a file that does not exist: ${opts.music}`);
   const { audience, ratio, cut } = o;
   const dir = footageDir(audience, outDir), manifest = path.join(dir, "footage.json");
   if (!fs.existsSync(manifest)) throw new Error(`no footage for ${audience} — run "npm run promo:footage -- ${audience}"`);
@@ -130,38 +154,47 @@ export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR): P
   fs.mkdirSync(work, { recursive: true });
   const copy = resolveCopy(audience), w = (name: string) => path.join(work, name);
   const props = { audience, cut, ratio, copy, captures: {} as BeatProps["captures"], insurers: insurersWithTemplate(TEMPLATES_DIR) };
-  const beats = beatsFor(cut), pick = (...ids: string[]) => beats.filter((b) => ids.includes(b.id));
+  const beats = beatsFor(cut);
   const short = cut === "short", pill = p.pill !== null;
-  const clips: { file: string; seconds: number }[] = [];
+  const voice = short ? null : await loadVoice(opts.voiceDir ?? voiceDirFor(audience));
+  const said = (id: VoiceId) => voice?.[id].seconds ?? 0;
+  const clips: { file: string; seconds: number; parts: Part[] }[] = [];
 
   // A screen recording placed in the frame, with a drawn layer over it.
-  const screen = async (name: string, takes: Take[], where: Box, overDoc: string, fadeOver: boolean) => {
+  const screen = async (id: VoiceId, name: string, raw: Take[], where: Box, overDoc: string, fadeOver: boolean) => {
+    const takes = voice ? fit(raw, roomFor(said(id))) : raw;
     await still(browser, p, w(`${name}.png`), overDoc);
     const j = dissolve(takes.map((_, i) => `t${i}`), takes.map(lengthOf), INNER, "shot");
     await ffmpeg([...takeInputs(takes), "-loop", "1", "-i", w(`${name}.png`), "-filter_complex", [
-      ...takes.map((t, i) => `[${i}:v]setpts=(PTS-STARTPTS)/${t.speed},fps=30,scale=${where.width}:${where.height}:flags=lanczos,setsar=1[t${i}]`),
+      ...takes.map((t, i) => `[${i}:v]setpts=(PTS-STARTPTS)/${t.speed},fps=30,scale=${where.width}:${where.height}:flags=lanczos,setsar=1${t.hold ? `,tpad=stop_mode=clone:stop_duration=${t.hold.toFixed(3)}` : ""}[t${i}]`),
       j.filter, `color=c=${CANVAS}:s=${p.W}x${p.H}:r=30[bg]`, `[bg][shot]overlay=${where.x}:${where.y}:shortest=1[b]`,
       `[${takes.length}:v]format=rgba${fadeOver ? ",fade=t=in:st=0.4:d=0.4:alpha=1" : ""}[over]`, "[b][over]overlay=0:0:shortest=1[v]",
     ].join(";"), "-map", "[v]", "-t", j.seconds.toFixed(3), ...ENCODE, w(`${name}.mp4`)]);
-    clips.push({ file: w(`${name}.mp4`), seconds: j.seconds });
+    clips.push({ file: w(`${name}.mp4`), seconds: j.seconds, parts: [{ id, seconds: j.seconds, voice: said(id) }] });
+  };
+  // Drawn beats as one clip, each beat long enough for its line.
+  const drawnClip = async (name: string, ids: VoiceId[]) => {
+    const fitted = stretch(beats.filter((b) => (ids as string[]).includes(b.id)), voice ? Object.fromEntries(ids.map((id) => [id, said(id)])) : {});
+    const seconds = await drawn(browser, ratio, w(`${name}.mp4`), fitted, props);
+    clips.push({ file: w(`${name}.mp4`), seconds, parts: fitted.map((b) => ({ id: b.id as VoiceId, seconds: b.durationMs / 1000, voice: said(b.id as VoiceId) })) });
   };
 
   try {
-    clips.push({ file: w("opening.mp4"), seconds: await drawn(browser, ratio, w("opening.mp4"), short ? pick("chase") : pick("chase", "turn"), props) });
-    await screen("client", short
+    await drawnClip("opening", short ? ["chase"] : ["chase", "turn"]);
+    await screen("client", "client", short
       ? [{ rec: f.phone, from: "docs", to: "docs-end", speed: 3 }]
       : [
         { rec: f.phone, from: "questions", to: "questions-end", speed: 1.8, pad: 0.4 },
         { rec: f.phone, from: "docs", to: "docs-end", speed: 1.7 },
         { rec: f.phone, from: "send", to: "send-end", speed: 1.25 },
       ], p.phone, phonePlate(p, copy.client), false);
-    await screen("case", short
+    await screen("caseFile", "case", short
       ? [{ rec: desk.office, from: "files-ready", to: "files-end", speed: 1.5 }]
       : [
         { rec: desk.office, from: "arrived", to: "files", speed: 1.25, pad: 1.0 }, // ends on the click: the pictures load off camera
         { rec: desk.office, from: "files-ready", to: "files-end", speed: 1 },
       ], p.desk, deskCaption(p, copy.caseFile), pill);
-    await screen("form", short
+    await screen("form", "form", short
       ? [{ rec: desk.form, from: "pdf", to: "pdf-end", speed: 3 }]
       : [
         { rec: desk.form, from: "tab", to: "tab-end", speed: 1.25 },
@@ -170,35 +203,42 @@ export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR): P
     // What happens after the form goes out. The short cut has no room for it.
     if (!short) {
       if (!desk.handling || !desk.chase) throw new Error(`the footage for ${audience} has no claim-handling recording — run promo:footage again`);
-      await screen("work", [
+      await screen("work", "work", [
         { rec: desk.chase, from: "missing", to: "missing-end", speed: 1.2 },
         // The task list is filmed only where the garage cut can show it.
         ...(desk.handling.marks.tasks === undefined ? [] : [{ rec: desk.handling, from: "tasks", to: "tasks-end", speed: 1.2 }]),
         { rec: desk.handling, from: "send", to: "send-end", speed: 1.7 },
       ], p.desk, deskCaption(p, copy.work), pill);
-      await screen("handling", [{ rec: desk.handling, from: "status", to: "status-end", speed: 1.4 }], p.desk, deskCaption(p, copy.handling), pill);
+      await screen("handling", "handling", [{ rec: desk.handling, from: "status", to: "status-end", speed: 1.4 }], p.desk, deskCaption(p, copy.handling), pill);
     }
-    clips.push({ file: w("closing.mp4"), seconds: await drawn(browser, ratio, w("closing.mp4"), short ? pick("endCard") : pick("outcome", "endCard"), props) });
+    await drawnClip("closing", short ? ["endCard"] : ["outcome", "endCard"]);
 
-    const whole = dissolve(clips.map((_, i) => `c${i}`), clips.map((c) => c.seconds), short ? 0.35 : JOIN, "j");
+    const join = short ? 0.35 : JOIN;
+    const whole = dissolve(clips.map((_, i) => `c${i}`), clips.map((c) => c.seconds), join, "j");
+    // The sound: the narrator's lines at their cues, music under them, or silence.
+    const lines = voice ? cues(clips, join) : [], n = clips.length, sound = lines.length > 0 || !!opts.music;
+    const audioIn = sound
+      ? [...lines.flatMap((c) => ["-i", voice![c.id].file]), ...(opts.music ? ["-stream_loop", "-1", "-i", opts.music] : [])]
+      : ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]; // some players dislike video-only files
+    const audioFilter = sound ? [soundtrack(lines, n, { music: opts.music ? { input: n + lines.length, seconds: whole.seconds } : undefined })] : [];
     const file = path.join(outDir, "promo", o.file), partial = path.join(outDir, "promo", `.partial-${o.file}`);
     fs.rmSync(file, { force: true });
     try {
       await ffmpeg([
-        ...clips.flatMap((c) => ["-i", c.file]), "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+        ...clips.flatMap((c) => ["-i", c.file]), ...audioIn,
         "-filter_complex", [
           ...clips.map((_, i) => `[${i}:v]fps=30,format=yuv420p,setsar=1,settb=AVTB[c${i}]`), whole.filter,
-          `[j]scale=${p.W}:${p.H}:out_color_matrix=bt709:out_range=tv,format=yuv420p[v]`,
+          `[j]scale=${p.W}:${p.H}:out_color_matrix=bt709:out_range=tv,format=yuv420p[v]`, ...audioFilter,
         ].join(";"),
-        "-map", "[v]", "-map", `${clips.length}:a`,
+        "-map", "[v]", "-map", sound ? "[a]" : `${n}:a`,
         "-c:v", "libx264", "-preset", "slow", "-crf", "19", "-pix_fmt", "yuv420p", "-r", "30",
         "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv",
-        "-c:a", "aac", "-b:a", "32k", "-t", whole.seconds.toFixed(3), "-movflags", "+faststart", "-f", "mp4", partial,
+        "-c:a", "aac", "-b:a", sound ? "128k" : "32k", "-t", whole.seconds.toFixed(3), "-movflags", "+faststart", "-f", "mp4", partial,
       ]);
       const bytes = fs.statSync(partial).size;
       if (bytes > MAX_BYTES) throw new Error(`${o.file} is over 16 MB (${(bytes / 1024 / 1024).toFixed(1)} MB)`);
       fs.renameSync(partial, file); // only a finished, checked file gets the real name
-      return { file, seconds: whole.seconds, bytes };
+      return { file, seconds: whole.seconds, bytes, narrated: lines.length > 0 };
     } finally {
       fs.rmSync(partial, { force: true });
     }
@@ -209,12 +249,14 @@ export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR): P
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   (async () => {
+    config({ path: path.join(TRAINING_ROOT, ".env.local"), quiet: true });
+    const music = process.env.PROMO_MUSIC?.trim() || undefined;
     const outputs = selectOutputs(process.argv.slice(2)); // --audience / --ratio / --cut
     const browser = await chromium.launch();
     try {
       for (const o of outputs) {
-        const r = await editLive(browser, o);
-        console.log(`${o.file.padEnd(22)} ${r.seconds.toFixed(1)}s  ${(r.bytes / 1024 / 1024).toFixed(1)} MB`);
+        const r = await editLive(browser, o, OUT_DIR, { music });
+        console.log(`${o.file.padEnd(22)} ${r.seconds.toFixed(1)}s  ${(r.bytes / 1024 / 1024).toFixed(1)} MB  ${r.narrated ? "narrated" : music ? "music only" : "silent"}`);
       }
     } finally {
       await browser.close();
