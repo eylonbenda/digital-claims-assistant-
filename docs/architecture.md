@@ -146,7 +146,8 @@ outbound_events (id, claim_id → claims, task_id → tasks (on delete set null)
 claim_emails    (id, agent_id → agents, claim_id → claims (nullable),
                  direction, kind, provider_id (unique), message_id, in_reply_to,
                  from_addr, to_addrs[], cc_addrs[], subject, text_body,
-                 match_method, attachments_dropped, delivery_failed, received_at)
+                 match_method, attachments_dropped, delivery_failed, received_at,
+                 handled_at, handled_as)
                  -- email sent to insurers and what comes back (migration 013, email
                  --   relay phase 1). direction: outbound | inbound · kind: business |
                  --   insurer | other · claim_id null = not yet filed on a claim ·
@@ -154,6 +155,9 @@ claim_emails    (id, agent_id → agents, claim_id → claims (nullable),
                  --   provider's id — the idempotency key for a repeat webhook delivery ·
                  --   delivery_failed is set by a provider bounce/failed webhook event on
                  --   the matching outbound row, which also opens a manual task
+                 --   handled_at/handled_as (migration 015): what the clerk decided
+                 --   about an inbound email — a handling status it produced, or
+                 --   'none'. Pre-migration-015 inbound rows backfilled to 'none'.
                  -- RLS: agent reads own via agent_id, writes service-role only
 claim_email_attachments (id, email_id → claim_emails, filename, mime,
                  size_bytes, storage_path)
