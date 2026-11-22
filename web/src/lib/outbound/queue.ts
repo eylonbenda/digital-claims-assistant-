@@ -82,7 +82,7 @@ export function buildQueue(input: {
     }
 
     const ctx = {
-      firstName: c.client_name?.trim().split(/s+/)[0] ?? null,
+      firstName: c.client_name?.trim().split(/\s+/)[0] ?? null,
       blockingLabels: c.blocking_labels,
       missingDocLabels: c.missing_doc_labels,
       uploadUrl: `${origin}/c/${c.access_token}`,
