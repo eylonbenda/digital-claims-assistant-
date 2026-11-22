@@ -392,6 +392,9 @@ export default async function ClaimDetailPage({
       insurerLabel: claim.policy_insurer ? INSURER_LABEL[claim.policy_insurer] ?? claim.policy_insurer : null,
       docsCount: docs.length,
       handlingEffective,
+      docsRequestNote:
+        (summaryJson as { handling?: { docs_request?: { note?: string } } } | null)?.handling
+          ?.docs_request?.note ?? null,
       // Milestones are excluded: on the settlement track route_approved is a
       // blocking milestone that can only be ticked AFTER the approval request
       // goes out, so counting it would make the prepare action unreachable.

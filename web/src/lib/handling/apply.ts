@@ -101,6 +101,11 @@ export function planHandlingUpdate(input: HandlingInput): { error: string } | Ha
       payload: { from, to, ...(note ? { note } : {}) },
     },
   };
+  // What the insurer asked for must stay in front of the handler until it is answered —
+  // the event log alone is never rendered. Kept until the next request replaces it.
+  if (to === "docs_requested" && note) {
+    plan.summaryPatch = { handling: { docs_request: { note, at: now.toISOString() } } };
+  }
   if (req.lawyer && input.lawyer) {
     const lawyer: Lawyer = { name: input.lawyer.name.trim() };
     if (input.lawyer.phone?.trim()) lawyer.phone = input.lawyer.phone.trim();

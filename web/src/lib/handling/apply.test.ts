@@ -59,6 +59,10 @@ describe("planHandlingUpdate — transitions", () => {
     const ok = planHandlingUpdate({ ...base(), to: "docs_requested", note: "חסר דוח שמאי" });
     if ("error" in ok) throw new Error(ok.error);
     expect(ok.event.payload).toMatchObject({ note: "חסר דוח שמאי" });
+    // …and on the claim itself, so the cockpit can keep showing what was asked.
+    expect(ok.summaryPatch).toEqual({
+      handling: { docs_request: { note: "חסר דוח שמאי", at: expect.any(String) } },
+    });
   });
 
   test("legal without lawyer errors; with lawyer stores it in summary patch", () => {

@@ -134,3 +134,25 @@ describe("badges", () => {
     expect(deriveCockpit(base, NOW).badges.send).toBe(0);
   });
 });
+
+describe("docs requested by the insurer", () => {
+  it("leads the next action with what was asked, before any open task", () => {
+    const { nextAction } = deriveCockpit(
+      {
+        ...base,
+        handlingEffective: "docs_requested",
+        docsRequestNote: "פרטי חשבון בנק",
+        tasks: [{ title: "מעקב אישור / דחייה / השלמות", status: "todo", due_at: null }],
+      },
+      NOW,
+    );
+    expect(nextAction.kind).toBe("update_handling");
+    expect(nextAction.line).toBe("המבטחת ביקשה השלמות: פרטי חשבון בנק");
+  });
+
+  it("falls back to a generic line when the request text was never recorded", () => {
+    const { nextAction } = deriveCockpit({ ...base, handlingEffective: "docs_requested" }, NOW);
+    expect(nextAction.kind).toBe("update_handling");
+    expect(nextAction.line).toContain("המבטחת ביקשה השלמות");
+  });
+});
