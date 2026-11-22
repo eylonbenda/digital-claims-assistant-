@@ -147,3 +147,30 @@ describe("damages section", () => {
     expect(sec(build({}))).toBeUndefined();
   });
 });
+
+describe("third-party insurer row", () => {
+  const tp = (insurer: string | undefined) => ({ driver_name: "אבי", vehicle_plate: "87654321", insurer });
+  const insurerOf = (third_parties: ClaimData["third_parties"], addresseeKey: string | null) =>
+    val(
+      rowsOf(
+        buildDemandData({ data: { third_parties }, sender, addresseeKey, carAtGarageAt: null, now }),
+        COPY.sections.thirdParty,
+      ),
+      COPY.labels.insurer,
+    );
+
+  it("prints the addressee when the single third party's insurer was unknown", () => {
+    expect(insurerOf([tp("לא ידוע")], "migdal")).toBe("מגדל");
+    expect(insurerOf([tp(undefined)], "migdal")).toBe("מגדל");
+  });
+
+  it("keeps a stated insurer, including 'לא מבוטח'", () => {
+    expect(insurerOf([tp("הראל")], "migdal")).toBe("הראל");
+    expect(insurerOf([tp("לא מבוטח")], "migdal")).toBe("לא מבוטח");
+  });
+
+  it("infers nothing with several vehicles or no addressee", () => {
+    expect(insurerOf([tp("לא ידוע"), tp("הראל")], "migdal")).toBe("לא ידוע");
+    expect(insurerOf([tp("לא ידוע")], null)).toBe("לא ידוע");
+  });
+});
