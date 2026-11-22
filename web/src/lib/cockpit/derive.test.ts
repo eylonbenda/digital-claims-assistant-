@@ -170,3 +170,36 @@ describe("docs requested by the insurer", () => {
     expect(nextAction.line).toContain("המבטחת ביקשה השלמות");
   });
 });
+
+describe("lines that must not claim it is the handler's turn", () => {
+  it("before the client submitted: waiting for the client, not for classification", () => {
+    const { nextAction } = deriveCockpit(
+      { ...base, awaitingClient: true, classificationUnconfirmed: true, docsCount: 0 }, NOW,
+    );
+    expect(nextAction).toMatchObject({ kind: "none", line: "ממתינים שהלקוח/ה ימלא/תמלא את הפרטים בקישור" });
+  });
+
+  it("a closed claim has no next action, whatever else is outstanding", () => {
+    const { nextAction } = deriveCockpit({ ...base, claimClosed: true, missingFieldCount: 3 }, NOW);
+    expect(nextAction).toMatchObject({ kind: "none", line: "התיק סגור — אין פעולות פתוחות" });
+  });
+
+  it("sent with a follow-up not yet due: waiting for the insurer", () => {
+    const tasks = [{
+      title: "מעקב אישור / דחייה / השלמות", status: "todo",
+      due_at: "2026-08-26T10:00:00+03:00", key: "follow_up_tp_insurer",
+    }];
+    const { nextAction } = deriveCockpit({ ...base, tasks, handlingEffective: "sent" }, NOW);
+    expect(nextAction.kind).toBe("none");
+    expect(nextAction.line).toContain("ממתינים לתשובת המבטחת");
+  });
+
+  it("the same follow-up once due is the handler's turn again", () => {
+    const tasks = [{
+      title: "מעקב אישור / דחייה / השלמות", status: "todo",
+      due_at: "2026-08-10T10:00:00+03:00", key: "follow_up_tp_insurer",
+    }];
+    const { nextAction } = deriveCockpit({ ...base, tasks, handlingEffective: "sent" }, NOW);
+    expect(nextAction.kind).toBe("task");
+  });
+});
