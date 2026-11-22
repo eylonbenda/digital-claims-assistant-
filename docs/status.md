@@ -606,3 +606,7 @@ cd web ; npm run dev
 ### Done since last sync (2026-11-22, PR #142 — client chase ignores agent-sourced base docs)
 - **No migration.** `web/src/lib/tasks/engine.ts` + `engine.test.ts`.
 - **Fixes `chase_missing_docs` staying open after the client supplied everything:** `mandatoryBaseDocsMissing()` keyed off every mandatory `base`-section doc, including `demand_form` (the מכתב דרישה only the agent drafts). It now also requires `clientSuppliable !== false` — the same filter `chaseableLabels()` already applies (`architecture.md`) — so an agent-sourced base doc can no longer spawn or keep open a task meant to chase the client.
+
+### Done since last sync (2026-11-22, PR #143 — overview money waiting on insurers is net of partial payments)
+- **No migration.** `web/src/lib/overview/compute.ts` (+ test), `web/src/app/dashboard/overview/page.tsx`.
+- **Fixes an overstatement:** the "מחכים למבטחת" tiles, aging bands and oldest-waiting list summed the raw `demand_amount` for `sent`/`awaiting_payment` claims, ignoring any `partial_paid` amount already received. New `owedAmount()` nets `demand_amount - paid_amount` (floored at 0, `null` while no demand is entered yet); the oldest-waiting list now shows each claim's `owed_amount` instead of its full `demand_amount`.

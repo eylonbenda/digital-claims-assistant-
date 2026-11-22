@@ -199,7 +199,7 @@ export default async function OverviewPage() {
                     </Link>
                     <span className="shrink-0 text-xs text-zinc-500">
                       {C.days(r.days)}
-                      {money && r.demand_amount !== null && ` · ${formatILS(r.demand_amount)}`}
+                      {money && r.owed_amount !== null && ` · ${formatILS(r.owed_amount)}`}
                     </span>
                   </li>
                 ))}
