@@ -2,6 +2,12 @@
 
 > **Status:** spec / not built (2026-06-28). Builds on the document-upload step (commits `7b21471`,
 > `34446cf`). Implements the "is this actually a driver's licence?" layer.
+>
+> **Related, already built (2026-11-22):** `web/src/lib/ai/classify-document.ts` is a separate, narrower
+> classifier — it detects an *unlabeled* upload's document type so the agent drop zone can auto-file it
+> (`type=auto` on `POST /api/claims/[id]/documents`). It does not check a file against an *expected*
+> type, judge legibility, extract fields, or write any DB column — the validate/extract/cross-check work
+> below remains unbuilt.
 
 ## Problem
 
