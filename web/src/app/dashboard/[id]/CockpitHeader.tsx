@@ -31,6 +31,9 @@ export type CockpitHeaderProps = {
   handlingEffective: HandlingStatus | null;
   handlingDays: number | null;
   claimClosed: boolean;
+  // Recorded amounts, shown in the status dialog beside the payment field.
+  demandAmount?: number | null;
+  paidAmount?: number | null;
   // A claim opened by mistake can be removed until it is sent (lib/claims/delete.ts).
   canDelete: boolean;
   fileCount: number;
@@ -176,6 +179,8 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
         <HandlingDialog
           claimId={p.claimId}
           effective={p.handlingEffective}
+          demandAmount={p.demandAmount}
+          paidSoFar={p.paidAmount}
           onClose={() => setHandlingOpen(false)}
         />
       )}

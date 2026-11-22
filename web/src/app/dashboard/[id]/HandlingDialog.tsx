@@ -9,6 +9,7 @@ import {
 } from "@/lib/handling/transitions";
 import { HANDLING_STATUSES } from "@/lib/handling/types";
 import { HANDLING_LABEL } from "@/lib/handling/copy";
+import { formatILS } from "@/lib/handling/amounts";
 
 const CLOSE_OPTIONS: { value: string; label: string }[] = [
   { value: "paid_closed", label: "שולמה ונסגרה" },
@@ -25,13 +26,16 @@ const EVIDENCE_LABEL: Record<string, string> = {
 type Props = {
   claimId: string;
   effective: HandlingStatus | null;
+  // What is already recorded on the claim, to show beside the payment field.
+  demandAmount?: number | null;
+  paidSoFar?: number | null;
   onClose: () => void;
 };
 
 // Status dialog: pick a legal target, supply its required evidence/inputs,
 // upload-then-transition. A failed PATCH after a successful upload leaves the
 // doc in place — it is real evidence either way.
-export default function HandlingDialog({ claimId, effective, onClose }: Props) {
+export default function HandlingDialog({ claimId, effective, demandAmount, paidSoFar, onClose }: Props) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [target, setTarget] = useState<HandlingStatus | "close" | "revert" | null>(null);
@@ -146,7 +150,14 @@ export default function HandlingDialog({ claimId, effective, onClose }: Props) {
             <button
               key={s}
               type="button"
-              onClick={() => { setTarget(s); setError(null); }}
+              onClick={() => {
+                setTarget(s);
+                setError(null);
+                // "Total paid so far" starts from what was already recorded — the clerk adds
+                // to it rather than retyping. A full payment is never guessed from the demand:
+                // insurers often pay a different sum, and a wrong prefill reads as fact.
+                if (s === "partial_paid" && !paidAmount && paidSoFar) setPaidAmount(String(paidSoFar));
+              }}
               className={`rounded-full px-3 py-1.5 text-sm ring-1 ring-inset ${
                 target === s
                   ? "bg-blue-600 text-white ring-blue-600"
@@ -211,6 +222,13 @@ export default function HandlingDialog({ claimId, effective, onClose }: Props) {
               placeholder="0"
               className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
             />
+            {(demandAmount != null || paidSoFar != null) && (
+              <p className="mt-1 text-xs text-zinc-500">
+                {demandAmount != null && `סכום הדרישה: ${formatILS(demandAmount)}`}
+                {demandAmount != null && paidSoFar != null && " · "}
+                {paidSoFar != null && `שולם עד כה: ${formatILS(paidSoFar)}`}
+              </p>
+            )}
           </div>
         )}
 
