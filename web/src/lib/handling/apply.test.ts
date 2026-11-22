@@ -171,3 +171,47 @@ describe("planHandlingUpdate — revert cleanup", () => {
     expect(r.completeFollowUps).toBeUndefined();
   });
 });
+
+describe("planHandlingUpdate — follow-up task per status", () => {
+  test("a rejection replaces the follow-up with the handler's own decision, due in 7 days", () => {
+    const r = planHandlingUpdate({
+      ...base({ docs: [{ type: "rejection_letter" }] }),
+      to: "rejected",
+    });
+    if ("error" in r) throw new Error(r.error);
+    expect(r.followUp).toEqual({
+      key: "follow_up_tp_insurer",
+      title: "להחליט: ערעור או הליך משפטי",
+      due_at: new Date(NOW.getTime() + 7 * 86_400_000).toISOString(),
+    });
+  });
+
+  test("the key follows the track, so the engine still closes it on payment", () => {
+    const current = { ...base().current, claim_type: "own_policy" as const, checklist_state: { submitted_to_insurer: true } };
+    const r = planHandlingUpdate({ ...base({ current }), to: "docs_requested", note: "חסר דוח" });
+    if ("error" in r) throw new Error(r.error);
+    expect(r.followUp?.key).toBe("follow_up_insurer");
+  });
+
+  test("full payment plans no follow-up (the engine closes the claim)", () => {
+    const r = planHandlingUpdate({ ...base({ docs: [{ type: "payment_notice" }] }), to: "paid" });
+    if ("error" in r) throw new Error(r.error);
+    expect(r.followUp).toBeUndefined();
+  });
+
+  test("the settlement track keeps its own chain — no follow-up swap", () => {
+    const current = {
+      ...base().current, claim_type: "third_party_settlement" as const,
+      checklist_state: { approval_requested: true },
+    };
+    const r = planHandlingUpdate({ ...base({ current }), to: "docs_requested", note: "חסר" });
+    if ("error" in r) throw new Error(r.error);
+    expect(r.followUp).toBeUndefined();
+  });
+
+  test("a manual close asks the route to complete the remaining template tasks", () => {
+    const r = planHandlingUpdate({ ...base(), close: { reason: "other" } });
+    if ("error" in r) throw new Error(r.error);
+    expect(r.completeTemplateTasks).toBe(true);
+  });
+});

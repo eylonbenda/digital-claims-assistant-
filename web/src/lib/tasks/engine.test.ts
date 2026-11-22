@@ -288,3 +288,79 @@ describe("finish_wizard", () => {
     expect(r.complete).not.toContain("id-finish_wizard");
   });
 });
+
+describe("third_party_report — post-repair collection", () => {
+  it("track_confirmed spawns one collection task due +10d and no appraiser chase", () => {
+    const r = run({ claimType: "third_party_report", event: { type: "track_confirmed" } });
+    const t = r.spawn.find((s) => s.key === "collect_private_report_docs");
+    expect(t?.due_at).toBe(new Date(NOW.getTime() + 10 * DAY).toISOString());
+    expect(t?.title).toContain("דוח שמאי");
+  });
+
+  it("ticking car_at_garage no longer spawns chase_appraiser on this track", () => {
+    const r = run({
+      claimType: "third_party_report",
+      openTasks: [task({ key: "collect_private_report_docs" })],
+      event: { type: "milestone_ticked", key: "car_at_garage", done: true },
+    });
+    expect(r.spawn.some((s) => s.key === "chase_appraiser")).toBe(false);
+  });
+
+  it("stays open with only the invoice, closes once the appraiser report lands too", () => {
+    const open = task({ key: "collect_private_report_docs", id: "t-col" });
+    const half = run({
+      claimType: "third_party_report", docs: ["garage_invoice"], openTasks: [open],
+      event: { type: "doc_uploaded", docType: "garage_invoice" },
+    });
+    expect(half.complete).not.toContain("t-col");
+    const full = run({
+      claimType: "third_party_report", docs: ["garage_invoice", "appraiser_report"], openTasks: [open],
+      event: { type: "doc_uploaded", docType: "appraiser_report" },
+    });
+    expect(full.complete).toContain("t-col");
+  });
+
+  it("a claim confirmed before the rule changed picks the task up on its next event", () => {
+    const r = run({
+      claimType: "third_party_report",
+      event: { type: "doc_uploaded", docType: "car_photo" },
+    });
+    expect(r.spawn.some((s) => s.key === "collect_private_report_docs")).toBe(true);
+  });
+});
+
+describe("orphaned and closing tasks", () => {
+  it("closes a template task no rule on the current track owns (track revised / rule retired)", () => {
+    const r = run({
+      claimType: "third_party_report",
+      openTasks: [
+        task({ key: "open_claim_with_insurer", id: "t-own" }),
+        task({ key: "chase_appraiser", id: "t-app" }),
+      ],
+      event: { type: "track_confirmed" },
+    });
+    expect(r.complete).toEqual(expect.arrayContaining(["t-own", "t-app"]));
+  });
+
+  it("never touches a manual task, even one carrying an unknown key", () => {
+    const r = run({
+      claimType: "third_party_report",
+      openTasks: [{ ...task({ key: "open_claim_with_insurer", id: "m-1" }), source: "manual" }],
+      event: { type: "track_confirmed" },
+    });
+    expect(r.complete).not.toContain("m-1");
+  });
+
+  it("full payment closes every remaining template task and spawns nothing", () => {
+    const r = run({
+      claimType: "third_party_report",
+      status: "checklist_active",
+      state: { payment_received: true },
+      openTasks: [task({ key: "chase_missing_docs", id: "t-chase" })],
+      event: { type: "milestone_ticked", key: "payment_received", done: true },
+    });
+    expect(r.statusAdvance).toBe("closed");
+    expect(r.complete).toContain("t-chase");
+    expect(r.spawn).toEqual([]);
+  });
+});
