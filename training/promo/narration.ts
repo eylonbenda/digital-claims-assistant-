@@ -45,12 +45,33 @@ export function audioSeconds(file: string): Promise<number> {
   });
 }
 
-export type Voice = Record<VoiceId, { file: string; seconds: number }>;
+// How loud a sound file is: its integrated loudness, in LUFS.
+export function loudnessOf(file: string): Promise<number> {
+  if (!ffmpegPath) throw new Error("promo: ffmpeg-static has no binary for this platform");
+  return new Promise((resolve, reject) => {
+    const proc = spawn(ffmpegPath as unknown as string, ["-hide_banner", "-nostdin", "-i", file, "-vn", "-af", "loudnorm=print_format=json", "-f", "null", "-"], { stdio: ["ignore", "ignore", "pipe"] });
+    let stderr = "";
+    proc.stderr.on("data", (d) => { stderr += String(d); });
+    proc.on("error", reject);
+    proc.on("close", (code) => {
+      const i = /"input_i"\s*:\s*"(-?[\d.]+)"/.exec(stderr);
+      if (code !== 0 || !i) return reject(new Error(`cannot measure the loudness of ${file} (is it silent?)`));
+      resolve(Number(i[1]));
+    });
+  });
+}
+
+// The gain (dB) that brings a sound to the loudness online video is played at. Every line
+// gets its own, so no line is louder than the next; a limiter then catches the peaks.
+export const TARGET_LUFS = -16;
+export const gainFor = (loudness: number) => Math.round((TARGET_LUFS - loudness) * 100) / 100;
+
+export type Voice = Record<VoiceId, { file: string; seconds: number; gain: number }>;
 export async function loadVoice(dir: string): Promise<Voice | null> {
   const files = voiceFiles(dir);
   if (!files) return null;
   const voice = {} as Voice;
-  for (const id of VOICED) voice[id] = { file: files[id], seconds: await audioSeconds(files[id]) };
+  for (const id of VOICED) voice[id] = { file: files[id], seconds: await audioSeconds(files[id]), gain: gainFor(await loudnessOf(files[id])) };
   return voice;
 }
 
@@ -85,14 +106,16 @@ export function cues(clips: { parts: Part[] }[], join: number): { id: VoiceId; a
 
 // The audio half of the final filter: each line delayed to its cue, music (if any) under
 // them. Lines are inputs `first`, `first + 1`, … in cue order. Ends in [a], padded with
-// silence so the film's own length decides where it stops.
-export function soundtrack(lines: { at: number }[], first: number, opts: { music?: { input: number; seconds: number } }): string {
+// silence so the film's own length decides where it stops. A `gain` (dB) levels a sound
+// before anything else is done to it.
+export function soundtrack(lines: { at: number; gain?: number }[], first: number, opts: { music?: { input: number; seconds: number; gain?: number } }): string {
   const tidy = "aresample=44100,aformat=channel_layouts=stereo";
-  const parts = lines.map((c, i) => `[${first + i}:a]${tidy},adelay=${Math.round(c.at * 1000)}:all=1[n${i}]`);
+  const level = (gain?: number) => (gain === undefined ? "" : `,volume=${gain.toFixed(2)}dB,alimiter=limit=0.84:level=disabled`); // the limiter keeps peaks under -1.5 dB
+  const parts = lines.map((c, i) => `[${first + i}:a]${tidy}${level(c.gain)},adelay=${Math.round(c.at * 1000)}:all=1[n${i}]`);
   const labels = lines.map((_, i) => `[n${i}]`);
   if (opts.music) {
-    const { input, seconds } = opts.music, fade = Math.min(1.5, seconds / 2);
-    parts.push(`[${input}:a]${tidy},volume=${lines.length > 0 ? 0.16 : 1},afade=t=out:st=${(seconds - fade).toFixed(3)}:d=${fade}[m]`);
+    const { input, seconds, gain } = opts.music, fade = Math.min(1.5, seconds / 2);
+    parts.push(`[${input}:a]${tidy}${level(gain)},volume=${lines.length > 0 ? 0.16 : 1},afade=t=out:st=${(seconds - fade).toFixed(3)}:d=${fade}[m]`);
     labels.push("[m]");
   }
   parts.push(labels.length === 1 ? `${labels[0]}apad[a]` : `${labels.join("")}amix=inputs=${labels.length}:normalize=0,apad[a]`);

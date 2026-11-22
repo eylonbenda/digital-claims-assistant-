@@ -13,7 +13,7 @@ import { BRAND, CANVAS, INK, box, esc, layoutFor, type BeatProps } from "./compo
 import { insurersWithTemplate, resolveCopy } from "./copy.ts";
 import { BODY_FONT, HEADLINE_FONT, fontFaceCss } from "./fonts.ts";
 import { footageDir, type Footage, type Shape } from "./footage.ts";
-import { cues, loadVoice, roomFor, soundtrack, stretch, type Part, type VoiceId } from "./narration.ts";
+import { cues, gainFor, loadVoice, loudnessOf, roomFor, soundtrack, stretch, type Part, type VoiceId } from "./narration.ts";
 import { selectOutputs } from "./render.ts";
 import { encodeFrames, renderFrames } from "./renderer.ts";
 import { ffmpeg, type Recording } from "./screencast.ts";
@@ -216,11 +216,12 @@ export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR, op
     const join = short ? 0.35 : JOIN;
     const whole = dissolve(clips.map((_, i) => `c${i}`), clips.map((c) => c.seconds), join, "j");
     // The sound: the narrator's lines at their cues, music under them, or silence.
-    const lines = voice ? cues(clips, join) : [], n = clips.length, sound = lines.length > 0 || !!opts.music;
+    const lines = voice ? cues(clips, join).map((c) => ({ ...c, gain: voice[c.id].gain })) : [], n = clips.length, sound = lines.length > 0 || !!opts.music;
     const audioIn = sound
       ? [...lines.flatMap((c) => ["-i", voice![c.id].file]), ...(opts.music ? ["-stream_loop", "-1", "-i", opts.music] : [])]
       : ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]; // some players dislike video-only files
-    const audioFilter = sound ? [soundtrack(lines, n, { music: opts.music ? { input: n + lines.length, seconds: whole.seconds } : undefined })] : [];
+    const musicGain = opts.music ? gainFor(await loudnessOf(opts.music)) : 0; // voice and music are both levelled first
+    const audioFilter = sound ? [soundtrack(lines, n, { music: opts.music ? { input: n + lines.length, seconds: whole.seconds, gain: musicGain } : undefined })] : [];
     const file = path.join(outDir, "promo", o.file), partial = path.join(outDir, "promo", `.partial-${o.file}`);
     fs.rmSync(file, { force: true });
     try {

@@ -155,6 +155,16 @@ held on its last picture. So a narrated cut is longer than the silent one, by as
 voice needs. A line starts 0.4 s into its part and ends at least 0.6 s before the next. To
 shorten the film, shorten the line or pick a faster voice.
 
+To make the files with a synthetic voice, set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID`
+in `.env.local` (`npm run promo:voice -- --voices` lists the Hebrew voices in the account)
+and run `npm run promo:voice`. It sends each line of the script to ElevenLabs and saves
+the nine files per audience; a line is made again only when its words, the voice or the
+model changed (`--only chase,turn` and `--force` narrow or widen that). A word the voice
+says wrong is respelled with nikud in the `SAY` list in `promo/voice.ts`. Listen to every
+line before publishing: nothing checks pronunciation.
+
+Every line, and the music, is measured and brought to the same loudness (-16 LUFS, peaks
+under -1.5 dB) before mixing, so lines from different takes or sources sit level.
 **What must stay true.** No number, testimonial or customer name that is not real; the copy
 is qualitative until there is a pilot figure approved for marketing. No "סוכן" in the
 garage version: the recorder fails if the word is on screen at any of its checkpoints, and
