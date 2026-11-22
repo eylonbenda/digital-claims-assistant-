@@ -10,6 +10,17 @@ import {
 import { HANDLING_STATUSES } from "@/lib/handling/types";
 import { HANDLING_LABEL } from "@/lib/handling/copy";
 import { formatILS } from "@/lib/handling/amounts";
+import { EMAIL_COPY } from "@/lib/email/copy";
+import { prefillNote } from "@/lib/email/pending";
+
+// The inbound email a status update answers: its attachments are offered as the
+// evidence, its body as the "what was asked" note, and it is marked handled.
+export type DialogEmail = {
+  id: string;
+  body: string | null;
+  attachments: { id: string; filename: string }[];
+};
+const UPLOAD = "upload";
 
 const CLOSE_OPTIONS: { value: string; label: string }[] = [
   { value: "paid_closed", label: "שולמה ונסגרה" },
@@ -29,22 +40,33 @@ type Props = {
   // What is already recorded on the claim, to show beside the payment field.
   demandAmount?: number | null;
   paidSoFar?: number | null;
+  // Opened from an email: the target is already chosen.
+  initialTarget?: HandlingStatus;
+  email?: DialogEmail;
   onClose: () => void;
 };
 
 // Status dialog: pick a legal target, supply its required evidence/inputs,
 // upload-then-transition. A failed PATCH after a successful upload leaves the
 // doc in place — it is real evidence either way.
-export default function HandlingDialog({ claimId, effective, demandAmount, paidSoFar, onClose }: Props) {
+export default function HandlingDialog({
+  claimId, effective, demandAmount, paidSoFar, initialTarget, email, onClose,
+}: Props) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [target, setTarget] = useState<HandlingStatus | "close" | "revert" | null>(null);
-  const [note, setNote] = useState("");
+  const [target, setTarget] = useState<HandlingStatus | "close" | "revert" | null>(initialTarget ?? null);
+  const [note, setNote] = useState(
+    initialTarget === "docs_requested" && email ? prefillNote(email.body) : "",
+  );
+  // Which file backs an evidence-gated status: an attachment of the email, or an upload.
+  const [evidence, setEvidence] = useState<string>(email?.attachments[0]?.id ?? UPLOAD);
   const [closeReason, setCloseReason] = useState("for_information");
   const [lawyerName, setLawyerName] = useState("");
   const [lawyerPhone, setLawyerPhone] = useState("");
   const [lawyerEmail, setLawyerEmail] = useState("");
-  const [paidAmount, setPaidAmount] = useState("");
+  const [paidAmount, setPaidAmount] = useState(
+    initialTarget === "partial_paid" && paidSoFar ? String(paidSoFar) : "",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,7 +78,19 @@ export default function HandlingDialog({ claimId, effective, demandAmount, paidS
     setBusy(true);
     setError(null);
     try {
-      if (target !== "close" && target !== "revert" && req.evidenceDoc) {
+      if (target !== "close" && target !== "revert" && req.evidenceDoc && evidence !== UPLOAD) {
+        const up = await fetch(`/api/claims/${claimId}/documents/from-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ attachment_id: evidence, type: req.evidenceDoc }),
+        });
+        if (!up.ok) {
+          const j = await up.json().catch(() => ({}));
+          setError((j as { error?: string }).error ?? "צירוף הקובץ מהמייל נכשל");
+          setBusy(false);
+          return;
+        }
+      } else if (target !== "close" && target !== "revert" && req.evidenceDoc) {
         const file = fileRef.current?.files?.[0];
         if (!file) {
           setError(`יש לצרף ${EVIDENCE_LABEL[req.evidenceDoc]}`);
@@ -97,6 +131,7 @@ export default function HandlingDialog({ claimId, effective, demandAmount, paidS
           ? { close: { reason: closeReason, ...(note.trim() ? { note: note.trim() } : {}) } }
           : {
               to: target,
+              ...(email ? { email_id: email.id } : {}),
               ...(note.trim() ? { note: note.trim() } : {}),
               ...(req.lawyer
                 ? {
@@ -153,6 +188,7 @@ export default function HandlingDialog({ claimId, effective, demandAmount, paidS
               onClick={() => {
                 setTarget(s);
                 setError(null);
+                if (s === "docs_requested" && email && !note.trim()) setNote(prefillNote(email.body));
                 // "Total paid so far" starts from what was already recorded — the clerk adds
                 // to it rather than retyping. A full payment is never guessed from the demand:
                 // insurers often pay a different sum, and a wrong prefill reads as fact.
@@ -198,13 +234,40 @@ export default function HandlingDialog({ claimId, effective, demandAmount, paidS
             <label className="mb-1 block text-xs font-medium text-zinc-500">
               {EVIDENCE_LABEL[req.evidenceDoc]} (חובה)
             </label>
-            <input
-              key={req.evidenceDoc}
-              ref={fileRef}
-              type="file"
-              accept=".jpg,.jpeg,.png,.heic,.pdf"
-              className="w-full text-sm"
-            />
+            {email && email.attachments.length > 0 && (
+              <div className="mb-2 space-y-1">
+                {email.attachments.map((a) => (
+                  <label key={a.id} className="flex items-center gap-2 text-sm text-zinc-700">
+                    <input
+                      type="radio"
+                      name="evidence"
+                      checked={evidence === a.id}
+                      onChange={() => setEvidence(a.id)}
+                    />
+                    <span className="truncate" dir="auto">📎 {a.filename || "file"}</span>
+                    <span className="shrink-0 text-xs text-zinc-400">{EMAIL_COPY.evidenceFromEmail}</span>
+                  </label>
+                ))}
+                <label className="flex items-center gap-2 text-sm text-zinc-700">
+                  <input
+                    type="radio"
+                    name="evidence"
+                    checked={evidence === UPLOAD}
+                    onChange={() => setEvidence(UPLOAD)}
+                  />
+                  {EMAIL_COPY.evidenceOther}
+                </label>
+              </div>
+            )}
+            {evidence === UPLOAD && (
+              <input
+                key={req.evidenceDoc}
+                ref={fileRef}
+                type="file"
+                accept=".jpg,.jpeg,.png,.heic,.pdf"
+                className="w-full text-sm"
+              />
+            )}
           </div>
         )}
 
@@ -262,7 +325,7 @@ export default function HandlingDialog({ claimId, effective, demandAmount, paidS
               id="handling-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              rows={2}
+              rows={email && target === "docs_requested" ? 5 : 2}
               className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
             />
           </div>

@@ -19,13 +19,16 @@ export type EmailRow = {
   text_body: string | null;
   received_at: string;
   attachments_dropped: boolean;
+  // What the clerk decided about an inbound email (migration 015). Null = not yet.
+  handled_at: string | null;
+  handled_as: string | null;
   attachments: { id: string; filename: string; url: string | null }[];
 };
 
 const SELECT =
   "id, kind, direction, delivery_failed, from_addr, to_addrs, subject, text_body, received_at, attachments_dropped, claim_email_attachments(id, filename, storage_path)";
 
-type Raw = Omit<EmailRow, "attachments"> & {
+type Raw = Omit<EmailRow, "attachments" | "handled_at" | "handled_as"> & {
   claim_email_attachments: { id: string; filename: string; storage_path: string }[] | null;
 };
 
@@ -42,6 +45,8 @@ async function withLinks(rows: Raw[]): Promise<EmailRow[]> {
   }
   return rows.map(({ claim_email_attachments, ...row }) => ({
     ...row,
+    handled_at: null,
+    handled_as: null,
     attachments: (claim_email_attachments ?? []).map((a) => ({
       id: a.id,
       filename: a.filename,
@@ -78,7 +83,25 @@ export async function loadClaimEmails(supabase: SupabaseClient, claimId: string)
     .eq("claim_id", claimId)
     .order("received_at", { ascending: false });
   if (error) return failed("claim emails", error);
-  return withLinks((data ?? []) as unknown as Raw[]);
+  const rows = await withLinks((data ?? []) as unknown as Raw[]);
+
+  // Read apart from the rows on purpose: before migration 015 is applied this
+  // query fails, and the correspondence must still render. Unknown then means
+  // "handled" — no email asks for a status update the database cannot record.
+  const { data: handled, error: handledErr } = await supabase
+    .from("claim_emails")
+    .select("id, handled_at, handled_as")
+    .eq("claim_id", claimId);
+  if (handledErr) {
+    console.error(`email handled-state read failed (${handledErr.message}) — check that migration 015_claim_email_handled.sql has been applied`);
+    return rows.map((r) => ({ ...r, handled_at: r.received_at }));
+  }
+  const by = new Map((handled ?? []).map((h) => [h.id as string, h]));
+  return rows.map((r) => ({
+    ...r,
+    handled_at: (by.get(r.id)?.handled_at as string | null | undefined) ?? null,
+    handled_as: (by.get(r.id)?.handled_as as string | null | undefined) ?? null,
+  }));
 }
 
 export type EmailFeature = {

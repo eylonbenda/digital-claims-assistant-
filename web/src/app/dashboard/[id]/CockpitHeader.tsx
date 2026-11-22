@@ -164,6 +164,18 @@ export default function CockpitHeader(p: CockpitHeaderProps) {
             >
               עדכון סטטוס
             </button>
+          ) : na.kind === "insurer_email" ? (
+            <button
+              type="button"
+              onClick={() => {
+                p.onNavigate("overview");
+                // After the tab switch has rendered the correspondence.
+                setTimeout(() => document.getElementById("correspondence")?.scrollIntoView({ behavior: "smooth" }), 0);
+              }}
+              className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+            >
+              למייל ↓
+            </button>
           ) : na.kind !== "none" ? (
             <button
               type="button" onClick={() => p.onNavigate(na.targetTab)}
