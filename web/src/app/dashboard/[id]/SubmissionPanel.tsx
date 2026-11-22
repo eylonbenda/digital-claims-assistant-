@@ -23,6 +23,9 @@ type Props = {
   // away (re-addressing the demand letter and closing "להשיג פרטי מבטח צד ג'"), instead
   // of only at the final confirm.
   saveInsurerOnChange?: boolean;
+  // Labels of blocking documents still missing from the file (milestones excluded).
+  // Non-empty → the panel warns, and both confirm steps name what is missing.
+  missing?: string[];
   // Sending from the app. Off → the panel is prepare-and-confirm only, as before.
   direct: { enabled: boolean; fromAddress: string | null; ccAddress: string | null };
 };
@@ -68,7 +71,9 @@ function CopyField({ label, value, mono }: { label: string; value: string; mono?
   );
 }
 
-export default function SubmissionPanel({ claimId, submission, insurers, saveInsurerOnChange, direct }: Props) {
+export default function SubmissionPanel({
+  claimId, submission, insurers, saveInsurerOnChange, missing = [], direct,
+}: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [insurerKey, setInsurerKey] = useState(submission.insurerKey ?? "");
@@ -102,6 +107,8 @@ export default function SubmissionPanel({ claimId, submission, insurers, saveIns
     }
     startTransition(() => router.refresh());
   }
+  const incomplete = missing.length > 0;
+  const missingList = missing.join(" · ");
 
   // The amount first: a mistyped number should stop here, before anything is sent
   // or marked sent. Left empty, nothing is recorded and it can be added later.
@@ -177,14 +184,21 @@ export default function SubmissionPanel({ claimId, submission, insurers, saveIns
   // "I sent it myself" — the prepare-and-confirm action.
   const manualConfirm = asking ? (
       <div className="flex items-center gap-3 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2">
-        <span className="text-sm font-medium text-teal-900">{C.confirmAsk}</span>
+        <span className="text-sm font-medium text-teal-900">
+          {C.confirmAsk}
+          {incomplete && (
+            <span className="mt-0.5 block font-normal text-amber-800">
+              {C.missingAsk} ({missingList})
+            </span>
+          )}
+        </span>
         <button
           type="button"
           onClick={confirmSent}
           disabled={busy}
           className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
         >
-          {C.confirmYes}
+          {incomplete ? C.confirmYesAnyway : C.confirmYes}
         </button>
         <button
           type="button"
@@ -211,6 +225,11 @@ export default function SubmissionPanel({ claimId, submission, insurers, saveIns
     <section className="rounded-2xl border border-teal-200 bg-white p-5">
       <h2 className="text-lg font-semibold text-zinc-900">{C.title}</h2>
       <p className="mb-4 mt-1 text-sm text-zinc-500">{C.subtitle}</p>
+      {incomplete && (
+        <p role="alert" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <span className="font-semibold">{C.missingTitle}</span> {missingList}
+        </p>
+      )}
 
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -310,6 +329,11 @@ export default function SubmissionPanel({ claimId, submission, insurers, saveIns
             {confirming ? (
               <div className="space-y-3 rounded-xl border border-teal-200 bg-teal-50 p-4">
                 <h3 className="text-sm font-semibold text-teal-900">{E.confirmTitle}</h3>
+                {incomplete && (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    <span className="font-semibold">{C.missingAsk}</span> {missingList}
+                  </p>
+                )}
                 <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
                   <dt className="text-zinc-500">{E.confirmTo}</dt>
                   <dd className="break-all font-medium text-zinc-900">
@@ -346,7 +370,7 @@ export default function SubmissionPanel({ claimId, submission, insurers, saveIns
                     disabled={busy}
                     className="rounded-lg bg-teal-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
                   >
-                    {busy ? E.sending : E.confirmYes}
+                    {busy ? E.sending : incomplete ? C.sendAnyway : E.confirmYes}
                   </button>
                   <button
                     type="button"

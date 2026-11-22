@@ -616,6 +616,7 @@ export default async function ClaimDetailPage({
                     : null,
                 }))}
                 saveInsurerOnChange={claim.claim_type === "third_party_report"}
+                missing={blockingMissing.filter((b) => b.kind !== "milestone").map((b) => b.label)}
                 direct={{
                   enabled: !!emailFeature,
                   fromAddress: emailFeature?.address ?? null,
