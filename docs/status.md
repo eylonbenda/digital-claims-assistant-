@@ -603,6 +603,10 @@ cd web ; npm run dev
 - **No migration.** `web/src/app/dashboard/[id]/CockpitTabs.tsx`, new `web/src/lib/cockpit/tabs.ts` (+ test).
 - **Fixes a blank pane:** `CockpitTabs` only validated `initialTab` against the visible tabs once, at mount. If the agent had the שליחה למבטחת tab open and the claim then got marked sent client-side (removing that tab), the open tab stayed `"send"` with no matching pane. The new pure `shownTab(tabs, chosen)` (`lib/cockpit/tabs.ts`) is re-derived every render and falls back to `overview` once the chosen tab stops existing.
 
+### Done since last sync (2026-11-22, PR #142 — client chase ignores agent-sourced base docs)
+- **No migration.** `web/src/lib/tasks/engine.ts` + `engine.test.ts`.
+- **Fixes `chase_missing_docs` staying open after the client supplied everything:** `mandatoryBaseDocsMissing()` keyed off every mandatory `base`-section doc, including `demand_form` (the מכתב דרישה only the agent drafts). It now also requires `clientSuppliable !== false` — the same filter `chaseableLabels()` already applies (`architecture.md`) — so an agent-sourced base doc can no longer spawn or keep open a task meant to chase the client.
+
 ### Done since last sync (2026-11-22, PR #143 — overview money waiting on insurers is net of partial payments)
 - **No migration.** `web/src/lib/overview/compute.ts` (+ test), `web/src/app/dashboard/overview/page.tsx`.
 - **Fixes an overstatement:** the "מחכים למבטחת" tiles, aging bands and oldest-waiting list summed the raw `demand_amount` for `sent`/`awaiting_payment` claims, ignoring any `partial_paid` amount already received. New `owedAmount()` nets `demand_amount - paid_amount` (floored at 0, `null` while no demand is entered yet); the oldest-waiting list now shows each claim's `owed_amount` instead of its full `demand_amount`.

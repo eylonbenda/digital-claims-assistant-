@@ -89,6 +89,27 @@ describe("spawning", () => {
     expect(r.spawn).toEqual([]);
   });
 
+  it("an agent-sourced base doc (demand letter) alone does not spawn a client chase", () => {
+    const r = run({
+      claimType: "third_party_report", atFaultInsurer: "clal",
+      docs: ["drivers_license", "vehicle_reg", "car_photo", "no_claim_confirmation", "insurance_history"],
+      hasForm: true,
+      event: { type: "track_confirmed" },
+    });
+    expect(r.spawn.some((s) => s.key === "chase_missing_docs")).toBe(false);
+  });
+
+  it("chase_missing_docs completes once every client-side base doc is in, demand letter still missing", () => {
+    const r = run({
+      claimType: "third_party_report", atFaultInsurer: "clal",
+      docs: ["drivers_license", "vehicle_reg", "car_photo", "no_claim_confirmation", "insurance_history"],
+      hasForm: true,
+      openTasks: [task({ key: "chase_missing_docs" })],
+      event: { type: "doc_uploaded", docType: "insurance_history" },
+    });
+    expect(r.complete).toContain("id-chase_missing_docs");
+  });
+
   it("condition-triggered submit_to_tp_insurer fires on the doc upload that clears the last blocker", () => {
     const r = run({
       claimType: "third_party_report",
