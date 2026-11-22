@@ -19,11 +19,13 @@ export const VIEWPORT: Record<Surface, { width: number; height: number }> = {
 };
 const STEP_TIMEOUT_MS = 15_000;
 const SEGMENT_DIR = path.join(OUT_DIR, "segments");
-const PHONE_UA =
+export const PHONE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
 
 // Logs the demo agent in off-camera and proves the app reads the database the seed wrote.
-async function loginAndCheckDatabase(browser: Browser, env: Env, markerPhone: string): Promise<string> {
+export async function loginAndCheckDatabase(
+  browser: Browser, env: Env, markerPhone: string, authFile = path.join(SEGMENT_DIR, "auth.json"),
+): Promise<string> {
   const ctx = await browser.newContext({ viewport: VIEWPORT.desktop, locale: "he-IL" });
   try {
     const page = await ctx.newPage();
@@ -46,9 +48,9 @@ async function loginAndCheckDatabase(browser: Browser, env: Env, markerPhone: st
           "The app's web/.env.local must point at the same Supabase project as training/.env.local.",
       );
     }
-    const file = path.join(SEGMENT_DIR, "auth.json");
-    await ctx.storageState({ path: file });
-    return file;
+    fs.mkdirSync(path.dirname(authFile), { recursive: true });
+    await ctx.storageState({ path: authFile });
+    return authFile;
   } finally {
     await ctx.close();
   }
@@ -66,14 +68,18 @@ async function newSegmentContext(browser: Browser, seg: Segment, authState: stri
       ? { isMobile: true, hasTouch: true, userAgent: PHONE_UA }  // the client is not logged in
       : { storageState: authState }),
   });
-  // The plate lookup is the one app dependency that is stubbed: a made-up plate must not
-  // hit the government registry, and must not come back as a real car.
+  await stubVehicleLookup(ctx);
+  return ctx;
+}
+
+// The plate lookup is the one app dependency that is stubbed: a made-up plate must not
+// hit the government registry, and must not come back as a real car.
+export async function stubVehicleLookup(ctx: BrowserContext): Promise<void> {
   await ctx.route("**/api/vehicle/**", (route) =>
     route.fulfill({
       json: { vehicle: { description: `${demoClaim.vehicle.manufacturer} ${demoClaim.vehicle.model}`, year: demoClaim.vehicle.year } },
     }),
   );
-  return ctx;
 }
 
 const SIDE_HTML = `<html><body style="margin:0;background:#182438"></body></html>`;

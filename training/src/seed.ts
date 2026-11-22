@@ -2,10 +2,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { pathToFileURL } from "node:url";
 import { loadEnv, type Env } from "./env.ts";
 import { assertSafeTarget } from "./guard.ts";
-import { DEMO_STAMP, demoUserDecision, newMarkerPhone } from "./seed-rules.ts";
+import { DEMO_STAMP, agentName, demoUserDecision, newMarkerPhone } from "./seed-rules.ts";
 
 export const MARKER_CLIENT_NAME = "דנה לוי (הדגמה)";
-const DEMO_AGENT_NAME = "מוסך הדגמה";
 const BUCKET = "claim-docs";
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
@@ -61,7 +60,7 @@ async function resetClaims(db: SupabaseClient, agentId: string): Promise<void> {
   must(await db.from("claims").delete().eq("agent_id", agentId).select("id"), "deleting demo claims");
 }
 
-export async function seed(env: Env): Promise<{ agentId: string; markerPhone: string }> {
+export async function seed(env: Env, opts?: { businessName?: string }): Promise<{ agentId: string; markerPhone: string }> {
   await assertSafeTarget(env);
   const db = createClient(env.supabaseUrl, env.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const userId = await findOrCreateUser(db, env);
@@ -70,7 +69,7 @@ export async function seed(env: Env): Promise<{ agentId: string; markerPhone: st
   // a project where the trigger is missing.
   const agent = must(
     await db.from("agents")
-      .upsert({ auth_user_id: userId, email: env.demoEmail, name: DEMO_AGENT_NAME }, { onConflict: "auth_user_id" })
+      .upsert({ auth_user_id: userId, email: env.demoEmail, name: agentName(opts) }, { onConflict: "auth_user_id" })
       .select("id")
       .single(),
     "naming the demo agent",

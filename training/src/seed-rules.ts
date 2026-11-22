@@ -15,3 +15,9 @@ export function demoUserDecision(found: { app_metadata?: Record<string, unknown>
 export function newMarkerPhone(): string {
   return `05000${String(randomInt(0, 100_000)).padStart(5, "0")}`;
 }
+
+// The name shown for the demo business. The promo records an insurance-agency version too.
+export const DEFAULT_AGENT_NAME = "מוסך הדגמה";
+export function agentName(opts?: { businessName?: string }): string {
+  return opts?.businessName?.trim() || DEFAULT_AGENT_NAME;
+}
