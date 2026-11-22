@@ -46,6 +46,17 @@ describe("computeOverview — stages", () => {
 });
 
 describe("computeOverview — waiting on the insurer", () => {
+  it("counts only what is still owed after a partial payment", () => {
+    const a = claim({ handling_effective: "partial_paid", demand_amount: 13238, paid_amount: 10738 });
+    const b = claim({ handling_effective: "sent", demand_amount: 5000 });
+    const over = claim({ handling_effective: "partial_paid", demand_amount: 1000, paid_amount: 1500 });
+    const o = computeOverview([a, b, over], [sent(a.id, 20), sent(b.id, 3), sent(over.id, 3)], NOW);
+    expect(o.waiting.total).toEqual({ count: 3, withAmount: 3, amount: 7500 });
+    expect(o.waiting.bands.d15_30.amount).toBe(2500);
+    expect(o.stages.awaiting_payment.amount + o.stages.sent.amount).toBe(7500);
+    expect(o.waiting.oldest[0]).toMatchObject({ id: a.id, owed_amount: 2500 });
+  });
+
   it("bands by days since the send event, at the edges", () => {
     const cs = [14, 15, 30, 31, 45, 46].map(() => claim({ handling_effective: "sent", demand_amount: 1000 }));
     const o = computeOverview(cs, cs.map((c, i) => sent(c.id, [14, 15, 30, 31, 45, 46][i])), NOW);

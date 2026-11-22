@@ -44,7 +44,7 @@ export type Overview = {
     total: Money;
     bands: Record<WaitingBand, Money>;
     // Longest-waiting first. `days` is null when nothing records when it was sent.
-    oldest: { id: string; client_name: string | null; days: number; demand_amount: number | null }[];
+    oldest: { id: string; client_name: string | null; days: number; owed_amount: number | null }[];
     unknownSince: number;
   };
   cycle: { collect: Stat; prepare: Stat; payment: Stat };
@@ -71,6 +71,13 @@ const ms = (iso: string | null | undefined): number | null => {
   const t = Date.parse(iso);
   return Number.isNaN(t) ? null : t;
 };
+
+// What the insurer still owes on an open claim: the demand less whatever was already
+// paid (a partial payment). Unknown while no demand amount was entered; never negative.
+export function owedAmount(c: Pick<OverviewClaim, "demand_amount" | "paid_amount">): number | null {
+  if (c.demand_amount === null) return null;
+  return Math.max(0, c.demand_amount - (c.paid_amount ?? 0));
+}
 
 function stat(days: number[]): Stat {
   if (days.length < MIN_SAMPLE) return { median: null, n: days.length };
@@ -132,17 +139,18 @@ export function computeOverview(claims: OverviewClaim[], events: OverviewEvent[]
     });
 
     if (stage !== "closed") {
-      add(stages[stage], c.demand_amount);
+      const owed = owedAmount(c);
+      add(stages[stage], owed);
       if (stage === "sent" || stage === "awaiting_payment") {
-        add(waitingTotal, c.demand_amount);
+        add(waitingTotal, owed);
         // No send event on legacy claims (sent by ticking the milestone): fall back
         // to the last handling change, which is at or after the send.
         const since = sent ?? ms(c.handling_changed_at);
         if (since === null) unknownSince += 1;
         else {
           const days = Math.max(0, Math.floor((nowMs - since) / DAY_MS));
-          add(bands[band(days)], c.demand_amount);
-          waitingRows.push({ id: c.id, client_name: c.client_name, days, demand_amount: c.demand_amount });
+          add(bands[band(days)], owed);
+          waitingRows.push({ id: c.id, client_name: c.client_name, days, owed_amount: owed });
         }
       }
     }
