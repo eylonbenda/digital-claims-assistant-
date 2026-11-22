@@ -84,7 +84,7 @@ const STATUS_LABEL: Record<string, string> = {
   submitted: "הוגש",
   classified: "סווג",
   form_generated: "טופס נוצר",
-  checklist_active: "רשימת פעולות",
+  checklist_active: "בטיפול פעיל",
   closed: "סגור",
   abandoned: "נטוש",
 };
