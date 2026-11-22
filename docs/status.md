@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-21**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-22**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -602,3 +602,9 @@ cd web ; npm run dev
 ### Done since last sync (2026-11-21, PR #140 — cockpit tab survives the send tab disappearing)
 - **No migration.** `web/src/app/dashboard/[id]/CockpitTabs.tsx`, new `web/src/lib/cockpit/tabs.ts` (+ test).
 - **Fixes a blank pane:** `CockpitTabs` only validated `initialTab` against the visible tabs once, at mount. If the agent had the שליחה למבטחת tab open and the claim then got marked sent client-side (removing that tab), the open tab stayed `"send"` with no matching pane. The new pure `shownTab(tabs, chosen)` (`lib/cockpit/tabs.ts`) is re-derived every render and falls back to `overview` once the chosen tab stops existing.
+
+### Done since last sync (2026-11-22, PR #145 — send-tab insurer select and a missing-docs warning before send)
+- **No migration.** `web/src/lib/cockpit/derive.ts` (+ test), `web/src/app/dashboard/[id]/page.tsx`, `SubmissionPanel.tsx`, `web/src/lib/submission/copy.ts`.
+- **`get_tp_insurer`'s next action now opens where the work is.** `deriveCockpit` gained a `TASK_TAB` map (today just `get_tp_insurer → send`) and a `hasSendTab` input; a task's `targetTab` is `send` when that tab is rendered, else it falls back to `overview` as before. On `third_party_report`, choosing the insurer in the שליחה למבטחת select now saves it immediately as `at_fault_insurer` (`POST /api/claims/[id]/demand-form`), instead of only at final send confirmation — which is also what lets the task close from there.
+- **Sending a file with a blocking document still missing now warns instead of staying silent.** `SubmissionPanel` takes a `missing` label list (blocking, non-milestone items from `blockingMissing`); when non-empty it shows an amber notice and swaps both confirm buttons to an explicit "...בכל זאת" — sending itself is never blocked, only no longer accidental.
+- `docs/claim-management.md` (§ ניהול התביעה מול המבטחת), `docs/app-map.md` (`/dashboard/[id]` row, `cockpit/` module row) updated.
