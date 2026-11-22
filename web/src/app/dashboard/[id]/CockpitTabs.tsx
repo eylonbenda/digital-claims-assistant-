@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import type { Badges, TabKey } from "@/lib/cockpit/derive";
+import { shownTab } from "@/lib/cockpit/tabs";
 import CockpitHeader, { type CockpitHeaderProps } from "./CockpitHeader";
 
 export type CockpitTabsProps = {
@@ -27,7 +28,9 @@ const TAB_ORDER: TabKey[] = ["overview", "send", "form", "files"];
 // URL mirrors the active tab via replaceState so links/refreshes land right.
 export default function CockpitTabs(p: CockpitTabsProps) {
   const tabs = TAB_ORDER.filter((key) => key !== "send" || p.send !== null);
-  const [tab, setTab] = useState<TabKey>(tabs.includes(p.initialTab) ? p.initialTab : "overview");
+  const [chosen, setTab] = useState<TabKey>(p.initialTab);
+  // The send tab disappears once the claim is sent; never leave the page without a pane.
+  const tab = shownTab(tabs, chosen);
 
   function navigate(next: TabKey) {
     setTab(next);
