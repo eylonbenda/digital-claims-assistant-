@@ -25,9 +25,14 @@ function buildRuleCtx(input: EngineInput): RuleCtx {
     docDone: (t) => docDone.get(t) === true,
     milestoneDone: (k) => milestoneDone.get(k) === true,
     blockingMissing: () => checklist.some((i) => i.blocking && !i.done),
+    // Client-side docs only: this drives chase_missing_docs ("…מהלקוח"). An agent-sourced
+    // base doc (the demand letter) must not keep a client chase open — it has its own
+    // blocker on the checklist and nothing the client could send would close it.
     mandatoryBaseDocsMissing: () =>
       checklist.some(
-        (i) => i.section === "base" && i.kind === "doc" && i.mandatory && !i.done,
+        (i) =>
+          i.section === "base" && i.kind === "doc" && i.mandatory && !i.done &&
+          i.clientSuppliable !== false,
       ),
     blockingSectionMissing: (section) =>
       checklist.some((i) => i.section === section && i.blocking && !i.done),

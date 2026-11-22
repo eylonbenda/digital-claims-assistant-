@@ -6,7 +6,7 @@ import { isSystemMilestone } from "@/lib/handling/transitions";
 import {
   CLASSIFY_LINE, FILL_FORM_LINE, NO_ACTION_LINE,
   PREPARE_SUBMISSION_LINE, UPDATE_HANDLING_LINE,
-  chaseLine, formFieldsLine, formReadyLine, milestoneLine, taskLine,
+  chaseLine, docsRequestedLine, formFieldsLine, formReadyLine, milestoneLine, taskLine,
 } from "./copy";
 
 // "send" exists only while the claim has a submission to prepare (the page decides).
@@ -31,6 +31,8 @@ export type CockpitInput = {
   handlingEffective?: HandlingStatus | null;
   submissionReady?: boolean; // checklist-submittable ∧ unsent ∧ track known
   handlingOverdue?: boolean; // follow-up task due/overdue (14d fallback)
+  // What the insurer asked for at the last docs_requested transition, if recorded.
+  docsRequestNote?: string | null;
 };
 
 export type NextAction =
@@ -90,10 +92,15 @@ export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: Nex
     nextAction = { kind: "chase", line: chaseLine(input.chaseLabels), targetTab: "overview" };
   } else if (input.submissionReady && !input.handlingEffective) {
     nextAction = { kind: "prepare_submission", line: PREPARE_SUBMISSION_LINE, targetTab: "send" };
-  } else if (
-    (input.handlingEffective === "sent" || input.handlingEffective === "docs_requested") &&
-    input.handlingOverdue
-  ) {
+  } else if (input.handlingEffective === "docs_requested") {
+    // The ball is with the handler from the moment the insurer asks, not only once
+    // the follow-up is overdue — and the line says what was asked.
+    nextAction = {
+      kind: "update_handling",
+      line: docsRequestedLine(input.docsRequestNote?.trim() || null),
+      targetTab: "overview",
+    };
+  } else if (input.handlingEffective === "sent" && input.handlingOverdue) {
     nextAction = { kind: "update_handling", line: UPDATE_HANDLING_LINE, targetTab: "overview" };
   } else if (task) {
     nextAction = {
