@@ -271,6 +271,18 @@ function ChecklistRow({
         </a>
       )}
 
+      {isMilestone && !item.done && (
+        // The tile alone does not read as a control — say what clicking does.
+        <button
+          type="button"
+          onClick={() => onToggle(item.key, true)}
+          disabled={isPending}
+          className="shrink-0 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+        >
+          סמן שבוצע
+        </button>
+      )}
+
       {canUpload ? (
         <RowUpload claimId={claimId} docType={item.docType!} multiple={needed > 1} />
       ) : (

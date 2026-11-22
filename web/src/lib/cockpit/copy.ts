@@ -82,6 +82,7 @@ export const DEMAND_COPY = {
 export const DAMAGES_COPY = {
   title: "פירוט הנזק",
   beforeVat: "לפני מע״מ",
+  noVat: "ללא מע״מ",
   claimantVatRegistered: "הניזוק עוסק מורשה (סכומים לפני מע״מ)",
   addLine: "+ הוסף שורה",
   removeLine: "הסר",
