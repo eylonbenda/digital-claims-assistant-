@@ -27,6 +27,19 @@ export function milestoneLine(label: string): string {
   return `השלב הבא: ${label}`;
 }
 
+// Before the client submitted there is nothing for the handler to classify or prepare.
+export const AWAITING_CLIENT_LINE = "ממתינים שהלקוח/ה ימלא/תמלא את הפרטים בקישור";
+
+export const CLOSED_LINE = "התיק סגור — אין פעולות פתוחות";
+
+// Sent and the follow-up is not due yet: the ball is with the insurer.
+export function awaitingInsurerLine(followUpDue: Date | null): string {
+  if (!followUpDue) return "ממתינים לתשובת המבטחת";
+  const dd = String(followUpDue.getDate()).padStart(2, "0");
+  const mm = String(followUpDue.getMonth() + 1).padStart(2, "0");
+  return `ממתינים לתשובת המבטחת · מעקב ב-${dd}.${mm}`;
+}
+
 export const NO_ACTION_LINE = "אין פעולות פתוחות — התיק במעקב";
 
 export const PREPARE_SUBMISSION_LINE = "התיק מוכן — להכין שליחה למבטחת";
@@ -69,6 +82,7 @@ export const DEMAND_COPY = {
 export const DAMAGES_COPY = {
   title: "פירוט הנזק",
   beforeVat: "לפני מע״מ",
+  noVat: "ללא מע״מ",
   claimantVatRegistered: "הניזוק עוסק מורשה (סכומים לפני מע״מ)",
   addLine: "+ הוסף שורה",
   removeLine: "הסר",
