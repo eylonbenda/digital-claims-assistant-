@@ -7,6 +7,7 @@ import { matchInsurer } from "../submission/match";
 import { INSURER_DIRECTORY } from "../submission/directory";
 import { COPY } from "./copy";
 import { computeDamageTotals, formatLetterAmount, VAT_RATE } from "./damages";
+import { TP_INSURER_UNKNOWN } from "../collection/claim-state";
 
 // kind: "money" rows are never capped/clipped/dropped by the renderer; "total" is also emphasised.
 export type DemandRow = { label: string; value: string; kind?: "money" | "total" };
@@ -76,6 +77,16 @@ export function buildDemandData(input: {
   ];
 
   const tps = d.third_parties ?? [];
+  const addresseeLabel = addresseeKey ? (INSURER_DIRECTORY[addresseeKey]?.label ?? "") : "";
+  // The claimant often does not know the other side's insurer; the handler finds out
+  // and addresses the letter. With one third party, that addressee IS its insurer —
+  // printing "לא ידוע" under a letter addressed to the insurer contradicts itself.
+  // With several vehicles we cannot tell whose insurer it is, so nothing is inferred.
+  const tpInsurer = (tp: { insurer?: string | null }) => {
+    const stated = tp.insurer?.trim() ?? "";
+    const unknown = !stated || stated === TP_INSURER_UNKNOWN;
+    return unknown && tps.length === 1 && addresseeLabel ? addresseeLabel : tp.insurer;
+  };
   tps.forEach((tp, i) => {
     sections.push({
       heading: tps.length > 1 ? `${COPY.sections.thirdParty} ${i + 1}` : COPY.sections.thirdParty,
@@ -84,7 +95,7 @@ export function buildDemandData(input: {
         row(L.idNumber, tp.id_number),
         row(L.phone, tp.phone),
         row(L.thirdPlate, tp.vehicle_plate),
-        row(L.insurer, tp.insurer),
+        row(L.insurer, tpInsurer(tp)),
       ],
     });
   });
@@ -121,7 +132,7 @@ export function buildDemandData(input: {
     // UTC calendar date of `now` (deterministic; differs from Asia/Jerusalem only 00:00-03:00 local).
     date: toILDate(now.toISOString().slice(0, 10)),
     sender: { name: s(sender.name), phone: s(sender.phone), email: s(sender.email) },
-    addressee: addresseeKey ? (INSURER_DIRECTORY[addresseeKey]?.label ?? "") : "",
+    addressee: addresseeLabel,
     title: COPY.title,
     subtitle: [
       row(L.plate, d.vehicle?.plate),
