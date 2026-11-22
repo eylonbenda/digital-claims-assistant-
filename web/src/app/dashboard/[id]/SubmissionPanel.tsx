@@ -17,7 +17,15 @@ export type SubmissionView = {
 type Props = {
   claimId: string;
   submission: SubmissionView;
-  insurers: { key: string; label: string }[];
+  // `address`: the directory's claims address for this claim's track, when we have one.
+  insurers: { key: string; label: string; address?: string | null }[];
+  // third_party_report only: choosing the insurer saves it as the at-fault insurer right
+  // away (re-addressing the demand letter and closing "להשיג פרטי מבטח צד ג'"), instead
+  // of only at the final confirm.
+  saveInsurerOnChange?: boolean;
+  // Labels of blocking documents still missing from the file (milestones excluded).
+  // Non-empty → the panel warns, and both confirm steps name what is missing.
+  missing?: string[];
   // Sending from the app. Off → the panel is prepare-and-confirm only, as before.
   direct: { enabled: boolean; fromAddress: string | null; ccAddress: string | null };
 };
@@ -63,7 +71,9 @@ function CopyField({ label, value, mono }: { label: string; value: string; mono?
   );
 }
 
-export default function SubmissionPanel({ claimId, submission, insurers, direct }: Props) {
+export default function SubmissionPanel({
+  claimId, submission, insurers, saveInsurerOnChange, missing = [], direct,
+}: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [insurerKey, setInsurerKey] = useState(submission.insurerKey ?? "");
@@ -75,7 +85,30 @@ export default function SubmissionPanel({ claimId, submission, insurers, direct 
   const [error, setError] = useState<string | null>(null);
 
   const recipientValid = !!validRecipient(recipient);
-  const manualRecipient = submission.recipient === null;
+  const addressOf = (key: string) => insurers.find((i) => i.key === key)?.address ?? null;
+  // Manual entry is needed only when the chosen insurer has no directory address.
+  const manualRecipient = !addressOf(insurerKey);
+
+  async function chooseInsurer(key: string) {
+    const previous = addressOf(insurerKey) ?? "";
+    setInsurerKey(key);
+    // Follow the directory unless the clerk typed an address of their own.
+    if (!recipient.trim() || recipient.trim() === previous) setRecipient(addressOf(key) ?? "");
+    if (!saveInsurerOnChange || !key) return;
+    setError(null);
+    const res = await fetch(`/api/claims/${claimId}/demand-form`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ at_fault_insurer: key }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setError(C.insurerSaveFailed);
+      return;
+    }
+    startTransition(() => router.refresh());
+  }
+  const incomplete = missing.length > 0;
+  const missingList = missing.join(" · ");
 
   // The amount first: a mistyped number should stop here, before anything is sent
   // or marked sent. Left empty, nothing is recorded and it can be added later.
@@ -151,14 +184,21 @@ export default function SubmissionPanel({ claimId, submission, insurers, direct 
   // "I sent it myself" — the prepare-and-confirm action.
   const manualConfirm = asking ? (
       <div className="flex items-center gap-3 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2">
-        <span className="text-sm font-medium text-teal-900">{C.confirmAsk}</span>
+        <span className="text-sm font-medium text-teal-900">
+          {C.confirmAsk}
+          {incomplete && (
+            <span className="mt-0.5 block font-normal text-amber-800">
+              {C.missingAsk} ({missingList})
+            </span>
+          )}
+        </span>
         <button
           type="button"
           onClick={confirmSent}
           disabled={busy}
           className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
         >
-          {C.confirmYes}
+          {incomplete ? C.confirmYesAnyway : C.confirmYes}
         </button>
         <button
           type="button"
@@ -185,6 +225,11 @@ export default function SubmissionPanel({ claimId, submission, insurers, direct 
     <section className="rounded-2xl border border-teal-200 bg-white p-5">
       <h2 className="text-lg font-semibold text-zinc-900">{C.title}</h2>
       <p className="mb-4 mt-1 text-sm text-zinc-500">{C.subtitle}</p>
+      {incomplete && (
+        <p role="alert" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <span className="font-semibold">{C.missingTitle}</span> {missingList}
+        </p>
+      )}
 
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -195,7 +240,7 @@ export default function SubmissionPanel({ claimId, submission, insurers, direct 
             <select
               id="sub-insurer"
               value={insurerKey}
-              onChange={(e) => setInsurerKey(e.target.value)}
+              onChange={(e) => chooseInsurer(e.target.value)}
               className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
             >
               <option value="">{C.insurerPlaceholder}</option>
@@ -284,6 +329,11 @@ export default function SubmissionPanel({ claimId, submission, insurers, direct 
             {confirming ? (
               <div className="space-y-3 rounded-xl border border-teal-200 bg-teal-50 p-4">
                 <h3 className="text-sm font-semibold text-teal-900">{E.confirmTitle}</h3>
+                {incomplete && (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    <span className="font-semibold">{C.missingAsk}</span> {missingList}
+                  </p>
+                )}
                 <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
                   <dt className="text-zinc-500">{E.confirmTo}</dt>
                   <dd className="break-all font-medium text-zinc-900">
@@ -320,7 +370,7 @@ export default function SubmissionPanel({ claimId, submission, insurers, direct 
                     disabled={busy}
                     className="rounded-lg bg-teal-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
                   >
-                    {busy ? E.sending : E.confirmYes}
+                    {busy ? E.sending : incomplete ? C.sendAnyway : E.confirmYes}
                   </button>
                   <button
                     type="button"

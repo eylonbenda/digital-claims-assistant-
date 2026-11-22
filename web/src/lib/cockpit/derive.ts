@@ -11,7 +11,7 @@ import {
 
 // "send" exists only while the claim has a submission to prepare (the page decides).
 export type TabKey = "overview" | "send" | "form" | "files";
-export type TaskLite = { title: string; status: string; due_at: string | null };
+export type TaskLite = { title: string; status: string; due_at: string | null; key?: string | null };
 export type BlockingLite = { key: string; label: string; kind: ItemKind };
 
 export type CockpitInput = {
@@ -25,6 +25,7 @@ export type CockpitInput = {
   nextMilestone: { key: string; label: string } | null;
   insurerLabel: string | null;
   docsCount: number;
+  hasSendTab?: boolean; // the send tab is rendered (classified and not yet sent)
   // Post-send handling (spec 2026-10-21-claim-handling §4). Optional so older
   // call sites behave as before (no handling, not submittable).
   handlingEffective?: HandlingStatus | null;
@@ -37,7 +38,7 @@ export type CockpitInput = {
 export type NextAction =
   | { kind: "classify"; line: string; targetTab: "overview" }
   | { kind: "chase"; line: string; targetTab: "overview" }
-  | { kind: "task"; line: string; targetTab: "overview" }
+  | { kind: "task"; line: string; targetTab: "overview" | "send" }
   | { kind: "form_fields"; line: string; targetTab: "form" }
   | { kind: "form_fill"; line: string; targetTab: "form" }
   | { kind: "form_ready"; line: string; targetTab: "form" }
@@ -52,7 +53,14 @@ export type Badges = { overview: number; send: number; form: number; files: numb
 
 const DAY_MS = 86_400_000;
 
-function nextOpenTask(tasks: TaskLite[], now: Date): { title: string; overdueDays: number } | null {
+// Tasks whose work happens on another tab: "פתח" must land where the task can be done.
+// The at-fault insurer is chosen on the send tab (and saved from there).
+const TASK_TAB: Record<string, "send"> = { get_tp_insurer: "send" };
+
+function nextOpenTask(
+  tasks: TaskLite[],
+  now: Date,
+): { title: string; overdueDays: number; key: string | null } | null {
   const open = tasks.filter((t) => t.status !== "done");
   if (!open.length) return null;
   const dated = open.filter((t) => t.due_at);
@@ -62,7 +70,7 @@ function nextOpenTask(tasks: TaskLite[], now: Date): { title: string; overdueDay
   const overdueDays = pick.due_at
     ? Math.max(0, Math.floor((now.getTime() - new Date(pick.due_at).getTime()) / DAY_MS))
     : 0;
-  return { title: pick.title, overdueDays };
+  return { title: pick.title, overdueDays, key: pick.key ?? null };
 }
 
 export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: NextAction; badges: Badges } {
@@ -95,7 +103,11 @@ export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: Nex
   } else if (input.handlingEffective === "sent" && input.handlingOverdue) {
     nextAction = { kind: "update_handling", line: UPDATE_HANDLING_LINE, targetTab: "overview" };
   } else if (task) {
-    nextAction = { kind: "task", line: taskLine(task.title, task.overdueDays), targetTab: "overview" };
+    nextAction = {
+      kind: "task",
+      line: taskLine(task.title, task.overdueDays),
+      targetTab: (task.key && input.hasSendTab && TASK_TAB[task.key]) || "overview",
+    };
   } else if (input.missingFieldCount > 0) {
     nextAction = { kind: "form_fields", line: formFieldsLine(input.missingFieldCount), targetTab: "form" };
   } else if (
