@@ -35,7 +35,7 @@ export function scriptLines(markdown: string, audience: Audience): Record<VoiceI
 
 // Words the voice reads wrong without help, spelled the way they are said. Add a word here
 // when a line comes back mispronounced; the script itself stays in plain spelling.
-const SAY: Record<string, string> = { "אופן־תיק": "אוֹפֶּן־תִיק" };
+const SAY: Record<string, string> = { "אופן־תיק": "אוֹפּן־טיק" };
 export const spoken = (text: string) => Object.entries(SAY).reduce((t, [from, to]) => t.replaceAll(from, to), text);
 
 type Ask = { text: string; voiceId: string; model: string; key: string; previous?: string; next?: string };

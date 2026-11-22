@@ -28,7 +28,7 @@ test("the garage narration never says the word the garage cut avoids", () => {
 });
 
 test("the product name is spelled for the voice the way it is pronounced", () => {
-  assert.equal(spoken("עם אופן־תיק שולחים"), "עם אוֹפֶּן־תִיק שולחים");
+  assert.equal(spoken("עם אופן־תיק שולחים"), "עם אוֹפּן־טיק שולחים");
   assert.equal(spoken("בלי שם המוצר"), "בלי שם המוצר");
 });
 
