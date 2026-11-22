@@ -2,10 +2,13 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sniffFileType, SNIFF_MIME, SNIFF_EXT } from "@/lib/files/sniff";
 import { runEngine } from "@/lib/tasks/runner";
-import { serverError } from "@/lib/observability/report";
+import { reportError, serverError } from "@/lib/observability/report";
+import { detectDocType } from "@/lib/ai/classify-document";
 import { AGENT_DOC_TYPES } from "@/lib/claims/agent-doc-types";
 
 export const runtime = "nodejs";
+// Auto-filing waits on the classifier (bounded at 20s) before the row is written.
+export const maxDuration = 60;
 
 const BUCKET = "claim-docs";
 const MAX_BYTES = 20 * 1024 * 1024; // 20MB — agents upload multi-page PDFs
@@ -13,9 +16,12 @@ const MAX_BYTES = 20 * 1024 * 1024; // 20MB — agents upload multi-page PDFs
 // Types agents can upload post-intake (wider than the claimant-facing set).
 // Shared with the upload UI + asserted to cover the handling evidence gates.
 const AGENT_TYPES = AGENT_DOC_TYPES;
+const AUTO = "auto";
 
 // POST /api/claims/[id]/documents  (agent-authenticated, session-gated)
-// FormData: { type: string, file: File }
+// FormData: { type: string | "auto", file: File }
+// type "auto": the file is filed under the type the classifier detects, or "other"
+// when it cannot tell — detection never fails the upload.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -29,14 +35,15 @@ export async function POST(
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   const form = await request.formData().catch(() => null);
-  const type = form?.get("type");
+  const requested = form?.get("type");
   const file = form?.get("file");
 
-  if (typeof type !== "string" || !(file instanceof File)) {
+  if (typeof requested !== "string" || !(file instanceof File)) {
     return Response.json({ error: "type and file are required" }, { status: 400 });
   }
-  if (!AGENT_TYPES.has(type)) {
-    return Response.json({ error: `invalid document type: ${type}` }, { status: 400 });
+  const auto = requested === AUTO;
+  if (!auto && !AGENT_TYPES.has(requested)) {
+    return Response.json({ error: `invalid document type: ${requested}` }, { status: 400 });
   }
   if (file.size === 0) {
     return Response.json({ error: "empty file" }, { status: 400 });
@@ -66,6 +73,8 @@ export async function POST(
     );
   }
   const mime = SNIFF_MIME[kind];
+  const verdict = auto ? await detectDocType(bytes, kind) : null;
+  const type = verdict ? verdict.type : requested;
 
   const svc = createServiceClient();
   const path = `${id}/${type}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${SNIFF_EXT[kind]}`;
@@ -90,5 +99,18 @@ export async function POST(
   // Reactive task engine: auto-complete chase tasks this doc satisfies.
   await runEngine(id, { type: "doc_uploaded", docType: type });
 
-  return Response.json({ ok: true, id: doc.id, type, path });
+  if (verdict) {
+    // Kept so corrections (document_retyped) can be measured against detections.
+    const { error: evErr } = await svc.from("claim_events").insert({
+      claim_id: id,
+      type: "document_auto_filed",
+      payload_json: { type, detected: verdict.detected },
+    });
+    if (evErr) await reportError("/api/claims/[id]/documents", evErr, { claimId: id, step: "event" });
+  }
+
+  return Response.json({
+    ok: true, id: doc.id, type, path,
+    ...(verdict ? { detected: verdict.detected } : {}),
+  });
 }
