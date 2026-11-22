@@ -26,6 +26,9 @@ type Props = {
   // Labels of blocking documents still missing from the file (milestones excluded).
   // Non-empty → the panel warns, and both confirm steps name what is missing.
   missing?: string[];
+  // The demand amount to start from: the one already on the claim, else the demand
+  // letter's total. Editable; left as is, it is what gets recorded.
+  demandDefault?: number | null;
   // Sending from the app. Off → the panel is prepare-and-confirm only, as before.
   direct: { enabled: boolean; fromAddress: string | null; ccAddress: string | null };
 };
@@ -72,13 +75,13 @@ function CopyField({ label, value, mono }: { label: string; value: string; mono?
 }
 
 export default function SubmissionPanel({
-  claimId, submission, insurers, saveInsurerOnChange, missing = [], direct,
+  claimId, submission, insurers, saveInsurerOnChange, missing = [], demandDefault, direct,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [insurerKey, setInsurerKey] = useState(submission.insurerKey ?? "");
   const [recipient, setRecipient] = useState(submission.recipient ?? "");
-  const [demand, setDemand] = useState("");
+  const [demand, setDemand] = useState(demandDefault != null ? String(demandDefault) : "");
   const [asking, setAsking] = useState(false);
   const [confirming, setConfirming] = useState(false); // the direct send's confirm step
   const [busy, setBusy] = useState(false);

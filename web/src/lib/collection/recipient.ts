@@ -18,6 +18,9 @@
 /** Neutral stand-in used when the business has no name stored. */
 export const NEUTRAL_HANDLER = "הגוף המטפל בתביעה";
 
+/** The same stand-in after "ל" ("מועברים ל…"): the preposition absorbs the article. */
+export const TO_NEUTRAL_HANDLER = "לגוף המטפל בתביעה";
+
 /** Post-submit heading: "הפרטים נשלחו למוסך כהן" / "הפרטים נשלחו לטיפול". */
 export function sentTitle(handlerName?: string | null): string {
   const name = handlerName?.trim();

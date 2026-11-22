@@ -132,7 +132,7 @@ export default function DamagesFields({
           return (
             <label key={k} className="block">
               <span className="text-xs text-zinc-500">
-                {DEMAND_COPY.damages.labels[k]} <span className="text-zinc-400">({C.beforeVat})</span>
+                {DEMAND_COPY.damages.labels[k]} <span className="text-zinc-400">({DEFAULT_VAT[k] ? C.beforeVat : C.noVat})</span>
               </span>
               <input
                 type="text"

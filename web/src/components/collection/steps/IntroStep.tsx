@@ -1,5 +1,5 @@
 import type { State } from "@/lib/collection/claim-state";
-import { NEUTRAL_HANDLER } from "@/lib/collection/recipient";
+import { TO_NEUTRAL_HANDLER } from "@/lib/collection/recipient";
 
 export default function IntroStep({ s, set }: { s: State; set: (patch: Partial<State>) => void }) {
   return (
@@ -10,7 +10,7 @@ export default function IntroStep({ s, set }: { s: State; set: (patch: Partial<S
         ניקח את זה מכאן.
       </p>
       <p className="mt-2 text-base text-zinc-500">
-        הפרטים מועברים {NEUTRAL_HANDLER} בלבד.
+        הפרטים מועברים {TO_NEUTRAL_HANDLER} בלבד.
       </p>
       <label className="mt-5 flex items-start gap-2">
         <input
@@ -19,7 +19,7 @@ export default function IntroStep({ s, set }: { s: State; set: (patch: Partial<S
           onChange={(e) => set({ consent: e.target.checked })}
           className="mt-1 h-5 w-5"
         />
-        <span className="text-base">אני מאשר/ת איסוף הפרטים והעברתם {NEUTRAL_HANDLER}.</span>
+        <span className="text-base">אני מאשר/ת איסוף הפרטים והעברתם {TO_NEUTRAL_HANDLER}.</span>
       </label>
     </div>
   );

@@ -4,9 +4,9 @@ import type { ItemKind } from "@/lib/claims/checklist";
 import type { HandlingStatus } from "@/lib/handling/types";
 import { isSystemMilestone } from "@/lib/handling/transitions";
 import {
-  CLASSIFY_LINE, FILL_FORM_LINE, NO_ACTION_LINE,
+  AWAITING_CLIENT_LINE, CLASSIFY_LINE, CLOSED_LINE, FILL_FORM_LINE, NO_ACTION_LINE,
   PREPARE_SUBMISSION_LINE, UPDATE_HANDLING_LINE,
-  chaseLine, docsRequestedLine, formFieldsLine, formReadyLine, milestoneLine, taskLine,
+  awaitingInsurerLine, chaseLine, docsRequestedLine, formFieldsLine, formReadyLine, milestoneLine, taskLine,
 } from "./copy";
 
 // "send" exists only while the claim has a submission to prepare (the page decides).
@@ -25,6 +25,9 @@ export type CockpitInput = {
   nextMilestone: { key: string; label: string } | null;
   insurerLabel: string | null;
   docsCount: number;
+  // The client has not submitted the wizard yet — nothing to classify or prepare.
+  awaitingClient?: boolean;
+  claimClosed?: boolean;
   hasSendTab?: boolean; // the send tab is rendered (classified and not yet sent)
   // Post-send handling (spec 2026-10-21-claim-handling §4). Optional so older
   // call sites behave as before (no handling, not submittable).
@@ -60,7 +63,7 @@ const TASK_TAB: Record<string, "send"> = { get_tp_insurer: "send" };
 function nextOpenTask(
   tasks: TaskLite[],
   now: Date,
-): { title: string; overdueDays: number; key: string | null } | null {
+): { title: string; overdueDays: number; key: string | null; dueAt: Date | null } | null {
   const open = tasks.filter((t) => t.status !== "done");
   if (!open.length) return null;
   const dated = open.filter((t) => t.due_at);
@@ -70,7 +73,10 @@ function nextOpenTask(
   const overdueDays = pick.due_at
     ? Math.max(0, Math.floor((now.getTime() - new Date(pick.due_at).getTime()) / DAY_MS))
     : 0;
-  return { title: pick.title, overdueDays, key: pick.key ?? null };
+  return {
+    title: pick.title, overdueDays, key: pick.key ?? null,
+    dueAt: pick.due_at ? new Date(pick.due_at) : null,
+  };
 }
 
 export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: NextAction; badges: Badges } {
@@ -86,7 +92,11 @@ export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: Nex
 
   let nextAction: NextAction;
   const task = nextOpenTask(input.tasks, now);
-  if (input.classificationUnconfirmed) {
+  if (input.claimClosed) {
+    nextAction = { kind: "none", line: CLOSED_LINE, targetTab: "overview" };
+  } else if (input.awaitingClient) {
+    nextAction = { kind: "none", line: AWAITING_CLIENT_LINE, targetTab: "overview" };
+  } else if (input.classificationUnconfirmed) {
     nextAction = { kind: "classify", line: CLASSIFY_LINE, targetTab: "overview" };
   } else if (input.chaseLabels.length > 0) {
     nextAction = { kind: "chase", line: chaseLine(input.chaseLabels), targetTab: "overview" };
@@ -102,6 +112,12 @@ export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: Nex
     };
   } else if (input.handlingEffective === "sent" && input.handlingOverdue) {
     nextAction = { kind: "update_handling", line: UPDATE_HANDLING_LINE, targetTab: "overview" };
+  } else if (
+    task && task.key?.startsWith("follow_up") && input.handlingEffective &&
+    task.dueAt && task.dueAt.getTime() > now.getTime()
+  ) {
+    // The only open work is a follow-up that is not due: it is the insurer's turn, not ours.
+    nextAction = { kind: "none", line: awaitingInsurerLine(task.dueAt), targetTab: "overview" };
   } else if (task) {
     nextAction = {
       kind: "task",

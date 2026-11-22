@@ -25,6 +25,7 @@ import ChecklistPanel from "./ChecklistPanel";
 import AgentDocUpload from "./AgentDocUpload";
 import AmountsCard from "./AmountsCard";
 import { toAmount } from "@/lib/handling/amounts";
+import { computeDamageTotals } from "@/lib/demand/damages";
 import ClaimTypeConfirm from "./ClaimTypeConfirm";
 import CockpitTabs from "./CockpitTabs";
 import NotesPanel, { type NoteView } from "./NotesPanel";
@@ -84,7 +85,7 @@ const STATUS_LABEL: Record<string, string> = {
   submitted: "הוגש",
   classified: "סווג",
   form_generated: "טופס נוצר",
-  checklist_active: "רשימת פעולות",
+  checklist_active: "בטיפול פעיל",
   closed: "סגור",
   abandoned: "נטוש",
 };
@@ -387,6 +388,8 @@ export default async function ClaimDetailPage({
       chaseLabels,
       tasks: tasks.map(({ title, status, due_at, key }) => ({ title, status, due_at, key })),
       hasSendTab: !!submissionView,
+      awaitingClient: !claim.submitted_at && docs.length === 0,
+      claimClosed: claim.status === "closed",
       missingFieldCount: analysis?.missing.length ?? 0,
       hasGeneratedForm: forms.length > 0,
       nextMilestone: nextMilestone ? { key: nextMilestone.key, label: nextMilestone.label } : null,
@@ -448,6 +451,8 @@ export default async function ClaimDetailPage({
                 ? daysSinceActivity
                 : null,
             claimClosed: claim.status === "closed",
+            demandAmount: amounts?.demand_amount ?? null,
+            paidAmount: amounts?.paid_amount ?? null,
           }}
           badges={badges}
           initialTab={initialTab}
@@ -619,6 +624,12 @@ export default async function ClaimDetailPage({
                     : null,
                 }))}
                 saveInsurerOnChange={claim.claim_type === "third_party_report"}
+                demandDefault={
+                  amounts?.demand_amount ??
+                  (claim.claim_type === "third_party_report"
+                    ? computeDamageTotals(formClaimData?.damages)?.total ?? null
+                    : null)
+                }
                 missing={blockingMissing.filter((b) => b.kind !== "milestone").map((b) => b.label)}
                 direct={{
                   enabled: !!emailFeature,

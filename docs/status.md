@@ -532,7 +532,7 @@ cd web ; npm run dev
 - **Behaviour change:** on `third_party_report` a generated demand form ticks the "מכתב דרישה" checklist item only once a repair amount exists (`formFacts`/`isRepairPriced`); uploaded forms unaffected.
 - `formfill/bidi.ts` mirrors brackets in RTL runs and keeps `%`/`₪` with their number — also fixes "(…)" in every insurer form.
 - Stage 2 (extraction of amounts from uploaded docs) is separate, not built.
-- **Follow-up (a):** prefill the send-confirm `demand_amount` from the damages total — until then the two can disagree.
+- **Follow-up (a):** ~~prefill the send-confirm `demand_amount` from the damages total~~ — done, PR #148 below.
 - **Follow-up (b):** the `formfill/bidi.ts` bracket and terminator fix (commit ac6ae77) also changes the insurer accident forms; it is going to its own PR, with a render check on one insurer form.
 
 ### Done since last sync (2026-11-16, PR #117 — pure core for the email relay)
@@ -621,6 +621,11 @@ cd web ; npm run dev
 - **`get_tp_insurer`'s next action now opens where the work is.** `deriveCockpit` gained a `TASK_TAB` map (today just `get_tp_insurer → send`) and a `hasSendTab` input; a task's `targetTab` is `send` when that tab is rendered, else it falls back to `overview` as before. On `third_party_report`, choosing the insurer in the שליחה למבטחת select now saves it immediately as `at_fault_insurer` (`POST /api/claims/[id]/demand-form`), instead of only at final send confirmation — which is also what lets the task close from there.
 - **Sending a file with a blocking document still missing now warns instead of staying silent.** `SubmissionPanel` takes a `missing` label list (blocking, non-milestone items from `blockingMissing`); when non-empty it shows an amber notice and swaps both confirm buttons to an explicit "...בכל זאת" — sending itself is never blocked, only no longer accidental.
 - `docs/claim-management.md` (§ ניהול התביעה מול המבטחת), `docs/app-map.md` (`/dashboard/[id]` row, `cockpit/` module row) updated.
+
+### Done since last sync (2026-11-22, PR #148 — prefill the demand amount, show what's already recorded)
+- **No migration.** `web/src/app/dashboard/[id]/page.tsx`, `CockpitHeader.tsx`, `HandlingDialog.tsx`, `SubmissionPanel.tsx`.
+- **Closes follow-up (a) from the demand-damages PR above.** `SubmissionPanel`'s demand field now starts from `claims.demand_amount` if already recorded, else the demand letter's computed damage total (`computeDamageTotals`, `third_party_report` only) — instead of always starting blank, so the two no longer silently disagree. Still editable; left as is, it's what gets recorded on send.
+- **The handling dialog's payment amount field now shows the recorded `demand_amount`/`paid_amount` beside it** (`formatILS`), and prefills "total paid so far" from `paid_amount` when the clerk picks the `partial_paid` target and the field is still empty — the clerk adds to the running total instead of retyping it. A full `paid` close is never prefilled from the demand: insurers often pay a different sum.
 
 ### Done since last sync (2026-11-22, PR #149 — demand letter's third-party block names the addressee insurer)
 - **No migration.** `web/src/lib/demand/data.ts` (+ test).
