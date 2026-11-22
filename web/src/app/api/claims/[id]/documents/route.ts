@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { sniffFileType, SNIFF_MIME, SNIFF_EXT } from "@/lib/files/sniff";
+import { sniffFileType } from "@/lib/files/sniff";
+import { storeClaimDocument } from "@/lib/claims/store-document";
 import { runEngine } from "@/lib/tasks/runner";
 import { reportError, serverError } from "@/lib/observability/report";
 import { detectDocType } from "@/lib/ai/classify-document";
@@ -10,7 +11,6 @@ export const runtime = "nodejs";
 // Auto-filing waits on the classifier (bounded at 20s) before the row is written.
 export const maxDuration = 60;
 
-const BUCKET = "claim-docs";
 const MAX_BYTES = 20 * 1024 * 1024; // 20MB — agents upload multi-page PDFs
 
 // Types agents can upload post-intake (wider than the claimant-facing set).
@@ -72,29 +72,15 @@ export async function POST(
       { status: 415 },
     );
   }
-  const mime = SNIFF_MIME[kind];
   const verdict = auto ? await detectDocType(bytes, kind) : null;
   const type = verdict ? verdict.type : requested;
 
   const svc = createServiceClient();
-  const path = `${id}/${type}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${SNIFF_EXT[kind]}`;
-
-  const { error: upErr } = await svc.storage
-    .from(BUCKET)
-    .upload(path, bytes, { contentType: mime, upsert: false });
-  if (upErr) {
-    return serverError("/api/claims/[id]/documents", upErr, { claimId: id, step: "upload" });
+  const doc = await storeClaimDocument(svc, id, type, bytes, kind);
+  if ("error" in doc) {
+    return serverError("/api/claims/[id]/documents", doc.error, { claimId: id, step: doc.step });
   }
-
-  const { data: doc, error: dbErr } = await svc
-    .from("claim_documents")
-    .insert({ claim_id: id, type, storage_path: path, mime })
-    .select("id")
-    .single();
-  if (dbErr) {
-    await svc.storage.from(BUCKET).remove([path]);
-    return serverError("/api/claims/[id]/documents", dbErr, { claimId: id, step: "insert" });
-  }
+  const path = doc.path;
 
   // Reactive task engine: auto-complete chase tasks this doc satisfies.
   await runEngine(id, { type: "doc_uploaded", docType: type });

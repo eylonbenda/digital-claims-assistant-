@@ -22,6 +22,33 @@ function input(overrides: Partial<CockpitInput> = {}): CockpitInput {
   };
 }
 
+describe("deriveCockpit — pending insurer email", () => {
+  test("outranks awaiting-insurer and the docs-requested line", () => {
+    expect(
+      deriveCockpit(input({ handlingEffective: "sent", pendingInsurerEmail: true }), NOW).nextAction.kind,
+    ).toBe("insurer_email");
+    expect(
+      deriveCockpit(input({ handlingEffective: "docs_requested", pendingInsurerEmail: true }), NOW)
+        .nextAction.kind,
+    ).toBe("insurer_email");
+  });
+
+  test("loses to a closed claim and to chase; ignored before the claim is sent", () => {
+    expect(
+      deriveCockpit(input({ handlingEffective: "sent", pendingInsurerEmail: true, claimClosed: true }), NOW)
+        .nextAction.kind,
+    ).toBe("none");
+    expect(
+      deriveCockpit(
+        input({ handlingEffective: "sent", pendingInsurerEmail: true, chaseLabels: ["רישיון נהיגה"] }), NOW,
+      ).nextAction.kind,
+    ).toBe("chase");
+    expect(
+      deriveCockpit(input({ handlingEffective: null, pendingInsurerEmail: true }), NOW).nextAction.kind,
+    ).not.toBe("insurer_email");
+  });
+});
+
 describe("deriveCockpit — handling next-actions", () => {
   test("submittable + unsent → prepare_submission", () => {
     const { nextAction } = deriveCockpit(input({ submissionReady: true }), NOW);

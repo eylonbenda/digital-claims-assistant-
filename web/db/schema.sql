@@ -202,7 +202,11 @@ create table claim_emails (
   match_method text check (match_method in ('subject_id', 'thread', 'manual')),
   attachments_dropped boolean not null default false,
   delivery_failed boolean not null default false,
-  received_at timestamptz not null default now()
+  received_at timestamptz not null default now(),
+  -- migration 015: what the clerk decided about an inbound email — a handling
+  -- status set from it, or 'none' (dismissed). Null = still waiting on her.
+  handled_at timestamptz,
+  handled_as text
 );
 create index claim_emails_agent_claim_idx on claim_emails (agent_id, claim_id, received_at desc);
 create index claim_emails_message_id_idx on claim_emails (message_id);

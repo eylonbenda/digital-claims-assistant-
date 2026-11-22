@@ -6,7 +6,7 @@ import { isSystemMilestone } from "@/lib/handling/transitions";
 import { AWAITING_INSURER } from "@/lib/handling/followup";
 import {
   AWAITING_CLIENT_LINE, CLASSIFY_LINE, CLOSED_LINE, FILL_FORM_LINE, NO_ACTION_LINE,
-  PREPARE_SUBMISSION_LINE, UPDATE_HANDLING_LINE,
+  INSURER_EMAIL_LINE, PREPARE_SUBMISSION_LINE, UPDATE_HANDLING_LINE,
   awaitingInsurerLine, chaseLine, docsRequestedLine, formFieldsLine, formReadyLine, milestoneLine, taskLine,
 } from "./copy";
 
@@ -37,6 +37,8 @@ export type CockpitInput = {
   handlingOverdue?: boolean; // follow-up task due/overdue (14d fallback)
   // What the insurer asked for at the last docs_requested transition, if recorded.
   docsRequestNote?: string | null;
+  // An inbound email on the sent claim still waits for the handler's decision.
+  pendingInsurerEmail?: boolean;
 };
 
 export type NextAction =
@@ -49,6 +51,7 @@ export type NextAction =
   | { kind: "milestone"; line: string; targetTab: "overview"; milestoneKey: string; milestoneLabel: string }
   | { kind: "prepare_submission"; line: string; targetTab: "send" }
   | { kind: "update_handling"; line: string; targetTab: "overview" }
+  | { kind: "insurer_email"; line: string; targetTab: "overview" }
   | { kind: "none"; line: string; targetTab: "overview" };
 
 // overview counts what waits on the agent there: an unconfirmed track, open tasks
@@ -103,6 +106,10 @@ export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: Nex
     nextAction = { kind: "chase", line: chaseLine(input.chaseLabels), targetTab: "overview" };
   } else if (input.submissionReady && !input.handlingEffective) {
     nextAction = { kind: "prepare_submission", line: PREPARE_SUBMISSION_LINE, targetTab: "send" };
+  } else if (input.pendingInsurerEmail && input.handlingEffective) {
+    // The insurer's answer outranks every other post-send line: it is what the
+    // follow-ups below are waiting for, and it may already change the status.
+    nextAction = { kind: "insurer_email", line: INSURER_EMAIL_LINE, targetTab: "overview" };
   } else if (input.handlingEffective === "docs_requested") {
     // The ball is with the handler from the moment the insurer asks, not only once
     // the follow-up is overdue — and the line says what was asked.

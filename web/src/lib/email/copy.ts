@@ -17,6 +17,13 @@ export const EMAIL_COPY = {
   deliveryFailed: "המייל חזר — לא נמסר",
   newEmailBadge: "מייל חדש",
   linkUnavailable: "קישור לא זמין",
+  actionsLabel: "עדכון סטטוס לפי המייל:",
+  actionNone: "אין שינוי בסטטוס",
+  actionFailed: "העדכון נכשל — נסו שוב",
+  handledAs: "עודכן לפי המייל:",
+  handledNone: "סומן: אין שינוי בסטטוס",
+  evidenceFromEmail: "מהמייל",
+  evidenceOther: "קובץ אחר",
 
   sendButton: "שליחה למבטחת",
   confirmTitle: "לשלוח את התיק למבטחת?",

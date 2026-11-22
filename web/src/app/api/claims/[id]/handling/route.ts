@@ -2,11 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { runEngine } from "@/lib/tasks/runner";
 import { planHandlingUpdate } from "@/lib/handling/apply";
-import { serverError } from "@/lib/observability/report";
+import { reportError, serverError } from "@/lib/observability/report";
 import type { ClaimType } from "@/lib/tasks/types";
 
 // PATCH /api/claims/[id]/handling
-// Body: { to: HandlingStatus, note?, lawyer? } | { close: { reason, note? } }
+// Body: { to: HandlingStatus, note?, lawyer?, email_id? } | { close: { reason, note? } }
+// email_id: the inbound email this transition answers — it is marked handled.
 // Evidence-gated handling transitions (spec: docs/superpowers/specs/2026-10-21-claim-handling-design.md).
 export async function PATCH(
   request: Request,
@@ -62,6 +63,14 @@ export async function PATCH(
   });
   if ("error" in plan) return Response.json({ error: plan.error }, { status: 400 });
 
+  // The email this transition answers, if any — only one filed on this claim counts.
+  let emailId: string | null = null;
+  if (typeof body.email_id === "string" && plan.event.type === "handling_changed") {
+    const { data: email } = await supabase
+      .from("claim_emails").select("id").eq("id", body.email_id).eq("claim_id", id).maybeSingle();
+    emailId = (email?.id as string | undefined) ?? null;
+  }
+
   const update: Record<string, unknown> = { ...plan.update };
   if (plan.summaryPatch) {
     const summary = (claim.summary_json as Record<string, unknown> | null) ?? {};
@@ -99,8 +108,18 @@ export async function PATCH(
   await svc.from("claim_events").insert({
     claim_id: id,
     type: plan.event.type,
-    payload_json: plan.event.payload,
+    payload_json: emailId ? { ...plan.event.payload, email_id: emailId } : plan.event.payload,
   });
+
+  // The transition stands even if this fails (e.g. migration 015 not applied yet):
+  // the worst case is an email that keeps asking for a status it already produced.
+  if (emailId) {
+    const { error: handledErr } = await svc
+      .from("claim_emails")
+      .update({ handled_at: new Date().toISOString(), handled_as: plan.update.handling_status })
+      .eq("id", emailId);
+    if (handledErr) await reportError("/api/claims/[id]/handling", handledErr, { claimId: id, step: "email_handled" });
+  }
 
   // A reverted send leaves its follow-up task moot — close open ones so the
   // dashboard doesn't chase an insurer that never received the claim.

@@ -40,6 +40,7 @@ import { buildSubmission, type SubmissionSource } from "@/lib/submission/build";
 import SubmissionPanel, { type SubmissionView } from "./SubmissionPanel";
 import CorrespondencePanel from "./CorrespondencePanel";
 import { loadClaimEmails, loadEmailFeature } from "@/lib/email/load";
+import { isPendingEmail } from "@/lib/email/pending";
 
 const BUCKET = "claim-docs";
 const SIGNED_TTL = 60 * 60; // 1h — agent viewing session
@@ -397,6 +398,9 @@ export default async function ClaimDetailPage({
       insurerLabel: claim.policy_insurer ? INSURER_LABEL[claim.policy_insurer] ?? claim.policy_insurer : null,
       docsCount: docs.length,
       handlingEffective,
+      pendingInsurerEmail: claimEmails.some((e) =>
+        isPendingEmail(e, { handlingEffective, closed: claim.status === "closed" }),
+      ),
       docsRequestNote:
         (summaryJson as { handling?: { docs_request?: { note?: string } } } | null)?.handling
           ?.docs_request?.note ?? null,
@@ -592,7 +596,17 @@ export default async function ClaimDetailPage({
                 <NotesPanel claimId={claim.id} notes={notes} />
               </section>
 
-              {claimEmails.length > 0 && <CorrespondencePanel emails={claimEmails} now={new Date(now)} />}
+              {claimEmails.length > 0 && (
+                <CorrespondencePanel
+                  emails={claimEmails}
+                  now={new Date(now)}
+                  claimId={claim.id}
+                  handlingEffective={handlingEffective}
+                  claimClosed={claim.status === "closed"}
+                  demandAmount={amounts?.demand_amount ?? null}
+                  paidSoFar={amounts?.paid_amount ?? null}
+                />
+              )}
 
               {classification && confirmed && (
                 <details>
