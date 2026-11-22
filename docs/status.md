@@ -610,3 +610,8 @@ cd web ; npm run dev
 ### Done since last sync (2026-11-22, PR #143 — overview money waiting on insurers is net of partial payments)
 - **No migration.** `web/src/lib/overview/compute.ts` (+ test), `web/src/app/dashboard/overview/page.tsx`.
 - **Fixes an overstatement:** the "מחכים למבטחת" tiles, aging bands and oldest-waiting list summed the raw `demand_amount` for `sent`/`awaiting_payment` claims, ignoring any `partial_paid` amount already received. New `owedAmount()` nets `demand_amount - paid_amount` (floored at 0, `null` while no demand is entered yet); the oldest-waiting list now shows each claim's `owed_amount` instead of its full `demand_amount`.
+
+### Done since last sync (2026-11-22, PR #144 — keep the insurer's completion request visible on the claim)
+- **No migration.** `web/src/lib/handling/apply.ts`, `web/src/lib/cockpit/derive.ts` + `copy.ts`, `web/src/app/dashboard/[id]/page.tsx`.
+- **Fixes a dropped note:** the mandatory "מה המבטחת ביקשה?" text entered when moving a claim to `docs_requested` was written only to the `claim_events` audit row and rendered nowhere. `planHandlingUpdate` now also keeps it on the claim itself (`summary_json.handling.docs_request: { note, at }`), and the page passes it through as `docsRequestNote`.
+- **Cockpit priority change:** while `handlingEffective === "docs_requested"`, the next action now fires **from the moment of the request**, not only once the follow-up is overdue — it leads over open tasks and reads "המבטחת ביקשה השלמות: …" (falling back to a generic line for claims that entered `docs_requested` before this shipped, since their note lives only in the event log). The `sent` + overdue path is unchanged.

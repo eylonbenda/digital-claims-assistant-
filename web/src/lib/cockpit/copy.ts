@@ -33,6 +33,11 @@ export const PREPARE_SUBMISSION_LINE = "התיק מוכן — להכין שלי�
 
 export const UPDATE_HANDLING_LINE = "לעדכן סטטוס מול המבטחת";
 
+// While the insurer waits on completions, the request itself is the next action.
+export function docsRequestedLine(note: string | null): string {
+  return note ? `המבטחת ביקשה השלמות: ${note}` : "המבטחת ביקשה השלמות — לשלוח ולעדכן סטטוס";
+}
+
 export const REMINDER_LABEL = "💬 שלח תזכורת ללקוח ↗";
 export const REMINDER_FAILED = "הרישום נכשל — נסה שוב";
 export const REMINDER_NO_PHONE = "מספר טלפון חסר או לא תקין";
