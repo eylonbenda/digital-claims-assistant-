@@ -41,6 +41,8 @@ describe("buildQueue — lanes and eligibility", () => {
     expect(item.task_key).toBe("chase_missing_docs");
     expect(item.overdue_days).toBe(1);
     expect(item.body).toContain("שלום דנה");
+    // First name only — the greeting must not carry the surname.
+    expect(item.body).not.toContain("דנה כהן");
     expect(item.body).toContain("• רישיון נהיגה");
     expect(item.body).toContain("https://app.test/c/tok1");
     expect(item.href).toContain("https://wa.me/972521234567?text=");
