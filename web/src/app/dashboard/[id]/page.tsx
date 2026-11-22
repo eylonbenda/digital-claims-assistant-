@@ -23,6 +23,7 @@ import { demandAddressee } from "@/lib/demand/inputs";
 import { INSURER_DIRECTORY, claimsAddress } from "@/lib/submission/directory";
 import ChecklistPanel from "./ChecklistPanel";
 import AgentDocUpload from "./AgentDocUpload";
+import DocDropZone from "./DocDropZone";
 import AmountsCard from "./AmountsCard";
 import { toAmount } from "@/lib/handling/amounts";
 import { computeDamageTotals } from "@/lib/demand/damages";
@@ -567,6 +568,8 @@ export default async function ClaimDetailPage({
                 docCounts={docCountByType}
                 view="rest"
               />
+
+              {claim.status !== "closed" && <DocDropZone claimId={claim.id} />}
 
               <AgentDocUpload claimId={claim.id} />
 

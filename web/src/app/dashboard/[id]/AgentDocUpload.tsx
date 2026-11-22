@@ -2,32 +2,10 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DOC_OPTIONS } from "@/lib/claims/doc-labels";
 
 // Also the re-file options on each card in ClaimDocuments.
-export const DOC_OPTIONS: { type: string; label: string }[] = [
-  { type: "appraiser_report",      label: "דוח שמאי" },
-  { type: "garage_invoice",        label: "חשבונית תיקון" },
-  { type: "repair_receipt",        label: "קבלה על תשלום" },
-  { type: "payment_notice",        label: "הודעת תשלום (מהמבטחת)" },
-  { type: "rejection_letter",      label: "מכתב דחייה" },
-  { type: "assessor_fee_invoice",  label: 'חשבון שכ"ט שמאי' },
-  { type: "assessor_fee_receipt",  label: 'קבלה שכ"ט שמאי' },
-  { type: "no_claim_confirmation", label: "אישור אי-הגשת תביעה" },
-  { type: "loss_confirmation",     label: "אישור הפסדים" },
-  { type: "bank_details",          label: "פרטי חשבון בנק" },
-  { type: "demand_form",           label: "מכתב דרישה" },
-  { type: "police_report",         label: "אישור משטרה" },
-  { type: "insurance_history",     label: "עבר ביטוחי" },
-  { type: "lien_release",          label: "אישור הסרת שיעבוד" },
-  { type: "info_consent",          label: "הסכמה למשרד הרישוי" },
-  { type: "power_of_attorney",     label: "ייפוי כוח" },
-  { type: "vat_offset_confirmation", label: 'אישור רו"ח — קיזוז מע"מ' },
-  { type: "keys",                  label: "מפתחות" },
-  { type: "id_card",               label: "תעודת זהות" },
-  { type: "car_photo",             label: "תמונות נוספות" },
-  { type: "third_party_doc",       label: "מסמכי צד ג'" },
-  { type: "other",                 label: "אחר" },
-];
+export { DOC_OPTIONS };
 
 export default function AgentDocUpload({ claimId }: { claimId: string }) {
   const router = useRouter();
