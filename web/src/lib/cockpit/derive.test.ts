@@ -203,3 +203,15 @@ describe("lines that must not claim it is the handler's turn", () => {
     expect(nextAction.kind).toBe("task");
   });
 });
+
+describe("follow-up after a rejection", () => {
+  it("is the handler's own task even before it is due — not 'waiting for the insurer'", () => {
+    const tasks = [{
+      title: "להחליט: ערעור או הליך משפטי", status: "todo",
+      due_at: "2026-08-26T10:00:00+03:00", key: "follow_up_tp_insurer",
+    }];
+    const { nextAction } = deriveCockpit({ ...base, tasks, handlingEffective: "rejected" }, NOW);
+    expect(nextAction.kind).toBe("task");
+    expect(nextAction.line).toContain("להחליט");
+  });
+});

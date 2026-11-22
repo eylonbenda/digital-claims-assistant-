@@ -28,7 +28,6 @@
 <line class="arr" x1="340" y1="235" x2="340" y2="255" marker-end="url(#arrow)"/>
 <line class="arr" x1="340" y1="297" x2="340" y2="317" marker-end="url(#arrow)"/>
 <line class="arr" x1="340" y1="359" x2="340" y2="379" marker-end="url(#arrow)"/>
-<line class="arr" x1="340" y1="421" x2="340" y2="441" marker-end="url(#arrow)"/>
 
 <line class="arr" x1="550" y1="180" x2="550" y2="193" marker-end="url(#arrow)"/>
 <line class="arr" x1="550" y1="235" x2="550" y2="255" marker-end="url(#arrow)"/>
@@ -47,10 +46,9 @@
 <g class="c-amber"><rect x="48" y="319" width="164" height="40" rx="4"/><text class="th" x="130" y="340" text-anchor="middle">מעקב מבטח</text><text class="ts" x="130" y="354" text-anchor="middle">עד 14 יום</text></g>
 
 <g class="c-teal"><rect x="258" y="195" width="164" height="40" rx="4"/><text class="th" x="340" y="216" text-anchor="middle">פרטי מבטח צד ג'</text><text class="ts" x="340" y="230" text-anchor="middle">עד 2 ימים</text></g>
-<g class="c-teal"><rect x="258" y="257" width="164" height="40" rx="4"/><text class="th" x="340" y="278" text-anchor="middle">תיאום שמאי</text><text class="ts" x="340" y="292" text-anchor="middle">עד 3 ימים</text></g>
-<g class="c-teal"><rect x="258" y="319" width="164" height="40" rx="4"/><text class="th" x="340" y="340" text-anchor="middle">איסוף דוח פרטי</text><text class="ts" x="340" y="354" text-anchor="middle">עד 5 ימים</text></g>
-<g class="c-teal"><rect x="258" y="381" width="164" height="40" rx="4"/><text class="th" x="340" y="402" text-anchor="middle">הגשה לצד ג'</text><text class="ts" x="340" y="416" text-anchor="middle">עד 2 ימים</text></g>
-<g class="c-amber"><rect x="258" y="443" width="164" height="40" rx="4"/><text class="th" x="340" y="464" text-anchor="middle">מעקב צד ג'</text><text class="ts" x="340" y="478" text-anchor="middle">עד 14 יום</text></g>
+<g class="c-teal"><rect x="258" y="257" width="164" height="40" rx="4"/><text class="th" x="340" y="278" text-anchor="middle">מסמכים אחרי התיקון</text><text class="ts" x="340" y="292" text-anchor="middle">עד 10 ימים</text></g>
+<g class="c-teal"><rect x="258" y="319" width="164" height="40" rx="4"/><text class="th" x="340" y="340" text-anchor="middle">הגשה לצד ג'</text><text class="ts" x="340" y="354" text-anchor="middle">עד 2 ימים</text></g>
+<g class="c-amber"><rect x="258" y="381" width="164" height="40" rx="4"/><text class="th" x="340" y="402" text-anchor="middle">מעקב צד ג'</text><text class="ts" x="340" y="416" text-anchor="middle">עד 14 יום</text></g>
 
 <g class="c-teal"><rect x="468" y="195" width="164" height="40" rx="4"/><text class="th" x="550" y="216" text-anchor="middle">בקשת הסדר</text><text class="ts" x="550" y="230" text-anchor="middle">עד 2 ימים</text></g>
 <g class="c-amber"><rect x="468" y="257" width="164" height="40" rx="4"/><text class="th" x="550" y="278" text-anchor="middle">מעקב אישור</text><text class="ts" x="550" y="292" text-anchor="middle">עד 5 ימים</text></g>

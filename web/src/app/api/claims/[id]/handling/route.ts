@@ -113,6 +113,36 @@ export async function PATCH(
       .like("key", "follow\\_up\\_%");
   }
 
+  // Each status has its own next step and date: swap the follow-up task for it.
+  // Complete-then-insert, so the one-open-task-per-key index is never violated.
+  if (plan.followUp) {
+    const done = { status: "done", completed_at: new Date().toISOString() };
+    await svc.from("tasks").update(done)
+      .eq("claim_id", id).eq("key", plan.followUp.key).neq("status", "done");
+    const { error: taskError } = await svc.from("tasks").insert({
+      claim_id: id,
+      key: plan.followUp.key,
+      title: plan.followUp.title,
+      track: claim.claim_type,
+      due_at: plan.followUp.due_at,
+      source: "template",
+    });
+    if (taskError && taskError.code !== "23505") {
+      console.error("follow-up task failed:", plan.followUp.key, taskError);
+    }
+  }
+
+  // A manually closed claim has nothing left to do: its engine tasks would
+  // otherwise stay open forever (the engine never runs again on it).
+  if (plan.completeTemplateTasks) {
+    await svc
+      .from("tasks")
+      .update({ status: "done", completed_at: new Date().toISOString() })
+      .eq("claim_id", id)
+      .eq("source", "template")
+      .neq("status", "done");
+  }
+
   let status: string = claim.status as string;
   if (plan.update.status === "closed") status = "closed";
   const milestoneEvent = plan.milestoneTick

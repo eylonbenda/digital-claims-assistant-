@@ -50,37 +50,9 @@ export function advanceTasks(input: EngineInput): EngineResult {
   );
   const ruleByKey = new Map(rules.map((r) => [r.key, r]));
 
-  // 1 · auto-complete open template tasks whose condition now holds.
-  //     Manual tasks (key null) are the agent's own — never auto-touched.
-  const complete: string[] = [];
-  for (const t of openTasks) {
-    if (!t.key) continue;
-    const rule = ruleByKey.get(t.key);
-    if (rule?.completeWhen(ctx)) complete.push(t.id);
-  }
-
-  // 2 · spawn. Skip if an open task holds the key (idempotency) or the
-  //     completion condition already holds (never spawn satisfied work).
-  //     Never spawn on a terminal claim (closed/abandoned) — auto-complete
-  //     above still runs so stale open tasks get closed out.
+  // Status advance is computed first: a claim that closes on this event spawns
+  // nothing and takes its remaining template tasks with it.
   const terminal = claim.status === "closed" || claim.status === "abandoned";
-  const openKeys = new Set(openTasks.filter((t) => t.key).map((t) => t.key!));
-  const spawn: TaskSpawn[] = [];
-  if (!terminal) {
-    for (const rule of rules) {
-      if (openKeys.has(rule.key)) continue;
-      if (!rule.spawnOn(event, ctx)) continue;
-      if (rule.completeWhen(ctx)) continue;
-      spawn.push({
-        key: rule.key,
-        title: rule.title,
-        track: claim.claimType === "unknown" ? null : claim.claimType,
-        due_at: new Date(now.getTime() + rule.dueDays * DAY_MS).toISOString(),
-      });
-    }
-  }
-
-  // 3 · status advance — forward-only, event-gated (see plan table).
   let candidate: ClaimStatus | null = null;
   switch (event.type) {
     case "claim_submitted":
@@ -102,6 +74,39 @@ export function advanceTasks(input: EngineInput): EngineResult {
     !terminal && candidate && STATUS_ORDER[candidate] > STATUS_ORDER[claim.status]
       ? candidate
       : null;
+  const closing = statusAdvance === "closed";
 
+  // 1 · auto-complete open template tasks: the condition now holds, the claim is
+  //     closing, or no rule on the current track owns the key any more (the track
+  //     was revised, or the rule was retired) — nothing else would ever close those.
+  //     Manual tasks (key null) are the agent's own — never auto-touched.
+  const complete: string[] = [];
+  for (const t of openTasks) {
+    if (!t.key || t.source !== "template") continue;
+    const rule = ruleByKey.get(t.key);
+    if (closing || !rule || rule.completeWhen(ctx)) complete.push(t.id);
+  }
+
+  // 2 · spawn. Skip if an open task holds the key (idempotency) or the
+  //     completion condition already holds (never spawn satisfied work).
+  //     Never spawn on a terminal claim (closed/abandoned) — auto-complete
+  //     above still runs so stale open tasks get closed out.
+  const openKeys = new Set(openTasks.filter((t) => t.key).map((t) => t.key!));
+  const spawn: TaskSpawn[] = [];
+  if (!terminal && !closing) {
+    for (const rule of rules) {
+      if (openKeys.has(rule.key)) continue;
+      if (!rule.spawnOn(event, ctx)) continue;
+      if (rule.completeWhen(ctx)) continue;
+      spawn.push({
+        key: rule.key,
+        title: rule.title,
+        track: claim.claimType === "unknown" ? null : claim.claimType,
+        due_at: new Date(now.getTime() + rule.dueDays * DAY_MS).toISOString(),
+      });
+    }
+  }
+
+  // 3 · status advance — forward-only, event-gated (computed above).
   return { spawn, complete, statusAdvance };
 }

@@ -3,6 +3,7 @@
 import type { ItemKind } from "@/lib/claims/checklist";
 import type { HandlingStatus } from "@/lib/handling/types";
 import { isSystemMilestone } from "@/lib/handling/transitions";
+import { AWAITING_INSURER } from "@/lib/handling/followup";
 import {
   AWAITING_CLIENT_LINE, CLASSIFY_LINE, CLOSED_LINE, FILL_FORM_LINE, NO_ACTION_LINE,
   PREPARE_SUBMISSION_LINE, UPDATE_HANDLING_LINE,
@@ -114,9 +115,12 @@ export function deriveCockpit(input: CockpitInput, now: Date): { nextAction: Nex
     nextAction = { kind: "update_handling", line: UPDATE_HANDLING_LINE, targetTab: "overview" };
   } else if (
     task && task.key?.startsWith("follow_up") && input.handlingEffective &&
+    AWAITING_INSURER.has(input.handlingEffective) &&
     task.dueAt && task.dueAt.getTime() > now.getTime()
   ) {
-    // The only open work is a follow-up that is not due: it is the insurer's turn, not ours.
+    // The only open work is a follow-up that is not due, in a status where the next
+    // move is the insurer's. After a rejection or a partial payment the follow-up is
+    // the handler's own task and falls through to the task line below.
     nextAction = { kind: "none", line: awaitingInsurerLine(task.dueAt), targetTab: "overview" };
   } else if (task) {
     nextAction = {

@@ -3,6 +3,7 @@ import { canTransition, requirementFor, sentMilestoneFor } from "./transitions";
 import { effectiveHandling } from "./effective";
 import { isHandlingStatus, type HandlingStatus } from "./types";
 import { REQUIREMENT_ERROR } from "./copy";
+import { FOLLOW_UP_AFTER, followUpKeyFor } from "./followup";
 
 export type Lawyer = { name: string; phone?: string; email?: string };
 
@@ -39,6 +40,10 @@ export type HandlingPlan = {
   milestoneUntick?: string;
   // Revert only: the confirm's follow_up_* task is now moot — close it.
   completeFollowUps?: boolean;
+  // Replace the open follow-up task with the one this status calls for.
+  followUp?: { key: string; title: string; due_at: string };
+  // Manual close: the claim's remaining template tasks are moot.
+  completeTemplateTasks?: boolean;
 };
 
 // Pure planner behind PATCH /api/claims/[id]/handling. The route is I/O glue.
@@ -54,6 +59,7 @@ export function planHandlingUpdate(input: HandlingInput): { error: string } | Ha
       update: { status: "closed", closed_at: now.toISOString() },
       summaryPatch: { handling: { closure } },
       event: { type: "claim_closed", payload: closure },
+      completeTemplateTasks: true,
     };
   }
 
@@ -115,5 +121,14 @@ export function planHandlingUpdate(input: HandlingInput): { error: string } | Ha
   // Only a FULL payment ticks payment_received — the engine closes the claim
   // on that milestone, and a partially-paid claim must stay open (spec ruling).
   if (to === "paid") plan.milestoneTick = "payment_received";
+  const next = FOLLOW_UP_AFTER[to];
+  const followUpKey = followUpKeyFor(current.claim_type);
+  if (next && followUpKey) {
+    plan.followUp = {
+      key: followUpKey,
+      title: next.title,
+      due_at: new Date(now.getTime() + next.dueDays * 86_400_000).toISOString(),
+    };
+  }
   return plan;
 }
