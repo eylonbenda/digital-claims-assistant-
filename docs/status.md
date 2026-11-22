@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-21**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-22**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -602,3 +602,7 @@ cd web ; npm run dev
 ### Done since last sync (2026-11-21, PR #140 — cockpit tab survives the send tab disappearing)
 - **No migration.** `web/src/app/dashboard/[id]/CockpitTabs.tsx`, new `web/src/lib/cockpit/tabs.ts` (+ test).
 - **Fixes a blank pane:** `CockpitTabs` only validated `initialTab` against the visible tabs once, at mount. If the agent had the שליחה למבטחת tab open and the claim then got marked sent client-side (removing that tab), the open tab stayed `"send"` with no matching pane. The new pure `shownTab(tabs, chosen)` (`lib/cockpit/tabs.ts`) is re-derived every render and falls back to `overview` once the chosen tab stops existing.
+
+### Done since last sync (2026-11-22, PR #142 — client chase ignores agent-sourced base docs)
+- **No migration.** `web/src/lib/tasks/engine.ts` + `engine.test.ts`.
+- **Fixes `chase_missing_docs` staying open after the client supplied everything:** `mandatoryBaseDocsMissing()` keyed off every mandatory `base`-section doc, including `demand_form` (the מכתב דרישה only the agent drafts). It now also requires `clientSuppliable !== false` — the same filter `chaseableLabels()` already applies (`architecture.md`) — so an agent-sourced base doc can no longer spawn or keep open a task meant to chase the client.
