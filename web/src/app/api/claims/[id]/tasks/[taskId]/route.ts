@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
 const VALID_STATUSES = new Set(["todo", "in_progress", "blocked", "done"]);
+const ENGINE_TASK_DONE_ERROR =
+  "משימה אוטומטית נסגרת כשהפעולה מתבצעת בתיק — אפשר לדחות או לחסום אותה";
 
 // PATCH /api/claims/[id]/tasks/[taskId]
 // Body: { status?: TaskStatus, due_at?: string | null, note?: string | null }
@@ -58,6 +60,18 @@ export async function PATCH(
   if (!claim) return Response.json({ error: "not found" }, { status: 404 });
 
   const svc = createServiceClient();
+
+  // Engine tasks close when the thing they wait for happens on the claim. A manual
+  // "done" either hid work that was still owed or was undone by the next event, so
+  // it is refused — the handler postpones (due_at) or parks (blocked) instead.
+  if (payload.status === "done") {
+    const { data: current } = await svc
+      .from("tasks").select("source").eq("id", taskId).eq("claim_id", id).maybeSingle();
+    if (current?.source === "template") {
+      return Response.json({ error: ENGINE_TASK_DONE_ERROR }, { status: 400 });
+    }
+  }
+
   const { data: task, error } = await svc
     .from("tasks")
     .update(patch)

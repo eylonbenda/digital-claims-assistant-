@@ -34,3 +34,10 @@ describe("TASK_RULES", () => {
     for (const rule of TASK_RULES) expect(valid.has(rule.track), rule.key).toBe(true);
   });
 });
+
+describe("settlement repair follow-up", () => {
+  it("is named for what closes it — repair and payment", () => {
+    const rule = TASK_RULES.find((r) => r.key === "follow_up_repair");
+    expect(rule?.title).toBe("מעקב סיום תיקון ותשלום");
+  });
+});

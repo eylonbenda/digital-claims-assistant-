@@ -22,6 +22,13 @@ function dueLabel(due: string | null): string | null {
   return new Date(due).toLocaleDateString("he-IL", { day: "numeric", month: "numeric" });
 }
 
+const SNOOZE_DAYS = [3, 7] as const;
+const snoozeLabel = (days: number) => (days === 7 ? "דחה בשבוע" : `דחה ב-${days} ימים`);
+// From the later of now and the current date: postponing a task that is not due
+// yet must push it further out, never pull it closer.
+const snoozeTo = (days: number, due: string | null) =>
+  new Date(Math.max(Date.now(), due ? new Date(due).getTime() : 0) + days * 86_400_000).toISOString();
+
 // The claim's action worklist — engine-spawned chases + the agent's own tasks.
 // Docs never appear here (they live in the derived checklist); this panel is
 // the dated, stateful layer on top.
@@ -126,14 +133,31 @@ export default function TasksPanel({
                   >
                     {t.status === "blocked" ? "שחרר" : "חסום"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => patch(t.id, { status: "done" })}
-                    disabled={busyId === t.id}
-                    className="rounded-lg bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                  >
-                    ✓ בוצע
-                  </button>
+                  {t.source === "manual" ? (
+                    <button
+                      type="button"
+                      onClick={() => patch(t.id, { status: "done" })}
+                      disabled={busyId === t.id}
+                      className="rounded-lg bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                    >
+                      ✓ בוצע
+                    </button>
+                  ) : (
+                    // Engine tasks close themselves when the work shows up on the
+                    // claim; the handler can only push the reminder out.
+                    SNOOZE_DAYS.map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => patch(t.id, { due_at: snoozeTo(days, t.due_at) })}
+                        disabled={busyId === t.id}
+                        title="נסגרת אוטומטית כשהפעולה מתבצעת בתיק"
+                        className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
+                      >
+                        {snoozeLabel(days)}
+                      </button>
+                    ))
+                  )}
                 </div>
               </li>
             );
