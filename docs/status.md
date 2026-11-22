@@ -603,6 +603,14 @@ cd web ; npm run dev
 - **No migration.** `web/src/app/dashboard/[id]/CockpitTabs.tsx`, new `web/src/lib/cockpit/tabs.ts` (+ test).
 - **Fixes a blank pane:** `CockpitTabs` only validated `initialTab` against the visible tabs once, at mount. If the agent had the שליחה למבטחת tab open and the claim then got marked sent client-side (removing that tab), the open tab stayed `"send"` with no matching pane. The new pure `shownTab(tabs, chosen)` (`lib/cockpit/tabs.ts`) is re-derived every render and falls back to `overview` once the chosen tab stops existing.
 
+### Done since last sync (2026-11-22, PR #142 — client chase ignores agent-sourced base docs)
+- **No migration.** `web/src/lib/tasks/engine.ts` + `engine.test.ts`.
+- **Fixes `chase_missing_docs` staying open after the client supplied everything:** `mandatoryBaseDocsMissing()` keyed off every mandatory `base`-section doc, including `demand_form` (the מכתב דרישה only the agent drafts). It now also requires `clientSuppliable !== false` — the same filter `chaseableLabels()` already applies (`architecture.md`) — so an agent-sourced base doc can no longer spawn or keep open a task meant to chase the client.
+
+### Done since last sync (2026-11-22, PR #143 — overview money waiting on insurers is net of partial payments)
+- **No migration.** `web/src/lib/overview/compute.ts` (+ test), `web/src/app/dashboard/overview/page.tsx`.
+- **Fixes an overstatement:** the "מחכים למבטחת" tiles, aging bands and oldest-waiting list summed the raw `demand_amount` for `sent`/`awaiting_payment` claims, ignoring any `partial_paid` amount already received. New `owedAmount()` nets `demand_amount - paid_amount` (floored at 0, `null` while no demand is entered yet); the oldest-waiting list now shows each claim's `owed_amount` instead of its full `demand_amount`.
+
 ### Done since last sync (2026-11-22, PR #144 — keep the insurer's completion request visible on the claim)
 - **No migration.** `web/src/lib/handling/apply.ts`, `web/src/lib/cockpit/derive.ts` + `copy.ts`, `web/src/app/dashboard/[id]/page.tsx`.
 - **Fixes a dropped note:** the mandatory "מה המבטחת ביקשה?" text entered when moving a claim to `docs_requested` was written only to the `claim_events` audit row and rendered nowhere. `planHandlingUpdate` now also keeps it on the claim itself (`summary_json.handling.docs_request: { note, at }`), and the page passes it through as `docsRequestNote`.
