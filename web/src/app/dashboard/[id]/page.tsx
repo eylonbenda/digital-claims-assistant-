@@ -387,6 +387,8 @@ export default async function ClaimDetailPage({
       chaseLabels,
       tasks: tasks.map(({ title, status, due_at, key }) => ({ title, status, due_at, key })),
       hasSendTab: !!submissionView,
+      awaitingClient: !claim.submitted_at && docs.length === 0,
+      claimClosed: claim.status === "closed",
       missingFieldCount: analysis?.missing.length ?? 0,
       hasGeneratedForm: forms.length > 0,
       nextMilestone: nextMilestone ? { key: nextMilestone.key, label: nextMilestone.label } : null,
