@@ -107,6 +107,20 @@ describe("deriveCockpit precedence (spec §3, top-down first match)", () => {
   });
 });
 
+describe("task whose work lives on another tab", () => {
+  const tasks = [{ title: "להשיג פרטי מבטח צד ג'", status: "todo", due_at: null, key: "get_tp_insurer" }];
+
+  it("opens the send tab for get_tp_insurer, where the insurer is chosen", () => {
+    const { nextAction } = deriveCockpit({ ...base, tasks, hasSendTab: true }, NOW);
+    expect(nextAction).toMatchObject({ kind: "task", targetTab: "send" });
+  });
+
+  it("stays on the overview when there is no send tab to open", () => {
+    const { nextAction } = deriveCockpit({ ...base, tasks }, NOW);
+    expect(nextAction).toMatchObject({ kind: "task", targetTab: "overview" });
+  });
+});
+
 describe("badges", () => {
   it("overview = classification + open tasks + blocking doc items; form = missing fields; files = docs", () => {
     const { badges } = deriveCockpit({

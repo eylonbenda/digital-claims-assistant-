@@ -17,7 +17,12 @@ export type SubmissionView = {
 type Props = {
   claimId: string;
   submission: SubmissionView;
-  insurers: { key: string; label: string }[];
+  // `address`: the directory's claims address for this claim's track, when we have one.
+  insurers: { key: string; label: string; address?: string | null }[];
+  // third_party_report only: choosing the insurer saves it as the at-fault insurer right
+  // away (re-addressing the demand letter and closing "להשיג פרטי מבטח צד ג'"), instead
+  // of only at the final confirm.
+  saveInsurerOnChange?: boolean;
   // Sending from the app. Off → the panel is prepare-and-confirm only, as before.
   direct: { enabled: boolean; fromAddress: string | null; ccAddress: string | null };
 };
@@ -63,7 +68,7 @@ function CopyField({ label, value, mono }: { label: string; value: string; mono?
   );
 }
 
-export default function SubmissionPanel({ claimId, submission, insurers, direct }: Props) {
+export default function SubmissionPanel({ claimId, submission, insurers, saveInsurerOnChange, direct }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [insurerKey, setInsurerKey] = useState(submission.insurerKey ?? "");
@@ -75,7 +80,28 @@ export default function SubmissionPanel({ claimId, submission, insurers, direct 
   const [error, setError] = useState<string | null>(null);
 
   const recipientValid = !!validRecipient(recipient);
-  const manualRecipient = submission.recipient === null;
+  const addressOf = (key: string) => insurers.find((i) => i.key === key)?.address ?? null;
+  // Manual entry is needed only when the chosen insurer has no directory address.
+  const manualRecipient = !addressOf(insurerKey);
+
+  async function chooseInsurer(key: string) {
+    const previous = addressOf(insurerKey) ?? "";
+    setInsurerKey(key);
+    // Follow the directory unless the clerk typed an address of their own.
+    if (!recipient.trim() || recipient.trim() === previous) setRecipient(addressOf(key) ?? "");
+    if (!saveInsurerOnChange || !key) return;
+    setError(null);
+    const res = await fetch(`/api/claims/${claimId}/demand-form`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ at_fault_insurer: key }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setError(C.insurerSaveFailed);
+      return;
+    }
+    startTransition(() => router.refresh());
+  }
 
   // The amount first: a mistyped number should stop here, before anything is sent
   // or marked sent. Left empty, nothing is recorded and it can be added later.
@@ -195,7 +221,7 @@ export default function SubmissionPanel({ claimId, submission, insurers, direct 
             <select
               id="sub-insurer"
               value={insurerKey}
-              onChange={(e) => setInsurerKey(e.target.value)}
+              onChange={(e) => chooseInsurer(e.target.value)}
               className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
             >
               <option value="">{C.insurerPlaceholder}</option>

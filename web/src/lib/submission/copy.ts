@@ -7,6 +7,7 @@ export const SUBMISSION_COPY = {
   insurerPlaceholder: "בחרו מבטחת",
   recipientLabel: "נמען",
   recipientManualHint: "אין כתובת מאומתת למבטחת זו — הזינו את כתובת מחלקת התביעות ידנית",
+  insurerSaveFailed: "שמירת המבטחת נכשלה — נסו שוב",
   subjectLabel: "נושא (אל תשנו — מקשר תשובות לתביעה)",
   bodyLabel: "גוף ההודעה",
   attachmentsLabel: "קבצים לצירוף",

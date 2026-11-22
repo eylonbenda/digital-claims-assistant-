@@ -20,7 +20,7 @@ import FormGenerator, { type InsurerOption } from "./FormGenerator";
 import FormFieldEditor from "./FormFieldEditor";
 import DemandFormPanel from "./DemandFormPanel";
 import { demandAddressee } from "@/lib/demand/inputs";
-import { INSURER_DIRECTORY } from "@/lib/submission/directory";
+import { INSURER_DIRECTORY, claimsAddress } from "@/lib/submission/directory";
 import ChecklistPanel from "./ChecklistPanel";
 import AgentDocUpload from "./AgentDocUpload";
 import AmountsCard from "./AmountsCard";
@@ -385,7 +385,8 @@ export default async function ClaimDetailPage({
       classificationUnconfirmed: !confirmed,
       blocking: blockingMissing.map(({ key, label, kind }) => ({ key, label, kind })),
       chaseLabels,
-      tasks: tasks.map(({ title, status, due_at }) => ({ title, status, due_at })),
+      tasks: tasks.map(({ title, status, due_at, key }) => ({ title, status, due_at, key })),
+      hasSendTab: !!submissionView,
       missingFieldCount: analysis?.missing.length ?? 0,
       hasGeneratedForm: forms.length > 0,
       nextMilestone: nextMilestone ? { key: nextMilestone.key, label: nextMilestone.label } : null,
@@ -605,7 +606,16 @@ export default async function ClaimDetailPage({
               <SubmissionPanel
                 claimId={claim.id}
                 submission={submissionView}
-                insurers={insurerOptions}
+                insurers={insurerOptions.map((o) => ({
+                  ...o,
+                  address: INSURER_DIRECTORY[o.key]
+                    ? claimsAddress(
+                        INSURER_DIRECTORY[o.key],
+                        claim.claim_type === "own_policy" ? "own_policy" : "third_party",
+                      )
+                    : null,
+                }))}
+                saveInsurerOnChange={claim.claim_type === "third_party_report"}
                 direct={{
                   enabled: !!emailFeature,
                   fromAddress: emailFeature?.address ?? null,
