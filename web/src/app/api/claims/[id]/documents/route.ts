@@ -6,11 +6,12 @@ import { runEngine } from "@/lib/tasks/runner";
 import { reportError, serverError } from "@/lib/observability/report";
 import { detectDocType } from "@/lib/ai/classify-document";
 import { AGENT_DOC_TYPES } from "@/lib/claims/agent-doc-types";
-import { recordAppraiserAmounts, wantsAppraiserAmounts } from "@/lib/demand/suggest-on-file";
+import { recordDocAmounts, wantsDocAmounts } from "@/lib/demand/suggest-on-file";
 
 export const runtime = "nodejs";
 // Auto-filing waits on the classifier (bounded at 20s) before the row is written; an
-// appraiser report on a demand claim is then read for its amounts (bounded at 25s).
+// appraiser report or fee invoice on a demand claim is then read for its amounts
+// (bounded at 25s).
 export const maxDuration = 60;
 
 const MAX_BYTES = 20 * 1024 * 1024; // 20MB — agents upload multi-page PDFs
@@ -88,8 +89,8 @@ export async function POST(
   await runEngine(id, { type: "doc_uploaded", docType: type });
 
   // Offered to the clerk as a suggestion; never written to the damages from here.
-  if (wantsAppraiserAmounts(type, claim.claim_type)) {
-    await recordAppraiserAmounts(svc, id, doc.id, bytes, kind);
+  if (wantsDocAmounts(type, claim.claim_type)) {
+    await recordDocAmounts(svc, id, doc.id, type, bytes, kind);
   }
 
   if (verdict) {

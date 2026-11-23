@@ -17,8 +17,8 @@ confirms instead of typing.
 - Keep what was suggested and what the clerk did, so accuracy can be measured.
 
 ## Non-goals
-- Assessor fee and towing — they come from other documents and stay typed by hand.
-- The garage invoice, payment notices, any other document.
+- Towing — it comes from another document and stays typed by hand.
+- The garage invoice, the fee receipt, payment notices, any other document.
 - Other claim tracks: only the demand track has damages lines.
 - The privacy notice (parked by the owner 2026-11-22). Note: a report uploaded through the
   typed single upload was not sent to the model before; now it is.
@@ -60,6 +60,17 @@ confirms instead of typing.
   amount and, when one was typed and differs, the current one. "להכניס למכתב הדרישה"
   saves through the existing `PATCH …/form-data` (validation, demand-letter regeneration)
   and records the resolution; "לא עכשיו" records a dismissal.
+
+## Addition, same day: the assessor fee
+The owner asked for the appraiser's own fee as well. It is not in the report; it comes
+from the fee invoice (`assessor_fee_invoice`), read by a second call of the same shape
+(fee before VAT, fee including VAT, same consistency check). Consequences:
+- The extraction event carries `doc_type`; a document suggests only its own lines
+  (report → repair, diminished value; fee invoice → assessor fee), and only while it is
+  still filed under the type it was read as.
+- The card merges the pending readings of all source documents into one suggestion;
+  when two documents state the same line the newer reading wins. "Unverified" is per
+  line. Applying or dismissing records one resolution per source document.
 
 ## Left to the builder
 Prompt wording, timeout, exact Hebrew copy, card layout.

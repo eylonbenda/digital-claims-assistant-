@@ -86,3 +86,37 @@ describe("extractAppraiserAmounts", () => {
     expect(await extractAppraiserAmounts(BYTES, "pdf", { client: hanging.client, timeoutMs: 20 })).toBeNull();
   });
 });
+
+describe("parseAssessorFee", () => {
+  const fee = (o: Record<string, unknown>) =>
+    JSON.stringify({ fee_before_vat: 0, fee_incl_vat: 0, confident: true, ...o });
+
+  it("verifies a fee whose two totals agree", async () => {
+    const { parseAssessorFee } = await import("./extract-appraiser-amounts");
+    expect(parseAssessorFee(fee({ fee_before_vat: 900, fee_incl_vat: 1062 }))).toEqual({
+      assessor_fee: 900, verified: true,
+    });
+  });
+
+  it("derives the net fee from a lone VAT-inclusive total, unverified", async () => {
+    const { parseAssessorFee } = await import("./extract-appraiser-amounts");
+    expect(parseAssessorFee(fee({ fee_incl_vat: 1180 }))).toEqual({ assessor_fee: 1000, verified: false });
+    expect(parseAssessorFee(fee({ fee_before_vat: 900, fee_incl_vat: 1000 }))?.verified).toBe(false);
+  });
+
+  it("returns nothing when unsure, empty, malformed or impossible", async () => {
+    const { parseAssessorFee } = await import("./extract-appraiser-amounts");
+    expect(parseAssessorFee(fee({ fee_before_vat: 900, confident: false }))).toBeNull();
+    expect(parseAssessorFee(fee({}))).toBeNull();
+    expect(parseAssessorFee("[]")).toBeNull();
+    expect(parseAssessorFee(fee({ fee_before_vat: -1 }))).toBeNull();
+  });
+
+  it("extractAssessorFee asks the model and never throws", async () => {
+    const { extractAssessorFee } = await import("./extract-appraiser-amounts");
+    const ok = fake(async () => ({ content: [{ type: "text", text: fee({ fee_before_vat: 900, fee_incl_vat: 1062 }) }] }));
+    expect(await extractAssessorFee(BYTES, "pdf", { client: ok.client })).toEqual({ assessor_fee: 900, verified: true });
+    const failing = fake(async () => { throw new Error("boom"); });
+    expect(await extractAssessorFee(BYTES, "pdf", { client: failing.client })).toBeNull();
+  });
+});

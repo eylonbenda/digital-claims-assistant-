@@ -4,10 +4,10 @@ import { runEngine } from "@/lib/tasks/runner";
 import { reportError, serverError } from "@/lib/observability/report";
 import { AGENT_DOC_TYPES } from "@/lib/claims/agent-doc-types";
 import { sniffFileType } from "@/lib/files/sniff";
-import { recordAppraiserAmounts, wantsAppraiserAmounts } from "@/lib/demand/suggest-on-file";
+import { recordDocAmounts, wantsDocAmounts } from "@/lib/demand/suggest-on-file";
 
 export const runtime = "nodejs";
-// Re-filing a document as the appraiser report reads its amounts (bounded at 25s).
+// Re-filing a document as the appraiser report or fee invoice reads its amounts (bounded at 25s).
 export const maxDuration = 60;
 
 const BUCKET = "claim-docs";
@@ -104,14 +104,14 @@ export async function PATCH(request: Request, { params }: Ctx) {
   // The doc now satisfies its new type — let the engine complete what it covers.
   await runEngine(id, { type: "doc_uploaded", docType: type });
 
-  // A file corrected to "appraiser report" gets the same reading an upload does.
+  // A file corrected to the appraiser report or fee invoice gets the same reading an upload does.
   // Best-effort: a missing object or unreadable file only means no suggestion.
-  if (wantsAppraiserAmounts(type, claimType)) {
+  if (wantsDocAmounts(type, claimType)) {
     const { data: blob } = await svc.storage.from(BUCKET).download(doc.storage_path);
     if (blob) {
       const bytes = new Uint8Array(await blob.arrayBuffer());
       const kind = sniffFileType(bytes);
-      if (kind) await recordAppraiserAmounts(svc, id, doc.id, bytes, kind);
+      if (kind) await recordDocAmounts(svc, id, doc.id, type, bytes, kind);
     }
   }
 

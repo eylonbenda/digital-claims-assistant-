@@ -26,7 +26,7 @@ import AgentDocUpload from "./AgentDocUpload";
 import DocDropZone from "./DocDropZone";
 import AmountsCard from "./AmountsCard";
 import AppraiserSuggestion from "./AppraiserSuggestion";
-import { EV_EXTRACTED, EV_RESOLVED, pendingSuggestion } from "@/lib/demand/appraiser-suggestion";
+import { EV_EXTRACTED, EV_RESOLVED, isSourceDocType, pendingSuggestion } from "@/lib/demand/appraiser-suggestion";
 import { toAmount } from "@/lib/handling/amounts";
 import { computeDamageTotals } from "@/lib/demand/damages";
 import ClaimTypeConfirm from "./ClaimTypeConfirm";
@@ -236,7 +236,7 @@ export default async function ClaimDetailPage({
     formClaimData,
   );
 
-  // Figures read from the appraiser report that the clerk has not answered yet (demand
+  // Figures read from the appraiser report / fee invoice that the clerk has not answered yet (demand
   // claims only). Best-effort: a failed read just means no suggestion card.
   const { data: amountEvents } =
     claim.claim_type === "third_party_report" && claim.status !== "closed"
@@ -252,7 +252,9 @@ export default async function ClaimDetailPage({
     amountEvents && formClaimData
       ? pendingSuggestion(
           amountEvents,
-          new Set((rows ?? []).filter((r) => r.type === "appraiser_report").map((r) => r.id as string)),
+          new Map(
+            (rows ?? []).filter((r) => isSourceDocType(r.type)).map((r) => [r.id as string, r.type as string]),
+          ),
           formClaimData.damages,
         )
       : null;
