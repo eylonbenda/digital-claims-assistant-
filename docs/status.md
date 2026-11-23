@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-22**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-23**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -659,3 +659,9 @@ cd web ; npm run dev
 - Unit-tested: `web/src/lib/email/pending.test.ts`, `web/src/lib/email/load.test.ts`, `web/src/lib/cockpit/derive-handling.test.ts`.
 - Design: [superpowers/specs/2026-11-22-insurer-email-actions-design.md](superpowers/specs/2026-11-22-insurer-email-actions-design.md), plan: [superpowers/plans/2026-11-22-insurer-email-actions.md](superpowers/plans/2026-11-22-insurer-email-actions.md).
 - `docs/app-map.md` (`/dashboard/[id]` row, new `/api/claims/[id]/documents/from-email` and `/api/emails/[id]/handled` rows, `/api/claims/[id]/handling` row, `claims`/`cockpit`/`email` module rows), `docs/architecture.md` (`claim_emails.handled_at`/`handled_as`), `docs/claim-management.md` (§ ניהול התביעה מול המבטחת) updated.
+
+### Done since last sync (2026-11-23, PR #156 — suggest demand-letter amounts read from the appraiser report)
+- **No migration.** `web/src/lib/ai/file-call.ts` (new — `askAboutFile`, the one-call-per-file helper factored out of `classify-document.ts`, unchanged behaviour), `web/src/lib/ai/extract-appraiser-amounts.ts` (new, + test), `web/src/lib/demand/appraiser-suggestion.ts` (new, + test), `web/src/lib/demand/suggest-on-file.ts` (new), `web/src/app/api/claims/[id]/appraiser-amounts/route.ts` (new), `web/src/app/dashboard/[id]/AppraiserSuggestion.tsx` (new), `web/src/app/api/claims/[id]/documents/route.ts`, `web/src/app/api/claims/[id]/documents/[docId]/route.ts`, `web/src/app/dashboard/[id]/page.tsx`. Spec: [superpowers/specs/2026-11-23-appraiser-amounts-design.md](superpowers/specs/2026-11-23-appraiser-amounts-design.md), plan: [superpowers/plans/2026-11-23-appraiser-amounts.md](superpowers/plans/2026-11-23-appraiser-amounts.md).
+- **An uploaded or re-filed `appraiser_report` on a `third_party_report` claim is now read for its repair-cost and diminished-value figures** (`extractAppraiserAmounts`, on the shared `askAboutFile` helper, 25s timeout, never throws) and recorded as a `claim_events` row (`appraiser_amounts_extracted`) — the damages lines on the demand letter are never written from here.
+- **New `AppraiserSuggestion.tsx` card** on the cockpit's סקירה tab (next to the checklist) shows the clerk the figures read from the report against what the letter currently has, with an unverified warning when the model couldn't reconcile the report's own before/after-VAT totals. "להכניס למכתב" saves the lines through the same `PATCH /api/claims/[id]/form-data` the form editor uses (which regenerates the letter); "לא עכשיו" dismisses it. Either action logs `appraiser_amounts_resolved` via the new `POST /api/claims/[id]/appraiser-amounts`, to measure extraction accuracy later. The suggestion is pure-derived (`pendingSuggestion`) and disappears on its own once the letter's figures match what was read.
+- `docs/claim-management.md` (§ טופס דרישה), `docs/app-map.md` (`ai`/`demand` module rows, `/api/claims/[id]/documents*` rows, new `/api/claims/[id]/appraiser-amounts` row) updated.
