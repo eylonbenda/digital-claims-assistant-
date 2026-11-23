@@ -17,11 +17,14 @@ import { cues, gainFor, loadVoice, loudnessOf, roomFor, soundtrack, stretch, typ
 import { selectOutputs } from "./render.ts";
 import { encodeFrames, renderFrames } from "./renderer.ts";
 import { ffmpeg, type Recording } from "./screencast.ts";
+import { SUBTITLE, chunks, subtitleFilter, timed, type Subtitle } from "./subtitles.ts";
+import { scriptLines } from "./voice.ts";
 import { SIZE, type Ratio } from "./timeline.ts";
 
 const JOIN = 0.45;  // seconds two neighbours share
 const INNER = 0.3;  // the same, between two takes of one screen
 const SLOWEST = 0.8; // footage slowed past this looks wrong; beyond it the last picture is held
+const NARRATED_PACE = 1.35; // a narrated film moves this much faster: the voice says what the screen shows
 const MAX_BYTES = 16 * 1024 * 1024; // above this WhatsApp recompresses, or refuses, the file
 const TEMPLATES_DIR = path.join(TRAINING_ROOT, "..", "web", "src", "lib", "formfill", "templates");
 
@@ -48,6 +51,9 @@ export function fit(takes: Take[], need: number): Take[] {
   if (short > 1e-6) slowed[slowed.length - 1].hold = (slowed[slowed.length - 1].hold ?? 0) + short;
   return slowed;
 }
+
+// The same takes, played `k` times faster.
+export const pace = (takes: Take[], k: number): Take[] => (k === 1 ? takes : takes.map((t) => ({ ...t, speed: t.speed * k })));
 
 // Joins clips with soft dissolves. Returns the filter and how long the result runs.
 export function dissolve(labels: string[], seconds: number[], fade: number, out: string): { filter: string; seconds: number } {
@@ -137,8 +143,15 @@ async function drawn(browser: Browser, ratio: Ratio, file: string, beats: Beat[]
 }
 
 // `voiceDir` holds one sound file per narration line (see narration.ts); with none the
-// film is silent. `music` is a track mixed under it. Only the full cut is narrated.
-export type EditOpts = { voiceDir?: string; music?: string };
+// film is silent. `music` is a track mixed under it. Only the full cut is narrated. A
+// narrated film carries the narration as subtitles unless `subtitles` is false.
+export type EditOpts = { voiceDir?: string; music?: string; subtitles?: boolean };
+
+// One phrase of the narration, on a dark plate low in the frame.
+const subtitleDoc = (p: Plan, ratio: Ratio, text: string) => html(p, `
+  <div style="position:absolute;left:5%;right:5%;bottom:${Math.round(p.H * SUBTITLE[ratio].bottom)}px;display:flex;justify-content:center">
+    <p style="margin:0;font-weight:600;font-size:${SUBTITLE[ratio].size}px;line-height:1.3;color:#fff;background:rgba(16,24,40,.86);padding:.28em .7em .34em;border-radius:.32em;text-align:center;white-space:nowrap">${esc(text)}</p>
+  </div>`);
 export const voiceDirFor = (audience: string) => path.join(TRAINING_ROOT, "fixtures", "promo", "voice", audience);
 
 export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR, opts: EditOpts = {}): Promise<{ file: string; seconds: number; bytes: number; narrated: boolean }> {
@@ -158,11 +171,14 @@ export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR, op
   const short = cut === "short", pill = p.pill !== null;
   const voice = short ? null : await loadVoice(opts.voiceDir ?? voiceDirFor(audience));
   const said = (id: VoiceId) => voice?.[id].seconds ?? 0;
+  const subtitled = !!voice && opts.subtitles !== false;
+  // With subtitles the caption over the office would say the same thing twice, in the same place.
+  const officeLine = (line: string) => (subtitled && pill ? html(p, "") : deskCaption(p, line));
   const clips: { file: string; seconds: number; parts: Part[] }[] = [];
 
   // A screen recording placed in the frame, with a drawn layer over it.
   const screen = async (id: VoiceId, name: string, raw: Take[], where: Box, overDoc: string, fadeOver: boolean) => {
-    const takes = voice ? fit(raw, roomFor(said(id))) : raw;
+    const takes = voice ? fit(pace(raw, NARRATED_PACE), roomFor(said(id))) : raw;
     await still(browser, p, w(`${name}.png`), overDoc);
     const j = dissolve(takes.map((_, i) => `t${i}`), takes.map(lengthOf), INNER, "shot");
     await ffmpeg([...takeInputs(takes), "-loop", "1", "-i", w(`${name}.png`), "-filter_complex", [
@@ -193,13 +209,13 @@ export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR, op
       : [
         { rec: desk.office, from: "arrived", to: "files", speed: 1.25, pad: 1.0 }, // ends on the click: the pictures load off camera
         { rec: desk.office, from: "files-ready", to: "files-end", speed: 1 },
-      ], p.desk, deskCaption(p, copy.caseFile), pill);
+      ], p.desk, officeLine(copy.caseFile), pill);
     await screen("form", "form", short
       ? [{ rec: desk.form, from: "pdf", to: "pdf-end", speed: 3 }]
       : [
         { rec: desk.form, from: "tab", to: "tab-end", speed: 1.25 },
         { rec: desk.form, from: "pdf", to: "pdf-end", speed: 1.6 },
-      ], p.desk, deskCaption(p, copy.form), pill);
+      ], p.desk, officeLine(copy.form), pill);
     // What happens after the form goes out. The short cut has no room for it.
     if (!short) {
       if (!desk.handling || !desk.chase) throw new Error(`the footage for ${audience} has no claim-handling recording — run promo:footage again`);
@@ -208,8 +224,8 @@ export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR, op
         // The task list is filmed only where the garage cut can show it.
         ...(desk.handling.marks.tasks === undefined ? [] : [{ rec: desk.handling, from: "tasks", to: "tasks-end", speed: 1.2 }]),
         { rec: desk.handling, from: "send", to: "send-end", speed: 1.7 },
-      ], p.desk, deskCaption(p, copy.work), pill);
-      await screen("handling", "handling", [{ rec: desk.handling, from: "status", to: "status-end", speed: 1.4 }], p.desk, deskCaption(p, copy.handling), pill);
+      ], p.desk, officeLine(copy.work), pill);
+      await screen("handling", "handling", [{ rec: desk.handling, from: "status", to: "status-end", speed: 1.4 }], p.desk, officeLine(copy.handling), pill);
     }
     await drawnClip("closing", short ? ["endCard"] : ["outcome", "endCard"]);
 
@@ -222,14 +238,19 @@ export async function editLive(browser: Browser, o: Output, outDir = OUT_DIR, op
       : ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]; // some players dislike video-only files
     const musicGain = opts.music ? gainFor(await loudnessOf(opts.music)) : 0; // voice and music are both levelled first
     const audioFilter = sound ? [soundtrack(lines, n, { music: opts.music ? { input: n + lines.length, seconds: whole.seconds, gain: musicGain } : undefined })] : [];
+    // The subtitles: each line's words, a phrase at a time, while the line is spoken.
+    const script = subtitled ? scriptLines(fs.readFileSync(path.join(TRAINING_ROOT, "promo", "narration.md"), "utf8"), audience) : null;
+    const subs: Subtitle[] = script ? lines.flatMap((c) => timed(chunks(script[c.id], SUBTITLE[ratio].max), c.at, voice![c.id].seconds)) : [];
+    for (const [i, sub] of subs.entries()) await still(browser, p, w(`sub${i}.png`), subtitleDoc(p, ratio, sub.text));
+    const subIn = subs.flatMap((_, i) => ["-i", w(`sub${i}.png`)]), firstSub = n + (sound ? lines.length + (opts.music ? 1 : 0) : 1);
     const file = path.join(outDir, "promo", o.file), partial = path.join(outDir, "promo", `.partial-${o.file}`);
     fs.rmSync(file, { force: true });
     try {
       await ffmpeg([
-        ...clips.flatMap((c) => ["-i", c.file]), ...audioIn,
+        ...clips.flatMap((c) => ["-i", c.file]), ...audioIn, ...subIn,
         "-filter_complex", [
           ...clips.map((_, i) => `[${i}:v]fps=30,format=yuv420p,setsar=1,settb=AVTB[c${i}]`), whole.filter,
-          `[j]scale=${p.W}:${p.H}:out_color_matrix=bt709:out_range=tv,format=yuv420p[v]`, ...audioFilter,
+          `[j]scale=${p.W}:${p.H}:out_color_matrix=bt709:out_range=tv,format=yuv420p[film]`, subtitleFilter(subs, firstSub, "film", "v"), ...audioFilter,
         ].join(";"),
         "-map", "[v]", "-map", sound ? "[a]" : `${n}:a`,
         "-c:v", "libx264", "-preset", "slow", "-crf", "19", "-pix_fmt", "yuv420p", "-r", "30",
@@ -252,11 +273,12 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   (async () => {
     config({ path: path.join(TRAINING_ROOT, ".env.local"), quiet: true });
     const music = process.env.PROMO_MUSIC?.trim() || undefined;
-    const outputs = selectOutputs(process.argv.slice(2)); // --audience / --ratio / --cut
+    const args = process.argv.slice(2), subtitles = !args.includes("--no-subtitles");
+    const outputs = selectOutputs(args.filter((a) => a !== "--no-subtitles")); // --audience / --ratio / --cut
     const browser = await chromium.launch();
     try {
       for (const o of outputs) {
-        const r = await editLive(browser, o, OUT_DIR, { music });
+        const r = await editLive(browser, o, OUT_DIR, { music, subtitles });
         console.log(`${o.file.padEnd(22)} ${r.seconds.toFixed(1)}s  ${(r.bytes / 1024 / 1024).toFixed(1)} MB  ${r.narrated ? "narrated" : music ? "music only" : "silent"}`);
       }
     } finally {

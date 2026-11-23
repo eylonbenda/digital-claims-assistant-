@@ -165,6 +165,14 @@ line before publishing: nothing checks pronunciation.
 
 Every line, and the music, is measured and brought to the same loudness (-16 LUFS, peaks
 under -1.5 dB) before mixing, so lines from different takes or sources sit level.
+**Subtitles and pace** (narrated cuts). A narrated film shows the narration as subtitles, a
+phrase at a time, cut from the same script the voice reads (`promo/subtitles.ts`: phrase
+length, size and height per shape); `npm run promo:edit -- --no-subtitles` leaves them out.
+With subtitles the caption drawn over the office in the square and wide shapes is dropped,
+since both would sit in the same place. A narrated film also plays its screens 1.35 times
+faster than the silent one (`NARRATED_PACE` in `promo/edit.ts`), because the voice says
+what the screen shows; a screen is still never shorter than its line.
+
 **What must stay true.** No number, testimonial or customer name that is not real; the copy
 is qualitative until there is a pilot figure approved for marketing. No "סוכן" in the
 garage version: the recorder fails if the word is on screen at any of its checkpoints, and
