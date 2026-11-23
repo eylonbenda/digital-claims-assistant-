@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TP_LICENCE_FROM, computeChecklist, chaseableLabels, chaseItemLabels, chaseItems, clientRequestedItems, missingLateDocItems, satisfiedDocTypes, type ClaimFlags } from "./checklist";
+import { TP_LICENCE_FROM, computeChecklist, readinessCount, chaseableLabels, chaseItemLabels, chaseItems, clientRequestedItems, missingLateDocItems, satisfiedDocTypes, type ClaimFlags } from "./checklist";
 
 const NO_FLAGS: ClaimFlags = {
   theft: false, lien: false, business_use: false,
@@ -248,5 +248,28 @@ describe("computeChecklist — driving licence on the third-party tracks", () =>
 
   it("does not change own_policy, where the licence has no cutoff", () => {
     expect(tp("own_policy", null).find((i) => i.key === "drivers_license")).toMatchObject({ blocking: true });
+  });
+});
+
+describe("readinessCount", () => {
+  const opened = "2026-11-23T00:00:00Z";
+  it("counts only the items that gate sending on third_party_report", () => {
+    const docs = new Set(["vehicle_reg", "no_claim_confirmation", "appraiser_report", "assessor_fee_receipt", "garage_invoice"]);
+    const items = computeChecklist("third_party_report", docs, false, {}, NO_FLAGS, new Set(), opened);
+    // assessor_fee_receipt is uploaded but does not gate sending, so it is not counted.
+    expect(readinessCount(items)).toEqual({ done: 4, total: 7 });
+  });
+  it("reaches full without optional documents or the payment milestone", () => {
+    const docs = new Set(["vehicle_reg", "car_photo", "demand_form", "no_claim_confirmation", "appraiser_report", "garage_invoice"]);
+    const items = computeChecklist("third_party_report", docs, true, {}, NO_FLAGS, new Set(), opened);
+    expect(readinessCount(items)).toEqual({ done: 7, total: 7 });
+  });
+  it("counts a conditional document only once its flag is on", () => {
+    expect(readinessCount(ownPolicy()).total).toBe(3);
+    expect(readinessCount(ownPolicy({ lien: true })).total).toBe(4);
+  });
+  it("falls back to mandatory documents on a track that gates on nothing", () => {
+    const items = computeChecklist("unknown", new Set(["vehicle_reg"]), false, {}, NO_FLAGS);
+    expect(readinessCount(items)).toEqual({ done: 1, total: 4 });
   });
 });
