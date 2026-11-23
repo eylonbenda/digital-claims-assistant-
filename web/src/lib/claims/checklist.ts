@@ -313,3 +313,16 @@ export function groupBySection(
     items: map.get(s)!,
   }));
 }
+
+// The overview's readiness count: how many of the items that gate sending the
+// claim are in place. Optional documents and milestones are left out — counting
+// them kept a claim that was ready to send looking partial until it was paid.
+// A track that gates on nothing (unknown) falls back to its mandatory documents,
+// so the count never reads 0/0.
+export function readinessCount(items: ComputedItem[]): { done: number; total: number } {
+  const blocking = items.filter((i) => i.blocking);
+  const counted = blocking.length
+    ? blocking
+    : items.filter((i) => i.mandatory && i.kind !== "milestone");
+  return { done: counted.filter((i) => i.done).length, total: counted.length };
+}

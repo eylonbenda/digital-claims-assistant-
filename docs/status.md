@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-22**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-23**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -659,3 +659,6 @@ cd web ; npm run dev
 - Unit-tested: `web/src/lib/email/pending.test.ts`, `web/src/lib/email/load.test.ts`, `web/src/lib/cockpit/derive-handling.test.ts`.
 - Design: [superpowers/specs/2026-11-22-insurer-email-actions-design.md](superpowers/specs/2026-11-22-insurer-email-actions-design.md), plan: [superpowers/plans/2026-11-22-insurer-email-actions.md](superpowers/plans/2026-11-22-insurer-email-actions.md).
 - `docs/app-map.md` (`/dashboard/[id]` row, new `/api/claims/[id]/documents/from-email` and `/api/emails/[id]/handled` rows, `/api/claims/[id]/handling` row, `claims`/`cockpit`/`email` module rows), `docs/architecture.md` (`claim_emails.handled_at`/`handled_as`), `docs/claim-management.md` (§ ניהול התביעה מול המבטחת) updated.
+
+### Done since last sync (2026-11-23, PR #157 — readiness count only counts items that gate sending)
+- **No migration.** The overview's "מוכנות" count (`readinessCount`, new in `web/src/lib/claims/checklist.ts`) now counts only `blocking` checklist items instead of every item — an uploaded-but-optional document (e.g. `assessor_fee_receipt`) or the payment milestone no longer makes a send-ready claim read as partial. A track with no blocking items (`unknown`) falls back to its mandatory documents so the count never reads 0/0. `web/src/app/dashboard/[id]/page.tsx`'s side-rail label now reads "X/Y פריטים לשליחה". Unit-tested in `web/src/lib/claims/checklist.test.ts`.
