@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { chaseableLabels } from "@/lib/claims/checklist";
+import { chaseableLabels, readinessCount } from "@/lib/claims/checklist";
 import { classifyFromClaimData } from "@/lib/claims/classify";
 import {
   needsAnalysis,
@@ -328,6 +328,7 @@ export default async function ClaimDetailPage({
     STATUS_BADGE[claim.status] ?? "bg-zinc-100 text-zinc-600 ring-zinc-200";
 
   // ── Readiness + triage signals (all derived, no extra I/O) ────────────────
+  const readiness = readinessCount(checklistItems);
   const blockingMissing = checklistItems
     .filter((i) => i.blocking && !i.done)
     .map((i) => ({
@@ -535,7 +536,7 @@ export default async function ClaimDetailPage({
                     <div className="flex items-baseline justify-between gap-4 py-2.5">
                       <dt className="shrink-0 text-zinc-500">מוכנות</dt>
                       <dd className="font-medium text-zinc-800">
-                        {checklistItems.filter((i) => i.done).length}/{checklistItems.length} פריטים
+                        {readiness.done}/{readiness.total} פריטים לשליחה
                       </dd>
                     </div>
                   </dl>
