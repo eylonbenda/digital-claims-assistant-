@@ -30,7 +30,7 @@ export default async function CollectPage({
     // agents(name) is the business handling this claim — an insurance agent or a
     // garage. Embedded via the claims.agent_id FK so the client screens can name
     // the real recipient instead of assuming "הסוכן".
-    .select("id, status, client_name, client_phone, summary_json, claim_type, created_at, theft, lien, business_use, policy_activated, garage_network_rider, agents(name)")
+    .select("id, status, client_name, client_phone, summary_json, claim_type, created_at, theft, lien, business_use, policy_activated, garage_network_rider, no_repair, agents(name)")
     .eq("access_token", token)
     .single();
 
@@ -85,7 +85,7 @@ export default async function CollectPage({
             lien: !!claim.lien,
             business_use: !!claim.business_use,
             policy_activated: !!claim.policy_activated,
-            garage_network_rider: !!claim.garage_network_rider,
+            garage_network_rider: !!claim.garage_network_rider, no_repair: !!claim.no_repair,
           },
           satisfiedDocTypes(existing ?? [], claim.created_at),
           claim.created_at,

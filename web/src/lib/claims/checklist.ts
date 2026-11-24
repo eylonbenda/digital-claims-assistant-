@@ -32,7 +32,15 @@ export type ClaimFlags = {
   business_use: boolean;
   policy_activated: boolean;
   garage_network_rider: boolean;
+  // Third-party claim settled on the appraiser's estimate, car not repaired
+  // ("דו"ח גלובלי"). Only meaningful on third_party_report.
+  no_repair: boolean;
 };
+
+// Repair artefacts a no-repair third_party_report never produces — no invoice, no
+// receipt, the car never enters a garage. Dropped (not just unblocked) so the chase
+// never asks for them; flipping the flag back restores them with their uploads intact.
+export const NO_REPAIR_DROPPED_KEYS = ["garage_invoice", "repair_receipt", "car_at_garage"] as const;
 
 export type ComputedItem = ChecklistItemDef & { done: boolean };
 
@@ -201,6 +209,10 @@ export function computeChecklist(
         .map((i) => (i.key === "loss_confirmation" ? { ...i, mandatory: true } : i));
     } else {
       items = items.filter((i) => i.key !== "loss_confirmation");
+    }
+    if (flags.no_repair) {
+      const dropped: readonly string[] = NO_REPAIR_DROPPED_KEYS;
+      items = items.filter((i) => !dropped.includes(i.key));
     }
   }
 

@@ -32,7 +32,7 @@ export async function runEngine(
       svc
         .from("claims")
         .select(
-          "id, claim_type, status, at_fault_insurer, checklist_state, summary_json, created_at, submitted_at, theft, lien, business_use, policy_activated, garage_network_rider",
+          "id, claim_type, status, at_fault_insurer, checklist_state, summary_json, created_at, submitted_at, theft, lien, business_use, policy_activated, garage_network_rider, no_repair",
         )
         .eq("id", claimId)
         .single(),
@@ -71,7 +71,7 @@ export async function runEngine(
         lien: !!claim.lien,
         business_use: !!claim.business_use,
         policy_activated: !!claim.policy_activated,
-        garage_network_rider: !!claim.garage_network_rider,
+        garage_network_rider: !!claim.garage_network_rider, no_repair: !!claim.no_repair,
       },
       undefined,
       claim.created_at as string,

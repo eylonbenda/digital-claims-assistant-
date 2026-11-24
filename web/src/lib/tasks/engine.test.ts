@@ -7,7 +7,7 @@ const NOW = new Date("2026-07-08T10:00:00Z");
 const DAY = 86_400_000;
 const FLAGS = {
   theft: false, lien: false, business_use: false,
-  policy_activated: false, garage_network_rider: false,
+  policy_activated: false, garage_network_rider: false, no_repair: false,
 };
 
 function checklist(

@@ -23,6 +23,7 @@ export type SubmissionSource = {
     business_use?: boolean | null;
     policy_activated?: boolean | null;
     garage_network_rider?: boolean | null;
+    no_repair?: boolean | null;
   };
   docs: { type: string; storage_path: string }[];
   // generated_forms, newest first.
@@ -32,7 +33,7 @@ export type SubmissionSource = {
 };
 
 export const SUBMISSION_CLAIM_COLUMNS =
-  "id, client_name, claim_type, policy_insurer, at_fault_insurer, summary_json, created_at, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider";
+  "id, client_name, claim_type, policy_insurer, at_fault_insurer, summary_json, created_at, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider, no_repair";
 
 export function buildSubmission(src: SubmissionSource): {
   checklist: ComputedItem[];
@@ -67,7 +68,7 @@ export function buildSubmission(src: SubmissionSource): {
       lien: !!claim.lien,
       business_use: !!claim.business_use,
       policy_activated: !!claim.policy_activated,
-      garage_network_rider: !!claim.garage_network_rider,
+      garage_network_rider: !!claim.garage_network_rider, no_repair: !!claim.no_repair,
     },
     deferredDocTypes,
     claim.created_at,

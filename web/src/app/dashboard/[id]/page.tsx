@@ -137,7 +137,7 @@ export default async function ClaimDetailPage({
   const { data: claim } = await supabase
     .from("claims")
     .select(
-      "id, client_name, client_phone, claim_type, status, urgent, access_token, policy_insurer, at_fault_insurer, handling_status, handling_status_changed_at, summary_json, created_at, submitted_at, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider"
+      "id, client_name, client_phone, claim_type, status, urgent, access_token, policy_insurer, at_fault_insurer, handling_status, handling_status_changed_at, summary_json, created_at, submitted_at, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider, no_repair"
     )
     .eq("id", id)
     .single();

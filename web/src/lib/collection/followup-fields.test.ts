@@ -11,7 +11,7 @@ import {
 } from "@/lib/claims/checklist";
 
 const NO_FLAGS: ClaimFlags = {
-  theft: false, lien: false, business_use: false, policy_activated: false, garage_network_rider: false,
+  theft: false, lien: false, business_use: false, policy_activated: false, garage_network_rider: false, no_repair: false,
 };
 const TRACKS = ["own_policy", "third_party_report", "third_party_settlement", "unknown"] as const;
 const FLAG_KEYS = Object.keys(NO_FLAGS) as (keyof ClaimFlags)[];

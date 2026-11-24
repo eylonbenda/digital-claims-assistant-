@@ -92,7 +92,7 @@ export async function getOrCreateBrief(
     const { data: claims } = await svc
       .from("claims")
       .select(
-        "id, client_name, client_phone, access_token, claim_type, status, urgent, created_at, submitted_at, checklist_state, summary_json, theft, lien, business_use, policy_activated, garage_network_rider",
+        "id, client_name, client_phone, access_token, claim_type, status, urgent, created_at, submitted_at, checklist_state, summary_json, theft, lien, business_use, policy_activated, garage_network_rider, no_repair",
       )
       .eq("agent_id", agentId)
       .not("status", "in", "(closed,abandoned)");
@@ -146,7 +146,7 @@ export async function getOrCreateBrief(
         analysis_summary: summary,
         flags: {
           theft: !!c.theft, lien: !!c.lien, business_use: !!c.business_use,
-          policy_activated: !!c.policy_activated, garage_network_rider: !!c.garage_network_rider,
+          policy_activated: !!c.policy_activated, garage_network_rider: !!c.garage_network_rider, no_repair: !!c.no_repair,
         },
       };
       return buildFactSheet(

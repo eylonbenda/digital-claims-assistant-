@@ -16,7 +16,7 @@ export type BriefClaimRow = {
   created_at: string; submitted_at: string | null;
   checklist_state: Record<string, boolean> | null;
   analysis_summary: string | null;
-  flags: { theft: boolean; lien: boolean; business_use: boolean; policy_activated: boolean; garage_network_rider: boolean };
+  flags: { theft: boolean; lien: boolean; business_use: boolean; policy_activated: boolean; garage_network_rider: boolean; no_repair: boolean };
 };
 
 export type BriefTaskRow = { title: string; due_at: string | null };
