@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-23**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-24**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -44,7 +44,7 @@ Provider is Resend; system addresses are `<alias>@in.opentik.co.il`.
 - **Probe:** an unsigned `curl -X POST -d '{}' https://www.opentik.co.il/api/inbound/email` returns `503 email is not configured` when an env var is missing in the live deploy, and `401 invalid signature` when all three are set. A 401 does not prove the secret matches Resend's; only a real inbound message does.
 - **Per business:** run by hand in the prod SQL editor (no UI on purpose; the alias is a write credential): `update agents set inbound_alias = '<name>-<4 random chars>', claims_mailbox = '<their existing claims address>' where id = '<agents.id>' and auth_user_id = '<auth user id>' returning id, inbound_alias, claims_mailbox;`. Expect exactly one row. The random suffix keeps the address hard to guess. Pick the alias for good, since changing it later breaks replies to earlier threads. `claims_mailbox` must not be on `in.opentik.co.il`.
 - **Enabled so far:** the user's prod test account (end-to-end send + reply verified 2026-11-18) and the client garage "sagi" (`aa6525f0…`, 2026-11-19).
-- **What inbound mail does not do:** nothing reads the content or changes claim status. Mail is filed on a claim by subject id or thread, else waits in "דואר נכנס". The business gets a copy prefixed `[OpenTik]`, except when its claims mailbox was already on the message (Reply All), which is deliberate dedupe.
+- **What inbound mail does not do:** nothing reads the content or changes claim status. Mail is filed on a claim by subject id, thread, or (migration 016) an insurer's auto-acknowledgement matched by timing to a claim just sent to its address; otherwise it waits in "דואר נכנס". The business gets a copy prefixed `[OpenTik]`, except when its claims mailbox was already on the message (Reply All), which is deliberate dedupe.
 
 ---
 
@@ -668,3 +668,10 @@ cd web ; npm run dev
 
 ### Done since last sync (2026-11-23, PR #157 — readiness count only counts items that gate sending)
 - **No migration.** The overview's "מוכנות" count (`readinessCount`, new in `web/src/lib/claims/checklist.ts`) now counts only `blocking` checklist items instead of every item — an uploaded-but-optional document (e.g. `assessor_fee_receipt`) or the payment milestone no longer makes a send-ready claim read as partial. A track with no blocking items (`unknown`) falls back to its mandatory documents so the count never reads 0/0. `web/src/app/dashboard/[id]/page.tsx`'s side-rail label now reads "X/Y פריטים לשליחה". Unit-tested in `web/src/lib/claims/checklist.test.ts`.
+
+### Done since last sync (2026-11-24, PR #158 — file an insurer's automatic acknowledgement on the claim just sent)
+- ⚠️ **This branch adds `web/db/migrations/016_email_auto_ack.sql`.** Apply it to dev **and** to prod (`claims-pilot`) by hand before the merge goes live — see the promote-to-prod checklist above. It widens `claim_emails.match_method`'s check constraint to add `'auto_ack'`; deploying the code first is not safe (the insert breaks the check and the webhook 500s until applied).
+- **An insurer's automatic "we got your message" reply has nothing to match on** — its own subject, no `In-Reply-To`, a canned body (weSure, 2026-11-24) — so `ingestInbound` now falls back to `matchAck()` (new in `web/src/lib/email/match.ts`) when subject-id/thread matching finds nothing: it guesses by timing, filing on the claim just sent to the replying address within `ACK_WINDOW_MS` (5 minutes), and only when every recent send to that address names one claim and a reply isn't already filed for each send. `EmailStore` gains `recentEmails(agentId, since)` (`store.ts`) to read the window. Filed this way, the row's `match_method` is `'auto_ack'` — told apart from a certain match.
+- `submission/directory.ts`'s `wesure` entry gains its real inbound domain (`we-sure.co.il`), confirmed during this work.
+- Unit-tested (`email.test.ts`, `ingest.test.ts`).
+- `docs/architecture.md` (`claim_emails.match_method`), `docs/app-map.md` (`email/` module row), `docs/claim-management.md` (§ ניהול התביעה מול המבטחת) updated.
