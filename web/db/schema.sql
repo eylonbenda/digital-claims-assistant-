@@ -73,7 +73,7 @@ create table claims (
   business_use         boolean not null default false,
   policy_activated     boolean not null default false,
   garage_network_rider boolean not null default false,
-  no_repair            boolean not null default false,  -- migration 016: claim by estimate, car not repaired
+  no_repair            boolean not null default false,  -- migration 017: claim by estimate, car not repaired
   -- Post-send handling lifecycle (migration 011). null = not yet sent to the insurer.
   handling_status text check (
     handling_status is null or handling_status in (

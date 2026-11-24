@@ -33,7 +33,7 @@ issues the report → the handler assembles the file and submits it to the at-fa
    milestone-ticks column where every flag reader would miss it.
 
 ## Design
-- **Migration `016_claim_no_repair.sql`**: `ALTER TABLE claims ADD COLUMN IF NOT EXISTS no_repair
+- **Migration `017_claim_no_repair.sql`**: `ALTER TABLE claims ADD COLUMN IF NOT EXISTS no_repair
   boolean NOT NULL DEFAULT false;` + `schema.sql`. Applied by hand, dev and prod.
 - **`ClaimFlags.no_repair`**; every reader that selects/forwards flags (dashboard page, client
   page, brief, outbound load, submission build, tasks runner, tests) adds it.

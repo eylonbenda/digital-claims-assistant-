@@ -1,4 +1,4 @@
--- 016: claims.no_repair — third-party claim settled on the appraiser's estimate
+-- 017: claims.no_repair — third-party claim settled on the appraiser's estimate
 -- without repairing the car ("דו"ח גלובלי"). Spec:
 -- docs/superpowers/specs/2026-11-24-no-repair-global-claim-design.md
 --
@@ -11,4 +11,4 @@
 ALTER TABLE claims
   ADD COLUMN IF NOT EXISTS no_repair boolean NOT NULL DEFAULT false;
 
-insert into public.schema_migrations(version) values ('016') on conflict do nothing;
+insert into public.schema_migrations(version) values ('017') on conflict do nothing;

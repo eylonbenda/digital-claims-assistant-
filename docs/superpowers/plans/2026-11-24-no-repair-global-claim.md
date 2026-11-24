@@ -29,7 +29,7 @@
 ### Task 1: Column, flag type, checklist filter
 
 **Files:**
-- Create: `web/db/migrations/016_claim_no_repair.sql`
+- Create: `web/db/migrations/017_claim_no_repair.sql`
 - Modify: `web/db/schema.sql` (claims table, next to `garage_network_rider`)
 - Modify: `web/src/lib/claims/checklist.ts` (`ClaimFlags`, `computeChecklist`)
 - Modify every flag reader so `tsc` passes: `app/dashboard/[id]/page.tsx`, `app/c/[token]/page.tsx`, `lib/brief/brief.ts`, `lib/brief/facts.ts`, `lib/outbound/load.ts`, `lib/submission/build.ts`, `lib/tasks/runner.ts` — add `no_repair` to each select string and `no_repair: !!x.no_repair` to each flags object.
@@ -80,7 +80,7 @@
 
 - [ ] **Step 1: Failing tests:** 401 without user; 400 for `{}`, `{ no_repair: "yes" }`, `{ theft: true }`, and `{ no_repair: true, theft: true }` (any extra key rejected); 404 when RLS select returns null; happy path writes `claims.update({ no_repair: true })`, inserts one `claim_events` row `{ type: "flags_changed", payload_json: { no_repair: true } }`, calls `runEngine` once; no event row when value unchanged.
 - [ ] **Step 2:** `npx vitest run "src/app/api/claims/[id]/flags"` → FAIL.
-- [ ] **Step 3:** Mirror `checklist/route.ts`: auth client for user + ownership select (`id, no_repair`), service client for write and event, `serverError`/`reportError` from `@/lib/observability/report`. Check `claim_events.type` is free text vs enum in `schema.sql`; if enum, add the value in migration 016.
+- [ ] **Step 3:** Mirror `checklist/route.ts`: auth client for user + ownership select (`id, no_repair`), service client for write and event, `serverError`/`reportError` from `@/lib/observability/report`. Check `claim_events.type` is free text vs enum in `schema.sql`; if enum, add the value in migration 017.
 - [ ] **Step 4:** `npx vitest run` + `npx tsc --noEmit` → pass.
 - [ ] **Step 5:** Commit `feat(api): PATCH claim flags (no_repair only)`.
 
@@ -96,11 +96,11 @@
 
 - [ ] **Step 1:** Checkbox labelled `ללא תיקון (תביעה לפי אומדן)`, disabled while pending, PATCH then `router.refresh()`; on non-OK revert and show `לא הצלחנו לשמור — נסו שוב`. Follow the styling of `ClaimTypeConfirm.tsx`. Read `web/node_modules/next/dist/docs/` for `useRouter`/refresh in v16 before writing.
 - [ ] **Step 2:** `npx tsc --noEmit` + `npm run build` → green (paste output).
-- [ ] **Step 3:** Browser check on dev (only if migration 016 is applied to dev; otherwise record as unverified): toggle on a TP-report claim → invoice/receipt/car-at-garage disappear; toggle off → back.
+- [ ] **Step 3:** Browser check on dev (only if migration 017 is applied to dev; otherwise record as unverified): toggle on a TP-report claim → invoice/receipt/car-at-garage disappear; toggle off → back.
 - [ ] **Step 4:** Commit `feat(cockpit): no-repair toggle on third-party report claims`.
 
 ### Task 5: Docs + PR
 
 - [ ] `docs/claim-management.md`: under `third_party_report`, add a "Fork: ללא תיקון (`no_repair`)" note next to the `policy_activated` fork — flow, dropped items, open VAT assumption.
-- [ ] `docs/status.md`: migration 016 in the manual-migration checklist.
+- [ ] `docs/status.md`: migration 017 in the manual-migration checklist.
 - [ ] Commit, push, `gh pr create --base main` with migration warning at the top of the body.
