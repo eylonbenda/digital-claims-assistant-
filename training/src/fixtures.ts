@@ -11,4 +11,9 @@ export const FIXTURES = {
   car1: f("car-1.png"),
   car2: f("car-2.png"),
   car3: f("car-3.png"),
+  // Papers the office adds to a third-party claim (video 02).
+  noClaim: f("no-claim-confirmation.png"),
+  appraiserReport: f("appraiser-report.png"),
+  repairInvoice: f("repair-invoice.png"),
+  paymentNotice: f("payment-notice.png"),
 } as const;
