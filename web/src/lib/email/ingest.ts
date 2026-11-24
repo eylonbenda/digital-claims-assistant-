@@ -1,6 +1,6 @@
 import { INBOUND_MAX_BYTES, overBudget, storageName } from "./budget";
 import { addressOf, classifyKind, isOwnMail, parseAlias } from "./classify";
-import { matchClaim } from "./match";
+import { ACK_WINDOW_MS, matchAck, matchClaim, type RecentEmail } from "./match";
 import type { EmailKind, InboundEmail, MatchMethod } from "./types";
 
 export type EmailRow = {
@@ -37,6 +37,8 @@ export type EmailStore = {
   claimIds(agentId: string): Promise<string[]>;
   // Message-ID of each stored message already on a claim → that claim.
   threadIndex(agentId: string): Promise<Map<string, string>>;
+  // The business's stored messages, sent and received, since the given ISO time.
+  recentEmails(agentId: string, since: string): Promise<RecentEmail[]>;
   upload(path: string, bytes: Uint8Array, mime: string | null): Promise<void>;
   insertEmail(row: EmailRow): Promise<void>;
   insertAttachments(rows: AttachmentRow[]): Promise<void>;
@@ -63,7 +65,7 @@ export type IngestResult =
 export async function ingestInbound(
   email: InboundEmail,
   store: EmailStore,
-  opts: { inboundDomain: string; insurerDomains: string[]; newId?: () => string },
+  opts: { inboundDomain: string; insurerDomains: string[]; newId?: () => string; now?: () => Date },
 ): Promise<IngestResult> {
   // Our own copy coming back (see isOwnMail). Not stored, not copied again.
   if (isOwnMail(email, opts.inboundDomain)) return { outcome: "own_mail" };
@@ -77,7 +79,13 @@ export async function ingestInbound(
     store.claimIds(agent.id),
     store.threadIndex(agent.id),
   ]);
-  const match = matchClaim(email, { claimIds, claimByMessageId });
+  const sender = addressOf(email.from);
+  let match: { claimId: string; method: MatchMethod } | null = matchClaim(email, { claimIds, claimByMessageId });
+  if (!match && sender) {
+    const since = new Date((opts.now?.() ?? new Date()).getTime() - ACK_WINDOW_MS).toISOString();
+    const claimId = matchAck(sender, await store.recentEmails(agent.id, since));
+    if (claimId) match = { claimId, method: "auto_ack" };
+  }
   const kind = classifyKind(email.from, agent.claims_mailbox, opts.insurerDomains);
 
   const emailId = (opts.newId ?? (() => crypto.randomUUID()))();
@@ -109,7 +117,7 @@ export async function ingestInbound(
     provider_id: email.providerId,
     message_id: email.messageId,
     in_reply_to: email.inReplyTo,
-    from_addr: addressOf(email.from) || email.from,
+    from_addr: sender || email.from,
     to_addrs: email.to,
     cc_addrs: email.cc,
     subject: email.subject,

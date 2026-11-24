@@ -48,7 +48,7 @@ export const INSURER_DIRECTORY: Record<string, DirectoryEntry> = {
   shomera: entry("שומרה", { policy: "tvihesder@shomera.co.il", domains: ["shomera.co.il"] }),
   haklai: entry("חקלאי"),
   kash: entry("קש"),
-  wesure: entry("ווישור"),
+  wesure: entry("ווישור", { domains: ["we-sure.co.il"] }),
   anchor: entry("אנקור"),
 };
 
