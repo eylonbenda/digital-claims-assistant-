@@ -4,7 +4,7 @@ import { INBOUND_MAX_BYTES, OUTBOUND_MAX_BYTES, overBudget, storageName } from "
 import { FORWARD_HEADER, addressOf, classifyKind, isOwnMail, parseAlias } from "./classify";
 import { emailConfig, inboundAddress } from "./config";
 import { FORWARD_SUBJECT_PREFIX, alreadyHasIt, planForward } from "./forward";
-import { extractShortIds, matchClaim } from "./match";
+import { extractShortIds, matchAck, matchClaim, type RecentEmail } from "./match";
 import { SEND_ERROR, planSend } from "./send";
 
 const DOMAIN = "in.example.com";
@@ -113,6 +113,54 @@ describe("matchClaim", () => {
 
   it("returns null with nothing to go on", () => {
     expect(matchClaim({ subject: "שלום", ...none }, { claimIds: [A], claimByMessageId: noThread })).toBeNull();
+  });
+});
+
+describe("matchAck", () => {
+  const A = "6e7e3dc4-f538-4a26-8f2c-60b05adf6f75";
+  const B = "0295502a-74c5-4ebb-b217-0c4857487fed";
+  const INSURER = "claims@we-sure.co.il";
+  const sent = (claimId: string, to = INSURER): RecentEmail => ({
+    direction: "outbound", claimId, from: "cohen@in.example.com", to: [to], matchMethod: null,
+  });
+  const ack = (claimId: string, from = INSURER): RecentEmail => ({
+    direction: "inbound", claimId, from, to: ["cohen@in.example.com"], matchMethod: "auto_ack",
+  });
+
+  it("files the first message from the address one recent send went to", () => {
+    expect(matchAck(INSURER, [sent(A)])).toBe(A);
+  });
+
+  it("ignores the case of the recipient address", () => {
+    expect(matchAck(INSURER, [sent(A, "Claims@We-Sure.co.il")])).toBe(A);
+  });
+
+  it("does not file a second message for the same send", () => {
+    expect(matchAck(INSURER, [sent(A), ack(A)])).toBeNull();
+  });
+
+  it("does not guess between two claims sent to the same address", () => {
+    expect(matchAck(INSURER, [sent(A), sent(B)])).toBeNull();
+  });
+
+  it("allows one acknowledgement per send when one claim was sent twice", () => {
+    expect(matchAck(INSURER, [sent(A), sent(A), ack(A)])).toBe(A);
+    expect(matchAck(INSURER, [sent(A), sent(A), ack(A), ack(A)])).toBeNull();
+  });
+
+  it("does not match a sender nothing was sent to", () => {
+    expect(matchAck("someone@fnx.co.il", [sent(A)])).toBeNull();
+    expect(matchAck(INSURER, [])).toBeNull();
+    expect(matchAck("", [sent(A, "")])).toBeNull();
+  });
+
+  it("is not blocked by mail that was filed some other way, or from someone else", () => {
+    const bySubject: RecentEmail = { ...ack(A), matchMethod: "subject_id" };
+    expect(matchAck(INSURER, [sent(A), bySubject, ack(A, "other@fnx.co.il")])).toBe(A);
+  });
+
+  it("ignores a send that is on no claim", () => {
+    expect(matchAck(INSURER, [{ ...sent(A), claimId: null }])).toBeNull();
   });
 });
 

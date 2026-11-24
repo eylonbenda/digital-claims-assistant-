@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FailureStore } from "./failure";
 import type { EmailStore } from "./ingest";
+import type { MatchMethod } from "./types";
 
 const BUCKET = "claim-docs";
 
@@ -31,6 +32,19 @@ export function supabaseEmailStore(svc: SupabaseClient): EmailStore {
         .eq("agent_id", agentId).not("claim_id", "is", null).not("message_id", "is", null);
       if (error) throw error;
       return new Map((data ?? []).map((r) => [r.message_id as string, r.claim_id as string]));
+    },
+    async recentEmails(agentId, since) {
+      const { data, error } = await svc
+        .from("claim_emails").select("direction, claim_id, from_addr, to_addrs, match_method")
+        .eq("agent_id", agentId).gte("received_at", since);
+      if (error) throw error;
+      return (data ?? []).map((r) => ({
+        direction: r.direction as "outbound" | "inbound",
+        claimId: (r.claim_id as string | null) ?? null,
+        from: r.from_addr as string,
+        to: (r.to_addrs as string[] | null) ?? [],
+        matchMethod: (r.match_method as MatchMethod | null) ?? null,
+      }));
     },
     async upload(path, bytes, mime) {
       const { error } = await svc.storage.from(BUCKET).upload(path, bytes, {

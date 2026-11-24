@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { INBOUND_MAX_BYTES } from "./budget";
 import { FORWARD_HEADER } from "./classify";
 import { ingestInbound, type AttachmentRow, type EmailRow, type EmailStore } from "./ingest";
+import { ACK_WINDOW_MS, type RecentEmail } from "./match";
 import type { InboundEmail } from "./types";
 
 const DOMAIN = "in.example.com";
@@ -12,6 +13,8 @@ type Fake = EmailStore & {
   emails: EmailRow[];
   attachments: AttachmentRow[];
   uploads: { path: string; size: number; mime: string | null }[];
+  // Outbound messages, which ingest never writes: agent, claim, recipient, time sent.
+  sent: { agentId: string; claimId: string; to: string; at: string }[];
 };
 
 // Two businesses: "cohen" owns CLAIM, "levi" owns OTHER_CLAIM.
@@ -22,7 +25,7 @@ function fakeStore(over: Partial<EmailStore> = {}): Fake {
   };
   const claims: Record<string, string[]> = { "agent-cohen": [CLAIM], "agent-levi": [OTHER_CLAIM] };
   const store: Fake = {
-    emails: [], attachments: [], uploads: [],
+    emails: [], attachments: [], uploads: [], sent: [],
     hasProviderId: async (id) => store.emails.some((e) => e.provider_id === id),
     agentByAlias: async (alias) => agents[alias] ?? null,
     claimIds: async (agentId) => claims[agentId] ?? [],
@@ -32,6 +35,14 @@ function fakeStore(over: Partial<EmailStore> = {}): Fake {
           .filter((e) => e.agent_id === agentId && e.claim_id && e.message_id)
           .map((e) => [e.message_id!, e.claim_id!]),
       ),
+    recentEmails: async (agentId, since): Promise<RecentEmail[]> => [
+      ...store.sent
+        .filter((m) => m.agentId === agentId && m.at >= since)
+        .map((m) => ({ direction: "outbound" as const, claimId: m.claimId, from: "", to: [m.to], matchMethod: null })),
+      ...store.emails
+        .filter((e) => e.agent_id === agentId)
+        .map((e) => ({ direction: e.direction, claimId: e.claim_id, from: e.from_addr, to: e.to_addrs, matchMethod: e.match_method })),
+    ],
     upload: async (path, bytes, mime) => { store.uploads.push({ path, size: bytes.length, mime }); },
     insertEmail: async (row) => { store.emails.push(row); },
     insertAttachments: async (rows) => { store.attachments.push(...rows); },
@@ -167,6 +178,50 @@ describe("ingestInbound", () => {
     await ingestInbound(email({ from: "claims@garage.co.il" }), store, o);
     await ingestInbound(email({ providerId: "prov-2", from: "x@gmail.com" }), store, o);
     expect(store.emails.map((e) => e.kind)).toEqual(["business", "other"]);
+  });
+
+  describe("an automatic acknowledgement with nothing to match on", () => {
+    const NOW = new Date("2026-11-24T10:01:35Z");
+    const ago = (ms: number) => new Date(NOW.getTime() - ms).toISOString();
+    const ackMail = (over: Partial<InboundEmail> = {}) =>
+      email({ from: "weSure <Claims@we-sure.co.il>", subject: "תגובה על פנייתך", ...over });
+    let n = 0;
+    const o = () => ({ ...opts, now: () => NOW, newId: () => `email-${++n}` });
+
+    it("is filed on the claim just sent to that address", async () => {
+      const store = fakeStore();
+      store.sent.push({ agentId: "agent-cohen", claimId: CLAIM, to: "claims@we-sure.co.il", at: ago(99_000) });
+      expect(await ingestInbound(ackMail(), store, o())).toMatchObject({ outcome: "stored", claimId: CLAIM });
+      expect(store.emails[0]).toMatchObject({ claim_id: CLAIM, match_method: "auto_ack" });
+    });
+
+    it("is left for the clerk when the send is older than the window", async () => {
+      const store = fakeStore();
+      store.sent.push({ agentId: "agent-cohen", claimId: CLAIM, to: "claims@we-sure.co.il", at: ago(ACK_WINDOW_MS + 1000) });
+      expect(await ingestInbound(ackMail(), store, o())).toMatchObject({ outcome: "stored", claimId: null });
+      expect(store.emails[0].match_method).toBeNull();
+    });
+
+    it("files only the first message; a second from the same address goes to the inbox", async () => {
+      const store = fakeStore();
+      store.sent.push({ agentId: "agent-cohen", claimId: CLAIM, to: "claims@we-sure.co.il", at: ago(60_000) });
+      const opt = o();
+      await ingestInbound(ackMail(), store, opt);
+      await ingestInbound(ackMail({ providerId: "prov-2", messageId: "<m2@we-sure.co.il>" }), store, opt);
+      expect(store.emails.map((e) => e.claim_id)).toEqual([CLAIM, null]);
+    });
+
+    it("never uses another business's send", async () => {
+      const store = fakeStore();
+      store.sent.push({ agentId: "agent-levi", claimId: OTHER_CLAIM, to: "claims@we-sure.co.il", at: ago(60_000) });
+      expect(await ingestInbound(ackMail(), store, o())).toMatchObject({ outcome: "stored", claimId: null });
+    });
+
+    it("does not look at recent sends when the subject already names the claim", async () => {
+      const store = fakeStore({ recentEmails: async () => { throw new Error("not needed"); } });
+      await ingestInbound(email(), store, o());
+      expect(store.emails[0].match_method).toBe("subject_id");
+    });
   });
 
   it("writes no row when an attachment cannot be stored, so the retry can", async () => {
