@@ -142,7 +142,36 @@ account does not send mail from the app, so the send is the "I sent it from my m
 confirmation. Inbound mail is not shown: it is filed on a claim but does not change the
 status by itself, and the video must not suggest otherwise.
 
-**Narration.** The script is `promo/narration.md`, one line per beat. No voice is mixed yet.
+**Narration** (full cuts only). The script is `promo/narration.md`, one line per beat. Put
+one sound file per line in `fixtures/promo/voice/<audience>/` (git-ignored), named after
+the beat: `chase`, `turn`, `client`, `caseFile`, `form`, `work`, `handling`, `outcome`,
+`endCard`, as `.mp3`, `.wav` or `.m4a`. `promo:edit` then lays each line over its part of
+the film and prints `narrated` beside the file. With no files the film is silent; with only
+some of the nine the run stops and names the missing ones.
+
+The film is fitted to the voice, not the voice to the film: a drawn beat grows to hold its
+line, and a screen too short for its line is slowed (never past 0.8 of real time) and then
+held on its last picture. So a narrated cut is longer than the silent one, by as much as the
+voice needs. A line starts 0.4 s into its part and ends at least 0.6 s before the next. To
+shorten the film, shorten the line or pick a faster voice.
+
+To make the files with a synthetic voice, set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID`
+in `.env.local` (`npm run promo:voice -- --voices` lists the Hebrew voices in the account)
+and run `npm run promo:voice`. It sends each line of the script to ElevenLabs and saves
+the nine files per audience; a line is made again only when its words, the voice or the
+model changed (`--only chase,turn` and `--force` narrow or widen that). A word the voice
+says wrong is respelled with nikud in the `SAY` list in `promo/voice.ts`. Listen to every
+line before publishing: nothing checks pronunciation.
+
+Every line, and the music, is measured and brought to the same loudness (-16 LUFS, peaks
+under -1.5 dB) before mixing, so lines from different takes or sources sit level.
+**Subtitles and pace** (narrated cuts). A narrated film shows the narration as subtitles, a
+phrase at a time, cut from the same script the voice reads (`promo/subtitles.ts`: phrase
+length, size and height per shape); `npm run promo:edit -- --no-subtitles` leaves them out.
+With subtitles the caption drawn over the office in the square and wide shapes is dropped,
+since both would sit in the same place. A narrated film also plays its screens 1.35 times
+faster than the silent one (`NARRATED_PACE` in `promo/edit.ts`), because the voice says
+what the screen shows; a screen is still never shorter than its line.
 
 **What must stay true.** No number, testimonial or customer name that is not real; the copy
 is qualitative until there is a pilot figure approved for marketing. No "סוכן" in the
@@ -162,7 +191,8 @@ stills with a travelling camera (`compositions/product.ts`). It is kept for its 
 and as a fallback; the live cut is the one to publish.
 
 **Music.** None is shipped. Set `PROMO_MUSIC` in `.env.local` to a track you hold a licence
-for; it is mixed under the video and faded out. The video length never changes.
+for; it is looped to the film's length and faded out, and sits quietly under the narration
+when there is one. Music never changes the film's length.
 
 **Layout rules, enforced by tests.** Words stay inside each shape's safe area (the vertical
 video gives up the top 14% and bottom 20% to the apps' own buttons), never overlap a
