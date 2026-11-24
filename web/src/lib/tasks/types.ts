@@ -74,5 +74,6 @@ export type EngineInput = {
 export type EngineResult = {
   spawn: TaskSpawn[];
   complete: string[]; // ids of open tasks to mark done
+  retitle: { id: string; title: string }[]; // open tasks whose claim-dependent title changed
   statusAdvance: ClaimStatus | null;
 };

@@ -142,6 +142,11 @@ export async function runEngine(
       }
     }
 
+    for (const r of result.retitle) {
+      const { error } = await svc.from("tasks").update({ title: r.title }).eq("id", r.id);
+      if (error) console.error("task retitle failed:", r.id, error);
+    }
+
     let status = claim.status as ClaimStatus;
     if (result.statusAdvance) {
       const patch: Record<string, unknown> = { status: result.statusAdvance };

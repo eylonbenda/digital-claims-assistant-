@@ -398,3 +398,41 @@ describe("no_repair (third_party_report)", () => {
     expect(r.statusAdvance).toBeNull();
   });
 });
+
+describe("retitle on flags_changed", () => {
+  const REPAIR_TITLE = "לאסוף מסמכים אחרי התיקון (דוח שמאי, חשבונית תיקון)";
+  const NO_REPAIR_TITLE = "לאסוף דוח שמאי ומסמכי הגשה";
+
+  it("renames an open collection task when no_repair is switched on", () => {
+    const r = run({
+      claimType: "third_party_report", noRepair: true,
+      openTasks: [task({ key: "collect_private_report_docs", title: REPAIR_TITLE })],
+      event: { type: "flags_changed" },
+    });
+    expect(r.retitle).toEqual([{ id: "id-collect_private_report_docs", title: NO_REPAIR_TITLE }]);
+  });
+
+  it("renames it back when the flag is switched off", () => {
+    const r = run({
+      claimType: "third_party_report",
+      openTasks: [task({ key: "collect_private_report_docs", title: NO_REPAIR_TITLE })],
+      event: { type: "flags_changed" },
+    });
+    expect(r.retitle).toEqual([{ id: "id-collect_private_report_docs", title: REPAIR_TITLE }]);
+  });
+
+  it("never retitles on other events, nor a task that is completing", () => {
+    const other = run({
+      claimType: "third_party_report", noRepair: true,
+      openTasks: [task({ key: "collect_private_report_docs", title: REPAIR_TITLE })],
+      event: { type: "doc_uploaded", docType: "car_photo" },
+    });
+    expect(other.retitle).toEqual([]);
+    const done = run({
+      claimType: "third_party_report", noRepair: true, docs: ["appraiser_report"],
+      openTasks: [task({ key: "collect_private_report_docs", title: REPAIR_TITLE })],
+      event: { type: "flags_changed" },
+    });
+    expect(done.retitle).toEqual([]);
+  });
+});
