@@ -25,6 +25,8 @@ import ChecklistPanel from "./ChecklistPanel";
 import AgentDocUpload from "./AgentDocUpload";
 import DocDropZone from "./DocDropZone";
 import AmountsCard from "./AmountsCard";
+import AppraiserSuggestion from "./AppraiserSuggestion";
+import { EV_EXTRACTED, EV_RESOLVED, isSourceDocType, pendingSuggestion } from "@/lib/demand/appraiser-suggestion";
 import { toAmount } from "@/lib/handling/amounts";
 import { computeDamageTotals } from "@/lib/demand/damages";
 import ClaimTypeConfirm from "./ClaimTypeConfirm";
@@ -233,6 +235,33 @@ export default async function ClaimDetailPage({
     ((claim as Record<string, unknown>).at_fault_insurer as string | null) ?? null,
     formClaimData,
   );
+
+  // Figures read from the appraiser report / fee invoice that the clerk has not answered yet (demand
+  // claims only). Best-effort: a failed read just means no suggestion card.
+  const { data: amountEvents } =
+    claim.claim_type === "third_party_report" && claim.status !== "closed"
+      ? await supabase
+          .from("claim_events")
+          .select("type, payload_json")
+          .eq("claim_id", id)
+          .in("type", [EV_EXTRACTED, EV_RESOLVED])
+          .order("created_at", { ascending: false })
+          .limit(50)
+      : { data: null };
+  const appraiserSuggestion =
+    amountEvents && formClaimData
+      ? pendingSuggestion(
+          amountEvents,
+          new Map(
+            (rows ?? []).filter((r) => isSourceDocType(r.type)).map((r) => [r.id as string, r.type as string]),
+          ),
+          formClaimData.damages,
+        )
+      : null;
+  // Re-seeds the form editor after amounts were applied from outside it.
+  const amountsAppliedCount = (amountEvents ?? []).filter(
+    (e) => e.type === EV_RESOLVED && (e.payload_json as { outcome?: unknown } | null)?.outcome === "applied",
+  ).length;
 
   // The checklist and the insurer-ready submission, from the same builder the send
   // route uses — what this page shows is what gets sent.
@@ -574,6 +603,14 @@ export default async function ClaimDetailPage({
                 view="rest"
               />
 
+              {appraiserSuggestion && formClaimData && (
+                <AppraiserSuggestion
+                  claimId={claim.id}
+                  suggestion={appraiserSuggestion}
+                  formData={formClaimData}
+                />
+              )}
+
               {claim.status !== "closed" && <DocDropZone claimId={claim.id} />}
 
               <AgentDocUpload claimId={claim.id} />
@@ -748,6 +785,7 @@ export default async function ClaimDetailPage({
                     למלא מחדש את הטופס למעלה כדי להחיל את השינויים.
                   </p>
                   <FormFieldEditor
+                    key={amountsAppliedCount}
                     claimId={claim.id}
                     initial={formClaimData}
                     missing={analysis?.missing ?? []}

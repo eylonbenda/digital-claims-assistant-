@@ -3,8 +3,12 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { runEngine } from "@/lib/tasks/runner";
 import { reportError, serverError } from "@/lib/observability/report";
 import { AGENT_DOC_TYPES } from "@/lib/claims/agent-doc-types";
+import { sniffFileType } from "@/lib/files/sniff";
+import { recordDocAmounts, wantsDocAmounts } from "@/lib/demand/suggest-on-file";
 
 export const runtime = "nodejs";
+// Re-filing a document as the appraiser report or fee invoice reads its amounts (bounded at 25s).
+export const maxDuration = 60;
 
 const BUCKET = "claim-docs";
 const ROUTE = "/api/claims/[id]/documents/[docId]";
@@ -22,7 +26,7 @@ async function loadOwned(id: string, docId: string) {
 
   const { data: claim } = await supabase
     .from("claims")
-    .select("id, status")
+    .select("id, status, claim_type")
     .eq("id", id)
     .single();
   if (!claim) return { error: Response.json({ error: "not found" }, { status: 404 }) };
@@ -38,7 +42,7 @@ async function loadOwned(id: string, docId: string) {
     .single();
   if (!doc) return { error: Response.json({ error: "not found" }, { status: 404 }) };
 
-  return { doc };
+  return { doc, claimType: (claim as { claim_type?: unknown }).claim_type };
 }
 
 // DELETE /api/claims/[id]/documents/[docId] — remove a file uploaded by mistake
@@ -83,7 +87,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   const owned = await loadOwned(id, docId);
   if (owned.error) return owned.error;
-  const { doc } = owned;
+  const { doc, claimType } = owned;
   if (doc.type === type) return Response.json({ ok: true, type });
 
   const svc = createServiceClient();
@@ -99,6 +103,17 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   // The doc now satisfies its new type — let the engine complete what it covers.
   await runEngine(id, { type: "doc_uploaded", docType: type });
+
+  // A file corrected to the appraiser report or fee invoice gets the same reading an upload does.
+  // Best-effort: a missing object or unreadable file only means no suggestion.
+  if (wantsDocAmounts(type, claimType)) {
+    const { data: blob } = await svc.storage.from(BUCKET).download(doc.storage_path);
+    if (blob) {
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const kind = sniffFileType(bytes);
+      if (kind) await recordDocAmounts(svc, id, doc.id, type, bytes, kind);
+    }
+  }
 
   return Response.json({ ok: true, type });
 }
