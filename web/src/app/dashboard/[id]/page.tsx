@@ -22,6 +22,7 @@ import DemandFormPanel from "./DemandFormPanel";
 import { demandAddressee } from "@/lib/demand/inputs";
 import { INSURER_DIRECTORY, claimsAddress } from "@/lib/submission/directory";
 import ChecklistPanel from "./ChecklistPanel";
+import NoRepairToggle from "./NoRepairToggle";
 import AgentDocUpload from "./AgentDocUpload";
 import DocDropZone from "./DocDropZone";
 import AmountsCard from "./AmountsCard";
@@ -583,6 +584,10 @@ export default async function ClaimDetailPage({
                     </div>
                   )}
                 </section>
+              )}
+
+              {claim.claim_type === "third_party_report" && (
+                <NoRepairToggle claimId={claim.id} initial={!!claim.no_repair} />
               )}
 
               <ChecklistPanel
