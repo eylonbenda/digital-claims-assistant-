@@ -56,8 +56,8 @@ export type RecentEmail = {
 // it to a claim is that it comes from the address a claim was just sent to. That is
 // a guess, so it is kept narrow: the sends to that address in the window must all be
 // for one claim, and each send accounts for one reply. Two claims sent to the same
-// address, or a second message after the reply, are left for the clerk — a filed
-// message cannot be moved to another claim afterwards.
+// address, or a second message after the reply, are left for the clerk. A wrong
+// guess is undone from the claim (DELETE /api/emails/[id]/assign).
 export function matchAck(sender: string, recent: RecentEmail[]): string | null {
   const address = sender.toLowerCase();
   if (!address) return null;

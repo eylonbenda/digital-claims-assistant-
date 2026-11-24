@@ -87,3 +87,64 @@ describe("POST /api/emails/[id]/assign", () => {
     expect((await post()).status).toBe(409);
   });
 });
+
+async function del() {
+  const { DELETE } = await import("./route");
+  return DELETE(new Request("http://localhost/api/emails/e1/assign", { method: "DELETE" }), {
+    params: Promise.resolve({ id: "e1" }),
+  });
+}
+
+describe("DELETE /api/emails/[id]/assign", () => {
+  beforeEach(() => {
+    user = { id: "u1" };
+    visible = { claim_emails: { id: "e1", claim_id: "c1", direction: "inbound", handled_as: null } };
+    writeResult = { error: null, count: 1 };
+    written = query(null);
+  });
+
+  it("refuses an unauthenticated request", async () => {
+    user = null;
+    expect((await del()).status).toBe(401);
+  });
+
+  it("answers 404 for a message the user cannot see", async () => {
+    visible.claim_emails = null;
+    expect((await del()).status).toBe(404);
+    expect(written.update).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 for a message we sent — it belongs to its claim", async () => {
+    visible.claim_emails = { id: "e1", claim_id: "c1", direction: "outbound", handled_as: null };
+    expect((await del()).status).toBe(404);
+    expect(written.update).not.toHaveBeenCalled();
+  });
+
+  it("answers 409 for a message that is on no claim", async () => {
+    visible.claim_emails = { id: "e1", claim_id: null, direction: "inbound", handled_as: null };
+    expect((await del()).status).toBe(409);
+  });
+
+  it("refuses a message the claim's status was set from", async () => {
+    visible.claim_emails = { id: "e1", claim_id: "c1", direction: "inbound", handled_as: "in_review" };
+    expect((await del()).status).toBe(409);
+    expect(written.update).not.toHaveBeenCalled();
+  });
+
+  it("returns the message to the inbox, undecided", async () => {
+    visible.claim_emails = { id: "e1", claim_id: "c1", direction: "inbound", handled_as: "none" };
+    const res = await del();
+    expect(res.status).toBe(200);
+    expect(written.update.mock.calls[0][0]).toEqual({
+      claim_id: null, match_method: null, handled_at: null, handled_as: null,
+    });
+    expect(written.eq).toHaveBeenCalledWith("id", "e1");
+    // Compare-and-set on the claim it was read on.
+    expect(written.eq).toHaveBeenCalledWith("claim_id", "c1");
+  });
+
+  it("answers 409 when the message moved in the meantime", async () => {
+    writeResult = { error: null, count: 0 };
+    expect((await del()).status).toBe(409);
+  });
+});

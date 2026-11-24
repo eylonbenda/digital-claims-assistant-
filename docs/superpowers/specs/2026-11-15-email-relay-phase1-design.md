@@ -156,7 +156,7 @@ No fuzzy matching on plates or names in phase 1: a wrong auto-match puts one cli
 - all those sends are for **one** claim (two claims sent to the same address → unmatched, both replies);
 - each send accounts for **one** reply (a second message from that address → unmatched).
 
-This is a deliberate exception to "no guessing", accepted by the user. What remains exposed: the first message after a send is not the acknowledgement but unrelated mail from the same address. A filed message cannot be re-filed in the app today, so such a mistake would need a manual DB fix.
+This is a deliberate exception to "no guessing", accepted by the user. What remains exposed: the first message after a send is not the acknowledgement but unrelated mail from the same address. The clerk's way out of such a mistake is "ביטול שיוך" on the email (`DELETE /api/emails/[id]/assign`), which returns it to the inbox.
 
 ### 7. Data model — migration `013_claim_emails.sql` (additive)
 

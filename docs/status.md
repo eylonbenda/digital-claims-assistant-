@@ -675,3 +675,9 @@ cd web ; npm run dev
 - `submission/directory.ts`'s `wesure` entry gains its real inbound domain (`we-sure.co.il`), confirmed during this work.
 - Unit-tested (`email.test.ts`, `ingest.test.ts`).
 - `docs/architecture.md` (`claim_emails.match_method`), `docs/app-map.md` (`email/` module row), `docs/claim-management.md` (§ ניהול התביעה מול המבטחת) updated.
+
+### Done since last sync (2026-11-24, PR #159 — send a filed email back to the inbox)
+- **No migration.** A filed inbound message can now be unfiled: `DELETE /api/emails/[id]/assign` (same route as the existing `POST`) clears `claim_id`/`match_method`/`handled_at`/`handled_as`, compare-and-set on the claim it's currently filed under (`409` on a race or if it's already unfiled). Refused (`409`, `canUnassign` in `web/src/lib/email/pending.ts`) for a message the claim's current `handled_as` status was actually set from — that message stays as the record of why the status changed; an undecided or "no status change" message can still go back.
+- **New `UnassignEmail.tsx`** under each eligible email in `CorrespondencePanel.tsx` — a text link that expands to a confirm/cancel row before calling the route, next to (not replacing) the existing `EmailActions.tsx` status row when both apply.
+- Unit-tested: `web/src/app/api/emails/[id]/assign/route.test.ts`, `web/src/lib/email/pending.test.ts`.
+- `docs/app-map.md` (`/api/emails/[id]/assign` row, `email`/`/dashboard/[id]` module rows), `docs/claim-management.md` (§ ניהול התביעה מול המבטחת) updated.
