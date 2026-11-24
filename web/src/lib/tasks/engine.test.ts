@@ -15,8 +15,9 @@ function checklist(
   docs: string[] = [],
   hasForm = false,
   state: Record<string, boolean> = {},
+  noRepair = false,
 ): ComputedItem[] {
-  return computeChecklist(claimType, new Set(docs), hasForm, state, FLAGS);
+  return computeChecklist(claimType, new Set(docs), hasForm, state, { ...FLAGS, no_repair: noRepair });
 }
 
 function task(over: Partial<TaskRow> & { key: string }): TaskRow {
@@ -34,6 +35,7 @@ function run(over: {
   hasForm?: boolean;
   state?: Record<string, boolean>;
   openTasks?: TaskRow[];
+  noRepair?: boolean;
   event: EngineEvent;
 }) {
   const claimType = over.claimType ?? "own_policy";
@@ -42,8 +44,9 @@ function run(over: {
       claimType,
       status: over.status ?? "classified",
       atFaultInsurer: over.atFaultInsurer ?? null,
+      noRepair: over.noRepair ?? false,
     },
-    checklist: checklist(claimType, over.docs, over.hasForm ?? false, over.state ?? {}),
+    checklist: checklist(claimType, over.docs, over.hasForm ?? false, over.state ?? {}, over.noRepair ?? false),
     hasGeneratedForm: over.hasForm ?? false,
     openTasks: over.openTasks ?? [],
     event: over.event,
@@ -371,5 +374,27 @@ describe("orphaned and closing tasks", () => {
     expect(r.statusAdvance).toBe("closed");
     expect(r.complete).toContain("t-chase");
     expect(r.spawn).toEqual([]);
+  });
+});
+
+describe("no_repair (third_party_report)", () => {
+  const NON_REPAIR_BLOCKERS = ["vehicle_reg", "car_photo", "demand_form", "appraiser_report", "no_claim_confirmation"];
+
+  it("names the collection task without the repair", () => {
+    const on = run({ claimType: "third_party_report", noRepair: true, event: { type: "track_confirmed" } });
+    expect(on.spawn.find((s) => s.key === "collect_private_report_docs")?.title).toBe("לאסוף דוח שמאי ומסמכי הגשה");
+    const off = run({ claimType: "third_party_report", event: { type: "track_confirmed" } });
+    expect(off.spawn.find((s) => s.key === "collect_private_report_docs")?.title).toBe("לאסוף מסמכים אחרי התיקון (דוח שמאי, חשבונית תיקון)");
+  });
+
+  it("flags_changed clears the last blocker: collection closes, submission opens", () => {
+    const r = run({
+      claimType: "third_party_report", noRepair: true, hasForm: true, docs: NON_REPAIR_BLOCKERS,
+      openTasks: [task({ key: "collect_private_report_docs" })],
+      event: { type: "flags_changed" },
+    });
+    expect(r.complete).toContain("id-collect_private_report_docs");
+    expect(r.spawn.some((s) => s.key === "submit_to_tp_insurer")).toBe(true);
+    expect(r.statusAdvance).toBeNull();
   });
 });

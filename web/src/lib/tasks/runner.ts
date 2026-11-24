@@ -91,6 +91,7 @@ export async function runEngine(
         claimType: claim.claim_type as ClaimType,
         status: claim.status as ClaimStatus,
         atFaultInsurer,
+        noRepair: !!claim.no_repair,
       },
       checklist,
       hasGeneratedForm: hasForm,

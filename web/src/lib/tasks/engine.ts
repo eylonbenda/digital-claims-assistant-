@@ -20,6 +20,7 @@ function buildRuleCtx(input: EngineInput): RuleCtx {
   return {
     claimType: input.claim.claimType,
     atFaultInsurer: input.claim.atFaultInsurer,
+    noRepair: input.claim.noRepair,
     hasGeneratedForm: input.hasGeneratedForm,
     submitted: STATUS_ORDER[input.claim.status] >= STATUS_ORDER.submitted,
     docDone: (t) => docDone.get(t) === true,
@@ -68,6 +69,7 @@ export function advanceTasks(input: EngineInput): EngineResult {
       break;
     case "doc_uploaded":
     case "claim_created":
+    case "flags_changed":
       break;
   }
   const statusAdvance =
@@ -100,7 +102,7 @@ export function advanceTasks(input: EngineInput): EngineResult {
       if (rule.completeWhen(ctx)) continue;
       spawn.push({
         key: rule.key,
-        title: rule.title,
+        title: typeof rule.title === "function" ? rule.title(ctx) : rule.title,
         track: claim.claimType === "unknown" ? null : claim.claimType,
         due_at: new Date(now.getTime() + rule.dueDays * DAY_MS).toISOString(),
       });

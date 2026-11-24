@@ -23,6 +23,8 @@ export const DUE_OFFSETS: Record<string, number> = {
 export type RuleCtx = {
   claimType: ClaimType;
   atFaultInsurer: string | null;
+  // third_party_report settled on the estimate, car not repaired (claims.no_repair).
+  noRepair: boolean;
   hasGeneratedForm: boolean;
   // The client has submitted the wizard (status at or past 'submitted').
   submitted: boolean;
@@ -37,7 +39,9 @@ export type RuleCtx = {
 
 export type TaskRule = {
   key: string;
-  title: string; // Hebrew — shown verbatim in the UI
+  // Hebrew — shown verbatim in the UI. A function when the wording depends on the
+  // claim; resolved once at spawn, so an open task keeps the title it was born with.
+  title: string | ((ctx: RuleCtx) => string);
   dueDays: number;
   track: ClaimType | "all";
   spawnOn: (event: EngineEvent, ctx: RuleCtx) => boolean;
@@ -119,7 +123,10 @@ export const TASK_RULES: TaskRule[] = [
     // before this rule changed picks the task up on its next event. The title names
     // only what closes it — receipts and the appraiser fee stay on the checklist.
     key: "collect_private_report_docs",
-    title: "לאסוף מסמכים אחרי התיקון (דוח שמאי, חשבונית תיקון)",
+    title: (ctx) =>
+      ctx.noRepair
+        ? "לאסוף דוח שמאי ומסמכי הגשה"
+        : "לאסוף מסמכים אחרי התיקון (דוח שמאי, חשבונית תיקון)",
     dueDays: DUE_OFFSETS.collect_private_report_docs,
     track: "third_party_report",
     spawnOn: () => true,
