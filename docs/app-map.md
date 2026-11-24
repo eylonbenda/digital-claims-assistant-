@@ -78,6 +78,7 @@ Behaviour of the classifier, checklist, task engine and brief is specified in [a
 | `/api/claims/[id]/documents/[docId]` | DELETE · PATCH | agent deletes a document, or re-files it under a different type — hidden on closed claims; re-filing to `appraiser_report` on a `third_party_report` claim reads it for amounts too |
 | `/api/claims/[id]/classify` | PATCH | agent confirms the track |
 | `/api/claims/[id]/checklist` | PATCH | tick a milestone |
+| `/api/claims/[id]/flags` | PATCH | the one app-side writer of a claim circumstance flag — allow-lists exactly `{ no_repair: boolean }` (migration `017`); logs a `flags_changed` claim event when it actually flips, then re-runs the task engine so claim-dependent open task titles stay in sync |
 | `/api/claims/[id]/tasks` · `/tasks/[taskId]` | POST · PATCH | ad-hoc agent tasks (`source='manual'`); PATCH also blocks/unblocks or postpones (`due_at`) an engine (`source='template'`) task — refuses `status:'done'` on one (400) |
 | `/api/claims/[id]/notes` | POST | append to the agent scratchpad |
 | `/api/claims/[id]/form-data` | PATCH | agent edits the canonical form fields |
