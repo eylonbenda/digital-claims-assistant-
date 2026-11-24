@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-23**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-24**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -668,3 +668,9 @@ cd web ; npm run dev
 
 ### Done since last sync (2026-11-23, PR #157 — readiness count only counts items that gate sending)
 - **No migration.** The overview's "מוכנות" count (`readinessCount`, new in `web/src/lib/claims/checklist.ts`) now counts only `blocking` checklist items instead of every item — an uploaded-but-optional document (e.g. `assessor_fee_receipt`) or the payment milestone no longer makes a send-ready claim read as partial. A track with no blocking items (`unknown`) falls back to its mandatory documents so the count never reads 0/0. `web/src/app/dashboard/[id]/page.tsx`'s side-rail label now reads "X/Y פריטים לשליחה". Unit-tested in `web/src/lib/claims/checklist.test.ts`.
+
+### Done since last sync (2026-11-24, PR #159 — send a filed email back to the inbox)
+- **No migration.** A filed inbound message can now be unfiled: `DELETE /api/emails/[id]/assign` (same route as the existing `POST`) clears `claim_id`/`match_method`/`handled_at`/`handled_as`, compare-and-set on the claim it's currently filed under (`409` on a race or if it's already unfiled). Refused (`409`, `canUnassign` in `web/src/lib/email/pending.ts`) for a message the claim's current `handled_as` status was actually set from — that message stays as the record of why the status changed; an undecided or "no status change" message can still go back.
+- **New `UnassignEmail.tsx`** under each eligible email in `CorrespondencePanel.tsx` — a text link that expands to a confirm/cancel row before calling the route, next to (not replacing) the existing `EmailActions.tsx` status row when both apply.
+- Unit-tested: `web/src/app/api/emails/[id]/assign/route.test.ts`, `web/src/lib/email/pending.test.ts`.
+- `docs/app-map.md` (`/api/emails/[id]/assign` row, `email`/`/dashboard/[id]` module rows), `docs/claim-management.md` (§ ניהול התביעה מול המבטחת) updated.
