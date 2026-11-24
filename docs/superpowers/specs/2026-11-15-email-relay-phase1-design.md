@@ -150,6 +150,14 @@ Pure function `matchClaim()` in `web/src/lib/email/match.ts`, first hit wins, al
 
 No fuzzy matching on plates or names in phase 1: a wrong auto-match puts one client's correspondence on another client's file. Unmatched mail costs one click; a mismatch is a privacy incident.
 
+**Amended 2026-11-24 — automatic acknowledgements (`'auto_ack'`).** The first real third-party submission (to weSure) came back within two minutes as a canned reply: subject "תגובה על פנייתך", no `In-Reply-To`, nothing of ours quoted in the body. Neither rule above can file it, and it will happen on every send to such an insurer. So one narrow, timing-based rule runs when 1 and 2 find nothing — `matchAck()`:
+
+- the sender's address is exactly an address this business sent to in the last 5 minutes;
+- all those sends are for **one** claim (two claims sent to the same address → unmatched, both replies);
+- each send accounts for **one** reply (a second message from that address → unmatched).
+
+This is a deliberate exception to "no guessing", accepted by the user. What remains exposed: the first message after a send is not the acknowledgement but unrelated mail from the same address. The clerk's way out of such a mistake is "ביטול שיוך" on the email (`DELETE /api/emails/[id]/assign`), which returns it to the inbox.
+
 ### 7. Data model — migration `013_claim_emails.sql` (additive)
 
 ```sql

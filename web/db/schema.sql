@@ -200,7 +200,7 @@ create table claim_emails (
   cc_addrs text[] not null default '{}',
   subject text not null default '',
   text_body text,
-  match_method text check (match_method in ('subject_id', 'thread', 'manual')),
+  match_method text check (match_method in ('subject_id', 'thread', 'auto_ack', 'manual')),
   attachments_dropped boolean not null default false,
   delivery_failed boolean not null default false,
   received_at timestamptz not null default now(),
