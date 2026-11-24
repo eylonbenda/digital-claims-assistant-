@@ -20,6 +20,13 @@ export function isPendingEmail(
   );
 }
 
+// Whether a filed message may go back to the inbox. Only inbound mail is ever filed
+// by a match that can be wrong; and a message the claim's status was set from stays,
+// because it is the record of why the status changed.
+export function canUnassign(email: { direction: "outbound" | "inbound"; handled_as: string | null }): boolean {
+  return email.direction === "inbound" && (!email.handled_as || email.handled_as === HANDLED_NONE);
+}
+
 // The statuses an insurer's email can move the claim to. "sent" is the business's
 // own move (completions went out), never something an inbound email reports.
 export function emailTargets(effective: HandlingStatus | null): HandlingStatus[] {
