@@ -3,7 +3,11 @@ import { extractAppraiserAmounts, parseAppraiserAmounts } from "./extract-apprai
 
 const BYTES = new Uint8Array([1, 2, 3, 4]);
 const answer = (o: Record<string, unknown>) =>
-  JSON.stringify({ repair_before_vat: 0, repair_incl_vat: 0, diminished_value: 0, confident: true, ...o });
+  JSON.stringify({
+    repair_before_vat: 0, repair_incl_vat: 0, diminished_value: 0, fee_before_vat: 0, fee_incl_vat: 0,
+    confident: true, ...o,
+  });
+const NO_FEE = { assessor_fee: null, assessor_fee_verified: false };
 
 function fake(create: (...args: unknown[]) => unknown) {
   const fn = vi.fn(create);
@@ -14,18 +18,18 @@ describe("parseAppraiserAmounts", () => {
   it("verifies a report whose before-VAT and VAT-inclusive totals agree", () => {
     expect(
       parseAppraiserAmounts(answer({ repair_before_vat: 7370, repair_incl_vat: 8696.6, diminished_value: 1200 })),
-    ).toEqual({ repair: 7370, diminished_value: 1200, verified: true });
+    ).toEqual({ repair: 7370, diminished_value: 1200, verified: true, ...NO_FEE });
   });
 
   it("tolerates the report's own rounding of the VAT line", () => {
     expect(parseAppraiserAmounts(answer({ repair_before_vat: 7370, repair_incl_vat: 8697 }))).toEqual({
-      repair: 7370, diminished_value: null, verified: true,
+      repair: 7370, diminished_value: null, verified: true, ...NO_FEE,
     });
   });
 
   it("still suggests, unverified, when the totals disagree (older VAT rate, misread digit)", () => {
     expect(parseAppraiserAmounts(answer({ repair_before_vat: 7370, repair_incl_vat: 8622.9 }))).toEqual({
-      repair: 7370, diminished_value: null, verified: false,
+      repair: 7370, diminished_value: null, verified: false, ...NO_FEE,
     });
   });
 
@@ -35,13 +39,13 @@ describe("parseAppraiserAmounts", () => {
 
   it("derives the before-VAT figure from a lone VAT-inclusive total, unverified", () => {
     expect(parseAppraiserAmounts(answer({ repair_incl_vat: 11800 }))).toEqual({
-      repair: 10000, diminished_value: null, verified: false,
+      repair: 10000, diminished_value: null, verified: false, ...NO_FEE,
     });
   });
 
   it("returns a lone diminished value (total-loss report)", () => {
     expect(parseAppraiserAmounts(answer({ diminished_value: 3500 }))).toEqual({
-      repair: null, diminished_value: 3500, verified: false,
+      repair: null, diminished_value: 3500, verified: false, ...NO_FEE,
     });
   });
 
@@ -55,6 +59,31 @@ describe("parseAppraiserAmounts", () => {
     expect(parseAppraiserAmounts(answer({ repair_before_vat: "7370" }))).toBeNull();
   });
 
+  it("reads the appraiser's fee when the report and the fee invoice are one file", () => {
+    expect(
+      parseAppraiserAmounts(answer({
+        repair_before_vat: 7370, repair_incl_vat: 8696.6, diminished_value: 1200,
+        fee_before_vat: 900, fee_incl_vat: 1062,
+      })),
+    ).toEqual({
+      repair: 7370, diminished_value: 1200, verified: true, assessor_fee: 900, assessor_fee_verified: true,
+    });
+  });
+
+  it("checks the fee on its own: a fee line with no VAT-inclusive total is unverified", () => {
+    const r = parseAppraiserAmounts(answer({ repair_before_vat: 7370, repair_incl_vat: 8696.6, fee_before_vat: 900 }));
+    expect([r?.verified, r?.assessor_fee, r?.assessor_fee_verified]).toEqual([true, 900, false]);
+    const derived = parseAppraiserAmounts(answer({ repair_before_vat: 7370, fee_incl_vat: 1180 }));
+    expect([derived?.verified, derived?.assessor_fee, derived?.assessor_fee_verified]).toEqual([false, 1000, false]);
+  });
+
+  it("returns a lone fee, and nothing for an impossible one", () => {
+    expect(parseAppraiserAmounts(answer({ fee_before_vat: 900, fee_incl_vat: 1062 }))).toEqual({
+      repair: null, diminished_value: null, verified: false, assessor_fee: 900, assessor_fee_verified: true,
+    });
+    expect(parseAppraiserAmounts(answer({ repair_before_vat: 7370, fee_before_vat: -1 }))).toBeNull();
+  });
+
   it("rounds to agorot", () => {
     expect(parseAppraiserAmounts(answer({ diminished_value: 1200.456 }))?.diminished_value).toBe(1200.46);
   });
@@ -66,7 +95,7 @@ describe("extractAppraiserAmounts", () => {
       content: [{ type: "text", text: answer({ repair_before_vat: 1000, repair_incl_vat: 1180 }) }],
     }));
     expect(await extractAppraiserAmounts(BYTES, "pdf", { client })).toEqual({
-      repair: 1000, diminished_value: null, verified: true,
+      repair: 1000, diminished_value: null, verified: true, ...NO_FEE,
     });
     const req = fn.mock.calls[0][0] as { messages: { content: { type: string }[] }[] };
     expect(req.messages[0].content[0].type).toBe("document");
