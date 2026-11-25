@@ -29,6 +29,7 @@ ${CLASSIFY_LABELS.map((o) => `- ${o.type} — ${o.label}`).join("\n")}
 Notes that separate look-alikes:
 - garage_invoice is the repair invoice (חשבונית מס) from the garage; repair_receipt is a receipt (קבלה) showing the repair was paid.
 - appraiser_report is the appraiser's damage assessment; assessor_fee_invoice / assessor_fee_receipt are the appraiser's own fee invoice and its receipt.
+- Appraisers often send the report and their fee invoice as one file, in either order: a file that contains the damage assessment is appraiser_report, whatever else is attached to it.
 - payment_notice and rejection_letter come from an insurance company about a claim it handled.
 - demand_form is a demand letter addressed to an insurer asking it to pay.
 - car_photo is a photograph of a vehicle or its damage, not a document.

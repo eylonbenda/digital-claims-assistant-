@@ -44,9 +44,29 @@ describe("pendingSuggestion", () => {
     });
   });
 
-  test("a document only suggests its own lines", () => {
-    const s = pendingSuggestion([feeInvoice("f1", { repair: 5000 }), report("d1", { assessor_fee: 1 })], live, undefined);
-    expect(s?.lines).toEqual([line("repair", 7370), line("diminished_value", 1200), line("assessor_fee", 900)]);
+  test("a fee invoice never suggests the report's lines", () => {
+    const s = pendingSuggestion([feeInvoice("f1", { repair: 5000, diminished_value: 1 })], live, undefined);
+    expect(s?.lines).toEqual([line("assessor_fee", 900)]);
+  });
+
+  test("a report that came with the fee invoice in one file suggests the fee too", () => {
+    const combined = report("d1", { assessor_fee: 900, assessor_fee_verified: true });
+    expect(pendingSuggestion([combined], live, undefined)).toEqual({
+      documentIds: ["d1"],
+      lines: [line("repair", 7370), line("diminished_value", 1200), line("assessor_fee", 900)],
+    });
+  });
+
+  test("the fee read from a report is flagged by its own check, not the repair's", () => {
+    const flags = (o: Record<string, unknown>) =>
+      pendingSuggestion([report("d1", { assessor_fee: 900, ...o })], live, undefined)?.lines.map((l) => l.unverified);
+    expect(flags({ verified: true, assessor_fee_verified: false })).toEqual([false, false, true]);
+    expect(flags({ verified: false, assessor_fee_verified: true })).toEqual([true, false, false]);
+  });
+
+  test("a separate fee invoice filed after the combined report wins the fee line", () => {
+    const s = pendingSuggestion([feeInvoice("f1", { assessor_fee: 950 }), report("d1", { assessor_fee: 900 })], live, undefined);
+    expect(s?.lines.at(-1)).toEqual(line("assessor_fee", 950));
   });
 
   test("a typed amount that differs is shown as the current value", () => {
