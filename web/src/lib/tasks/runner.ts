@@ -32,7 +32,7 @@ export async function runEngine(
       svc
         .from("claims")
         .select(
-          "id, claim_type, status, at_fault_insurer, checklist_state, summary_json, created_at, submitted_at, theft, lien, business_use, policy_activated, garage_network_rider",
+          "id, claim_type, status, at_fault_insurer, checklist_state, summary_json, created_at, submitted_at, theft, lien, business_use, policy_activated, garage_network_rider, no_repair",
         )
         .eq("id", claimId)
         .single(),
@@ -71,7 +71,7 @@ export async function runEngine(
         lien: !!claim.lien,
         business_use: !!claim.business_use,
         policy_activated: !!claim.policy_activated,
-        garage_network_rider: !!claim.garage_network_rider,
+        garage_network_rider: !!claim.garage_network_rider, no_repair: !!claim.no_repair,
       },
       undefined,
       claim.created_at as string,
@@ -91,6 +91,7 @@ export async function runEngine(
         claimType: claim.claim_type as ClaimType,
         status: claim.status as ClaimStatus,
         atFaultInsurer,
+        noRepair: !!claim.no_repair,
       },
       checklist,
       hasGeneratedForm: hasForm,
@@ -139,6 +140,11 @@ export async function runEngine(
           });
         }
       }
+    }
+
+    for (const r of result.retitle) {
+      const { error } = await svc.from("tasks").update({ title: r.title }).eq("id", r.id);
+      if (error) console.error("task retitle failed:", r.id, error);
     }
 
     let status = claim.status as ClaimStatus;

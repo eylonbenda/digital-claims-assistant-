@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildFactSheet, type BriefClaimRow } from "./facts";
 
 const NOW = new Date("2026-07-23T10:00:00Z");
-const FLAGS = { theft: false, lien: false, business_use: false, policy_activated: false, garage_network_rider: false };
+const FLAGS = { theft: false, lien: false, business_use: false, policy_activated: false, garage_network_rider: false, no_repair: false };
 
 function claim(over: Partial<BriefClaimRow> = {}): BriefClaimRow {
   return {

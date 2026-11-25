@@ -46,7 +46,7 @@ const CLAIM = {
   created_at: "2026-07-01T00:00:00Z", submitted_at: "2026-07-02T00:00:00Z",
   checklist_state: {}, summary_json: null,
   theft: false, lien: false, business_use: false,
-  policy_activated: false, garage_network_rider: false,
+  policy_activated: false, garage_network_rider: false, no_repair: false,
 };
 
 beforeEach(() => {

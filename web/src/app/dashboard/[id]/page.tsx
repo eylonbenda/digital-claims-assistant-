@@ -22,6 +22,7 @@ import DemandFormPanel from "./DemandFormPanel";
 import { demandAddressee } from "@/lib/demand/inputs";
 import { INSURER_DIRECTORY, claimsAddress } from "@/lib/submission/directory";
 import ChecklistPanel from "./ChecklistPanel";
+import NoRepairToggle from "./NoRepairToggle";
 import AgentDocUpload from "./AgentDocUpload";
 import DocDropZone from "./DocDropZone";
 import AmountsCard from "./AmountsCard";
@@ -137,7 +138,7 @@ export default async function ClaimDetailPage({
   const { data: claim } = await supabase
     .from("claims")
     .select(
-      "id, client_name, client_phone, claim_type, status, urgent, access_token, policy_insurer, at_fault_insurer, handling_status, handling_status_changed_at, summary_json, created_at, submitted_at, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider"
+      "id, client_name, client_phone, claim_type, status, urgent, access_token, policy_insurer, at_fault_insurer, handling_status, handling_status_changed_at, summary_json, created_at, submitted_at, checklist_state, theft, lien, business_use, policy_activated, garage_network_rider, no_repair"
     )
     .eq("id", id)
     .single();
@@ -583,6 +584,10 @@ export default async function ClaimDetailPage({
                     </div>
                   )}
                 </section>
+              )}
+
+              {claim.claim_type === "third_party_report" && (
+                <NoRepairToggle claimId={claim.id} initial={!!claim.no_repair} />
               )}
 
               <ChecklistPanel

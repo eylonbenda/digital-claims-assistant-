@@ -20,6 +20,7 @@ function buildRuleCtx(input: EngineInput): RuleCtx {
   return {
     claimType: input.claim.claimType,
     atFaultInsurer: input.claim.atFaultInsurer,
+    noRepair: input.claim.noRepair,
     hasGeneratedForm: input.hasGeneratedForm,
     submitted: STATUS_ORDER[input.claim.status] >= STATUS_ORDER.submitted,
     docDone: (t) => docDone.get(t) === true,
@@ -68,6 +69,7 @@ export function advanceTasks(input: EngineInput): EngineResult {
       break;
     case "doc_uploaded":
     case "claim_created":
+    case "flags_changed":
       break;
   }
   const statusAdvance =
@@ -100,13 +102,29 @@ export function advanceTasks(input: EngineInput): EngineResult {
       if (rule.completeWhen(ctx)) continue;
       spawn.push({
         key: rule.key,
-        title: rule.title,
+        title: typeof rule.title === "function" ? rule.title(ctx) : rule.title,
         track: claim.claimType === "unknown" ? null : claim.claimType,
         due_at: new Date(now.getTime() + rule.dueDays * DAY_MS).toISOString(),
       });
     }
   }
 
-  // 3 · status advance — forward-only, event-gated (computed above).
-  return { spawn, complete, statusAdvance };
+  // 3 · retitle. A title that depends on the claim (e.g. no_repair) is resolved at
+  //     spawn, but the flag is only reachable after the track is confirmed — i.e.
+  //     after the task already exists. So a flag change re-resolves open template
+  //     tasks it isn't closing, in both directions.
+  const retitle: { id: string; title: string }[] = [];
+  if (event.type === "flags_changed") {
+    const completing = new Set(complete);
+    for (const t of openTasks) {
+      if (!t.key || t.source !== "template" || completing.has(t.id)) continue;
+      const rule = ruleByKey.get(t.key);
+      if (!rule || typeof rule.title !== "function") continue;
+      const title = rule.title(ctx);
+      if (title !== t.title) retitle.push({ id: t.id, title });
+    }
+  }
+
+  // 4 · status advance — forward-only, event-gated (computed above).
+  return { spawn, complete, retitle, statusAdvance };
 }

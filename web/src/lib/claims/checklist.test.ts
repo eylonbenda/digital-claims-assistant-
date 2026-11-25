@@ -3,7 +3,7 @@ import { TP_LICENCE_FROM, computeChecklist, readinessCount, chaseableLabels, cha
 
 const NO_FLAGS: ClaimFlags = {
   theft: false, lien: false, business_use: false,
-  policy_activated: false, garage_network_rider: false,
+  policy_activated: false, garage_network_rider: false, no_repair: false,
 };
 
 function ownPolicy(over: Partial<ClaimFlags> = {}) {
@@ -271,5 +271,41 @@ describe("readinessCount", () => {
   it("falls back to mandatory documents on a track that gates on nothing", () => {
     const items = computeChecklist("unknown", new Set(["vehicle_reg"]), false, {}, NO_FLAGS);
     expect(readinessCount(items)).toEqual({ done: 1, total: 4 });
+  });
+});
+
+describe("no_repair (דו\"ח גלובלי)", () => {
+  const REPAIR = ["garage_invoice", "repair_receipt", "car_at_garage"];
+  const keys = (items: { key: string }[]) => items.map((i) => i.key);
+  const tp = (docs: string[] = [], on = true, hasForm = false) =>
+    computeChecklist("third_party_report", new Set(docs), hasForm, {}, { ...NO_FLAGS, no_repair: on });
+
+  it("drops repair items on third_party_report", () => {
+    const k = keys(tp());
+    for (const r of REPAIR) expect(k).not.toContain(r);
+    for (const keep of ["appraiser_report", "assessor_fee_invoice", "assessor_fee_receipt", "demand_form", "bank_details", "no_claim_confirmation"]) {
+      expect(k).toContain(keep);
+    }
+  });
+
+  it("is ignored on other tracks", () => {
+    for (const track of ["own_policy", "third_party_settlement"]) {
+      const off = computeChecklist(track, new Set(), false, {}, NO_FLAGS);
+      const on = computeChecklist(track, new Set(), false, {}, { ...NO_FLAGS, no_repair: true });
+      expect(keys(on)).toEqual(keys(off));
+    }
+  });
+
+  it("flipping back restores an uploaded invoice as done", () => {
+    const inv = tp(["garage_invoice"], false).find((i) => i.key === "garage_invoice");
+    expect(inv?.done).toBe(true);
+  });
+
+  it("leaves no repair blocker once the other blocking docs are in", () => {
+    // Every blocking doc of the repair flow except the repair artefacts themselves.
+    const all = tp([], false, true)
+      .filter((i) => i.kind === "doc" && i.blocking && !REPAIR.includes(i.key))
+      .map((i) => i.docType!);
+    expect(tp(all, true, true).some((i) => i.blocking && !i.done)).toBe(false);
   });
 });

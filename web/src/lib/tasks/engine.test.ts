@@ -7,7 +7,7 @@ const NOW = new Date("2026-07-08T10:00:00Z");
 const DAY = 86_400_000;
 const FLAGS = {
   theft: false, lien: false, business_use: false,
-  policy_activated: false, garage_network_rider: false,
+  policy_activated: false, garage_network_rider: false, no_repair: false,
 };
 
 function checklist(
@@ -15,8 +15,9 @@ function checklist(
   docs: string[] = [],
   hasForm = false,
   state: Record<string, boolean> = {},
+  noRepair = false,
 ): ComputedItem[] {
-  return computeChecklist(claimType, new Set(docs), hasForm, state, FLAGS);
+  return computeChecklist(claimType, new Set(docs), hasForm, state, { ...FLAGS, no_repair: noRepair });
 }
 
 function task(over: Partial<TaskRow> & { key: string }): TaskRow {
@@ -34,6 +35,7 @@ function run(over: {
   hasForm?: boolean;
   state?: Record<string, boolean>;
   openTasks?: TaskRow[];
+  noRepair?: boolean;
   event: EngineEvent;
 }) {
   const claimType = over.claimType ?? "own_policy";
@@ -42,8 +44,9 @@ function run(over: {
       claimType,
       status: over.status ?? "classified",
       atFaultInsurer: over.atFaultInsurer ?? null,
+      noRepair: over.noRepair ?? false,
     },
-    checklist: checklist(claimType, over.docs, over.hasForm ?? false, over.state ?? {}),
+    checklist: checklist(claimType, over.docs, over.hasForm ?? false, over.state ?? {}, over.noRepair ?? false),
     hasGeneratedForm: over.hasForm ?? false,
     openTasks: over.openTasks ?? [],
     event: over.event,
@@ -371,5 +374,65 @@ describe("orphaned and closing tasks", () => {
     expect(r.statusAdvance).toBe("closed");
     expect(r.complete).toContain("t-chase");
     expect(r.spawn).toEqual([]);
+  });
+});
+
+describe("no_repair (third_party_report)", () => {
+  const NON_REPAIR_BLOCKERS = ["vehicle_reg", "car_photo", "demand_form", "appraiser_report", "no_claim_confirmation"];
+
+  it("names the collection task without the repair", () => {
+    const on = run({ claimType: "third_party_report", noRepair: true, event: { type: "track_confirmed" } });
+    expect(on.spawn.find((s) => s.key === "collect_private_report_docs")?.title).toBe("לאסוף דוח שמאי ומסמכי הגשה");
+    const off = run({ claimType: "third_party_report", event: { type: "track_confirmed" } });
+    expect(off.spawn.find((s) => s.key === "collect_private_report_docs")?.title).toBe("לאסוף מסמכים אחרי התיקון (דוח שמאי, חשבונית תיקון)");
+  });
+
+  it("flags_changed clears the last blocker: collection closes, submission opens", () => {
+    const r = run({
+      claimType: "third_party_report", noRepair: true, hasForm: true, docs: NON_REPAIR_BLOCKERS,
+      openTasks: [task({ key: "collect_private_report_docs" })],
+      event: { type: "flags_changed" },
+    });
+    expect(r.complete).toContain("id-collect_private_report_docs");
+    expect(r.spawn.some((s) => s.key === "submit_to_tp_insurer")).toBe(true);
+    expect(r.statusAdvance).toBeNull();
+  });
+});
+
+describe("retitle on flags_changed", () => {
+  const REPAIR_TITLE = "לאסוף מסמכים אחרי התיקון (דוח שמאי, חשבונית תיקון)";
+  const NO_REPAIR_TITLE = "לאסוף דוח שמאי ומסמכי הגשה";
+
+  it("renames an open collection task when no_repair is switched on", () => {
+    const r = run({
+      claimType: "third_party_report", noRepair: true,
+      openTasks: [task({ key: "collect_private_report_docs", title: REPAIR_TITLE })],
+      event: { type: "flags_changed" },
+    });
+    expect(r.retitle).toEqual([{ id: "id-collect_private_report_docs", title: NO_REPAIR_TITLE }]);
+  });
+
+  it("renames it back when the flag is switched off", () => {
+    const r = run({
+      claimType: "third_party_report",
+      openTasks: [task({ key: "collect_private_report_docs", title: NO_REPAIR_TITLE })],
+      event: { type: "flags_changed" },
+    });
+    expect(r.retitle).toEqual([{ id: "id-collect_private_report_docs", title: REPAIR_TITLE }]);
+  });
+
+  it("never retitles on other events, nor a task that is completing", () => {
+    const other = run({
+      claimType: "third_party_report", noRepair: true,
+      openTasks: [task({ key: "collect_private_report_docs", title: REPAIR_TITLE })],
+      event: { type: "doc_uploaded", docType: "car_photo" },
+    });
+    expect(other.retitle).toEqual([]);
+    const done = run({
+      claimType: "third_party_report", noRepair: true, docs: ["appraiser_report"],
+      openTasks: [task({ key: "collect_private_report_docs", title: REPAIR_TITLE })],
+      event: { type: "flags_changed" },
+    });
+    expect(done.retitle).toEqual([]);
   });
 });

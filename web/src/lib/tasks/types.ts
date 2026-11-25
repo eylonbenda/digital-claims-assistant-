@@ -52,13 +52,17 @@ export type EngineEvent =
   | { type: "claim_submitted" }
   | { type: "track_confirmed" }
   | { type: "milestone_ticked"; key: string; done: boolean }
-  | { type: "doc_uploaded"; docType: string };
+  | { type: "doc_uploaded"; docType: string }
+  // A circumstance flag changed (e.g. no_repair) — re-evaluates the checklist-driven
+  // rules; never advances status on its own.
+  | { type: "flags_changed" };
 
 export type EngineInput = {
   claim: {
     claimType: ClaimType;
     status: ClaimStatus;
     atFaultInsurer: string | null;
+    noRepair: boolean;
   };
   checklist: ComputedItem[]; // computed AFTER the event's own DB mutation
   hasGeneratedForm: boolean;
@@ -70,5 +74,6 @@ export type EngineInput = {
 export type EngineResult = {
   spawn: TaskSpawn[];
   complete: string[]; // ids of open tasks to mark done
+  retitle: { id: string; title: string }[]; // open tasks whose claim-dependent title changed
   statusAdvance: ClaimStatus | null;
 };
