@@ -1,6 +1,6 @@
 # Status & Next Steps
 
-> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-24**.
+> **Session breadcrumb** — read this first when resuming. Last updated **2026-11-25**.
 > Source of truth is still the individual docs; this is just "where we are + what's next" so a fresh session can pick up without a recap.
 
 ## How to resume
@@ -681,3 +681,9 @@ cd web ; npm run dev
 - **New `UnassignEmail.tsx`** under each eligible email in `CorrespondencePanel.tsx` — a text link that expands to a confirm/cancel row before calling the route, next to (not replacing) the existing `EmailActions.tsx` status row when both apply.
 - Unit-tested: `web/src/app/api/emails/[id]/assign/route.test.ts`, `web/src/lib/email/pending.test.ts`.
 - `docs/app-map.md` (`/api/emails/[id]/assign` row, `email`/`/dashboard/[id]` module rows), `docs/claim-management.md` (§ ניהול התביעה מול המבטחת) updated.
+
+### Done since last sync (2026-11-25, PR #162 — read the assessor fee from a report that includes the fee invoice)
+- **No migration.** `web/src/lib/ai/extract-appraiser-amounts.ts` (+ test), `web/src/lib/demand/appraiser-suggestion.ts` (+ test), `web/src/lib/ai/classify-document.ts`.
+- **Appraisers sometimes send the report and their own fee invoice as one PDF**, which auto-detect files as `appraiser_report` (a `classify-document.ts` prompt note now says so explicitly, in either attachment order). `extractAppraiserAmounts` now also asks for `fee_before_vat`/`fee_incl_vat` in the same call, reconciled the same way as the repair total (`assessor_fee`/`assessor_fee_verified` on the `appraiser_amounts_extracted` event).
+- **`SOURCE_KEYS[APPRAISER_REPORT]` gains `assessor_fee`** (`web/src/lib/demand/appraiser-suggestion.ts`) — a report can now suggest the fee line too, not only a separate `assessor_fee_invoice`; when both documents read it, `pendingSuggestion`'s newest-event-per-document-first order means the newer reading wins. A line with its own `<key>_verified` (the fee) answers for itself instead of falling back to the document's overall `verified`.
+- `docs/claim-management.md` (§ הצעת סכומים מדוח השמאי), `docs/app-map.md` (`ai/` module row) updated.
