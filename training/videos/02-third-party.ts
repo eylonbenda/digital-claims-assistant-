@@ -8,6 +8,7 @@ import path from "node:path";
 import type { Locator, Page } from "playwright";
 import { OUT_DIR } from "../src/env.ts";
 import { FIXTURES } from "../src/fixtures.ts";
+import { MAIL_SINK_URL, sinkCount } from "../src/mail-sink.ts";
 import type { Scene, Segment, StepCtx } from "../src/scene.ts";
 import { showPdf } from "../src/stage/pdf-viewer.ts";
 
@@ -16,6 +17,13 @@ const DAMAGES = { repair: "8200", depreciation: "2500", fee: "900" };
 const PAID = "13238"; // repair and fee with 18% VAT, plus depreciation
 const SETTLEMENT_CLIENT = { name: "דוד מזרחי", phone: "0500000006" };
 const DEMO_RECIPIENT = "claims@example.com"; // never a real insurer's mailbox on camera
+// The demo business sends from the app: its system address and the mailbox that gets a copy.
+const DEMO_MAIL = { inbound_alias: "musach-hadgama", claims_mailbox: "office@example.com" };
+const mailInSink = async (): Promise<number> => {
+  const n = await sinkCount();
+  if (n === null) throw new Error(`the local mail sink is not running at ${MAIL_SINK_URL} — run "npm run mail-sink" and start the app as the README says`);
+  return n;
+};
 
 const nextButton = (page: Page): Locator => page.getByRole("button", { name: /^(בוא נתחיל|המשך|שליחה לטיפול)$/ });
 const next = ({ page, stage }: StepCtx) => stage.click(nextButton(page));
@@ -421,11 +429,18 @@ const demand: Segment = {
         const popup = page.context().waitForEvent("page", { timeout: 10_000 }).catch(() => null);
         await stage.click(link);
         await (await popup)?.close().catch(() => undefined);
-        const href = await link.getAttribute("href");
-        if (!href) throw new Error("the demand letter link has no href");
-        const res = await page.context().request.get(new URL(href, env.baseUrl).href);
-        const bytes = await res.body();
-        if (!res.ok() || bytes.subarray(0, 5).toString() !== "%PDF-") throw new Error(`the demand letter link did not return a PDF (status ${res.status()})`);
+        // Saving the amounts makes the letter again, and the link changes with it: read the
+        // link as it is now, and once more if the old file is already gone.
+        let bytes: Buffer = Buffer.alloc(0), status = 0;
+        for (let i = 0; i < 6 && bytes.subarray(0, 5).toString() !== "%PDF-"; i++) {
+          if (i > 0) await page.waitForTimeout(1500);
+          const href = await link.getAttribute("href");
+          if (!href) throw new Error("the demand letter link has no href");
+          const res = await page.context().request.get(new URL(href, env.baseUrl).href);
+          status = res.status();
+          bytes = await res.body();
+        }
+        if (bytes.subarray(0, 5).toString() !== "%PDF-") throw new Error(`the demand letter link did not return a PDF (status ${status})`);
         shared.demandPdf = path.join(OUT_DIR, "segments", "demand-letter.pdf");
         fs.writeFileSync(shared.demandPdf, bytes);
       },
@@ -445,8 +460,13 @@ const send: Segment = {
   steps: [
     {
       name: "ready",
-      // Off camera: the client's own accident notice is generated, as video 1 shows.
-      before: async ({ page, shared, env }) => {
+      // Off camera: the demo business is set up to send from the app, and the client's own
+      // accident notice is generated, as video 1 shows.
+      before: async (c) => {
+        const { page, shared, env } = c;
+        await mailInSink(); // stop here, before anything is filmed, if mail could leave this machine
+        const agentId = String((JSON.parse(shared.asReceived) as { claim: Row }).claim.agent_id);
+        must(await serviceDb(c).from("agents").update(DEMO_MAIL).eq("id", agentId).select("id"), "turning on sending for the demo business");
         await page.goto(`${shared.claimUrl}?tab=form`);
         const href = await page.getByRole("link", { name: "מלא טופס הודעה על תאונה" }).getAttribute("href");
         if (!href) throw new Error("the generate-form link has no href");
@@ -460,17 +480,12 @@ const send: Segment = {
     },
     {
       name: "open-send",
-      caption: "״פתח״ מעביר ללשונית השליחה. מבטחת היעד: של הצד השני",
+      caption: "״פתח״ מעביר ללשונית השליחה. מבטחת היעד והנמען: של הצד השני",
       run: async ({ page, stage }) => {
         await stage.click(page.getByRole("button", { name: /^פתח/ }).first());
         await page.getByLabel("נמען").fill(DEMO_RECIPIENT);
         await stage.highlight(page.getByLabel("מבטחת היעד"), 2200);
       },
-    },
-    {
-      name: "send-subject",
-      caption: "הנושא נכתב לבד: ״תביעת נזקי רכוש״, עם מספרי הרכב. לא משנים אותו — כך התשובות נקשרות לתיק",
-      run: async ({ page, stage }) => { await stage.highlight(page.getByText(/^תביעת נזקי רכוש/).first(), 2800); },
     },
     {
       name: "send-attachments",
@@ -481,22 +496,42 @@ const send: Segment = {
       },
     },
     {
-      name: "mark-sent",
-      caption: "שלחתם מתיבת המייל שלכם? מסמנים ״סומן כנשלח״ ומאשרים",
-      run: async ({ page, stage }) => {
-        await stage.click(page.getByRole("button", { name: "סומן כנשלח", exact: true }));
-        await stage.click(page.getByRole("button", { name: /^כן — סמן כנשלח/ }));
-        await page.getByText("נשלחה למבטחת").first().waitFor();
+      name: "send-button",
+      caption: "שולחים ישר מהמערכת: ״שליחה למבטחת״",
+      run: async ({ page, stage, shared }) => {
+        shared.sinkBefore = String(await mailInSink());
+        await stage.click(page.getByRole("button", { name: "שליחה למבטחת", exact: true }));
+        await page.getByRole("heading", { name: "לשלוח את התיק למבטחת?" }).waitFor();
+      },
+    },
+    {
+      name: "send-confirm",
+      caption: "לפני שהמייל יוצא רואים בדיוק מה נשלח: אל מי, העתק לתיבה שלכם, הנושא — שמקשר את התשובות לתיק — והקבצים",
+      run: async ({ page, stage }) => { await stage.highlight(card(page.getByRole("heading", { name: "לשלוח את התיק למבטחת?" })), 3600); },
+    },
+    {
+      name: "send-now",
+      caption: "״שליחה״ — והמייל יוצא למבטחת עם כל הקבצים",
+      run: async ({ page, stage, shared }) => {
+        await stage.click(page.getByRole("button", { name: "שליחה", exact: true }));
+        await page.getByText("נשלחה למבטחת").first().waitFor({ timeout: 45_000 });
+        // The mail must have gone to the local sink, and nowhere else.
+        if ((await mailInSink()) !== Number(shared.sinkBefore) + 1) throw new Error("the app did not send through the local mail sink — start it as the README says");
       },
     },
     {
       name: "sent",
-      caption: "התיק במצב ״נשלחה למבטחת״, ונפתחה משימת מעקב",
+      caption: "התיק עבר ל״נשלחה למבטחת״, ונפתחה משימת מעקב",
       run: async ({ page, stage }) => {
         await tab(page, "סקירה").click();
         await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' })");
         await stage.highlight(page.getByText("נשלחה למבטחת").first(), 2400);
       },
+    },
+    {
+      name: "correspondence",
+      caption: "המייל שנשלח שמור בתיק, תחת ״התכתבות״. תשובות המבטחת לכתובת המערכת יגיעו לאותו מקום",
+      run: async ({ page, stage }) => { await stage.highlight(page.locator("#correspondence"), 3000); },
     },
     chapter("chapter-follow", "מעקב עד התשלום"),
     {
