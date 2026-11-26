@@ -1,7 +1,7 @@
 // Video 2 — "תביעת צד ג׳".
 // The other driver is at fault: the client reports it, the office picks the track
 // ("דוח פרטי"), gathers the papers, builds the demand letter, sends it to the other side's
-// insurer and follows it to payment. A short last chapter shows what differs in "הסדר".
+// insurer and follows it to payment.
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
 import path from "node:path";
@@ -15,7 +15,6 @@ import { showPdf } from "../src/stage/pdf-viewer.ts";
 // The demo claim's money, as the appraiser's report fixture states it.
 const DAMAGES = { repair: "8200", depreciation: "2500", fee: "900" };
 const PAID = "13238"; // repair and fee with 18% VAT, plus depreciation
-const SETTLEMENT_CLIENT = { name: "דוד מזרחי", phone: "0500000006" };
 const DEMO_RECIPIENT = "claims@example.com"; // never a real insurer's mailbox on camera
 // The demo business sends from the app: its system address and the mailbox that gets a copy.
 const DEMO_MAIL = { inbound_alias: "musach-hadgama", claims_mailbox: "office@example.com" };
@@ -53,17 +52,6 @@ const serviceDb = ({ env }: StepCtx) => createClient(env.supabaseUrl, env.servic
 const must = <T>(r: { data: T | null; error: { message: string } | null }, what: string): T => {
   if (r.error) throw new Error(`${what} failed: ${r.error.message}`);
   return r.data as T;
-};
-
-// The claim exactly as the client sent it: its row, the other driver and the client's files.
-type Row = Record<string, unknown>;
-const snapshot = async (c: StepCtx): Promise<{ claim: Row; thirdParties: Row[]; documents: Row[] }> => {
-  const db = serviceDb(c), id = claimId(c.shared);
-  return {
-    claim: must(await db.from("claims").select("*").eq("id", id).single(), "reading the demo claim") as Row,
-    thirdParties: must(await db.from("third_parties").select("*").eq("claim_id", id), "reading the other driver") as Row[],
-    documents: must(await db.from("claim_documents").select("*").eq("claim_id", id), "reading the client's files") as Row[],
-  };
 };
 
 // ───────────────────────── The office opens the claim ─────────────────────────
@@ -248,19 +236,17 @@ const client: Segment = {
 // ───────────────────────── Picking the track ─────────────────────────
 const track: Segment = {
   surface: "desktop",
-  title: "בחירת המסלול: דוח פרטי או הסדר",
+  title: "בחירת המסלול",
   steps: [
     {
       name: "open-claim",
       caption: "התיק חזר מהלקוח. נכנסים אליו",
-      run: async (c) => {
-        const { page, stage, env, demo, shared } = c;
+      run: async ({ page, stage, env, demo, shared }) => {
         await page.goto(`${env.baseUrl}/dashboard`);
         await stage.click(page.getByRole("link", { name: demo.client.name }).first());
         await page.waitForURL(new RegExp("/dashboard/[0-9a-f-]{36}"));
         shared.claimUrl = page.url().split("?")[0];
         await page.getByRole("heading", { name: "סיווג התביעה" }).waitFor();
-        shared.asReceived = JSON.stringify(await snapshot(c)); // for the last chapter's second claim
       },
     },
     {
@@ -281,15 +267,8 @@ const track: Segment = {
       },
     },
     {
-      name: "card-settlement",
-      caption: "הסדר: מבקשים מראש אישור ממבטחת הצד השני, והתיקון במוסך הסדר — מהיר יותר, פיצוי מופחת",
-      run: async ({ page, stage }) => {
-        await stage.highlight(page.getByRole("button", { name: "בחר הסדר" }).locator("xpath=.."), 3200);
-      },
-    },
-    {
       name: "choose-report",
-      caption: "ההחלטה שלכם. בתיק הזה בוחרים ״דוח פרטי״",
+      caption: "מאשרים את ההצעה: ״בחר דוח פרטי״",
       run: async ({ page, stage }) => {
         await stage.click(page.getByRole("button", { name: "בחר דוח פרטי" }));
         await page.getByText("מחכה לאישור מסלול").first().waitFor({ state: "hidden" });
@@ -465,7 +444,7 @@ const send: Segment = {
       before: async (c) => {
         const { page, shared, env } = c;
         await mailInSink(); // stop here, before anything is filmed, if mail could leave this machine
-        const agentId = String((JSON.parse(shared.asReceived) as { claim: Row }).claim.agent_id);
+        const { agent_id: agentId } = must(await serviceDb(c).from("claims").select("agent_id").eq("id", claimId(shared)).single(), "reading the demo claim") as { agent_id: string };
         must(await serviceDb(c).from("agents").update(DEMO_MAIL).eq("id", agentId).select("id"), "turning on sending for the demo business");
         await page.goto(`${shared.claimUrl}?tab=form`);
         const href = await page.getByRole("link", { name: "מלא טופס הודעה על תאונה" }).getAttribute("href");
@@ -567,57 +546,6 @@ const send: Segment = {
       caption: "התביעה שולמה והתיק נסגר. כל המסמכים והסכומים נשארים בו",
       run: async ({ page, stage }) => { await stage.highlight(page.getByText("שולמה").first(), 2400); },
     },
-  ],
-};
-
-// ───────────────────────── What differs in "הסדר" ─────────────────────────
-// A second claim with the same facts, made off camera from the first one's answers and
-// put on the settlement track through the app's own route.
-const makeSettlementClaim = async (c: StepCtx) => {
-  const { page, env, shared } = c;
-  const db = serviceDb(c), was = JSON.parse(shared.asReceived) as Awaited<ReturnType<typeof snapshot>>;
-  const { id: _id, access_token: _token, created_at: _created, ...rest } = was.claim;
-  const copy = must(await db.from("claims").insert({ ...rest, client_name: SETTLEMENT_CLIENT.name, client_phone: SETTLEMENT_CLIENT.phone })
-    .select("id").single(), "copying the demo claim") as { id: string };
-  for (const [table, rows] of [["third_parties", was.thirdParties], ["claim_documents", was.documents]] as const) {
-    if (rows.length) must(await db.from(table).insert(rows.map(({ id: _i, ...r }) => ({ ...r, claim_id: copy.id }))).select("id"), `copying ${table}`);
-  }
-  const res = await page.context().request.patch(`${env.baseUrl}/api/claims/${copy.id}/classify`, { data: { claim_type: "third_party_settlement" } });
-  if (!res.ok()) throw new Error(`putting the copy on the settlement track answered ${res.status()}`);
-  shared.settlementUrl = `${env.baseUrl}/dashboard/${copy.id}`;
-};
-
-const settlement: Segment = {
-  surface: "desktop",
-  title: "ומה שונה במסלול ״הסדר״?",
-  steps: [
-    {
-      name: "settlement-claim",
-      before: makeSettlementClaim,
-      caption: "תיק אחר, אותה תאונה — אבל כאן נבחר ״הסדר״",
-      run: async ({ page, stage, shared }) => {
-        await page.goto(shared.settlementUrl);
-        await stage.highlight(page.getByText("צד ג' — הסדר").first(), 2400);
-      },
-    },
-    {
-      name: "settlement-checklist",
-      caption: "רשימת המסמכים קצרה: בלי דוח שמאי, בלי חשבונית ובלי מכתב דרישה",
-      run: async ({ page, stage }) => { await stage.highlight(card(page.getByText("מסמכי חובה").first()), 3000); },
-    },
-    {
-      name: "settlement-task",
-      caption: "המשימה הראשונה: לשלוח למבטחת הצד השני בקשת אישור הסדר",
-      run: async ({ page, stage }) => { await stage.highlight(page.getByText("לשלוח בקשת אישור הסדר").first(), 2600); },
-    },
-    {
-      name: "settlement-milestone",
-      caption: "כשהמבטחת מאשרת, מסמנים ב״אבני דרך״: ״אושר מסלול מוסך הסדר״ — ורק אז הרכב נכנס לתיקון",
-      run: async ({ page, stage }) => {
-        await stage.click(page.getByText("אבני דרך").first());
-        await stage.highlight(checklistRow(page, "אושר מסלול מוסך הסדר"), 3000);
-      },
-    },
     {
       name: "the-end",
       run: async ({ stage }) => {
@@ -628,5 +556,5 @@ const settlement: Segment = {
   ],
 };
 
-const scene: Scene = { id: "02-third-party", segments: [office, client, track, papers, demand, send, settlement] };
+const scene: Scene = { id: "02-third-party", segments: [office, client, track, papers, demand, send] };
 export default scene;

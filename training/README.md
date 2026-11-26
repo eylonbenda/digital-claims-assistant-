@@ -9,7 +9,7 @@ Design and rationale: [`docs/superpowers/specs/2026-11-18-training-videos-design
 | Video | Scene file | Shows |
 |---|---|---|
 | `01-accident-notice` | `videos/01-accident-notice.ts` | open a claim → send the link → the client's side (phone) → the filled accident notice |
-| `02-third-party` | `videos/02-third-party.ts` | a third-party claim: the client reports the other driver at fault → the office picks the track ("דוח פרטי") → papers and the amounts read from the appraiser's report → demand letter → sending to the other side's insurer → status and payment; a last chapter on what differs in "הסדר" |
+| `02-third-party` | `videos/02-third-party.ts` | a third-party claim: the client reports the other driver at fault → the office picks the track ("דוח פרטי") → papers and the amounts read from the appraiser's report → demand letter → sending to the other side's insurer → status and payment |
 | `00-smoke` | `videos/00-smoke.ts` | 7-second check that login, recording and rendering work |
 | promo (ten files) | `promo/` | a short video for prospective customers — see [Promo video](#promo-video) |
 
