@@ -43,6 +43,10 @@ const CARDS: Record<keyof typeof FIXTURES, string> = {
   car1: car("תמונת נזק 1 — מאחור", dentRear),
   car2: car("תמונת נזק 2 — תקריב", dentRear + dentSide),
   car3: car("תמונת נזק 3 — מבט כללי", dentSide),
+  noClaim: doc("אישור אי-הגשת תביעה", "#7c3aed", row("מבוטח/ת", name) + row("מספר רכב", d.vehicle.plate) + row("חברת הביטוח", d.policyInsurerLabel) + row("תאריך האירוע", "15/11/2026") + row("אישור", "לא הוגשה תביעה בגין האירוע")),
+  appraiserReport: doc("דוח שמאי", "#b45309", row("רכב", `${d.vehicle.manufacturer} ${d.vehicle.model} · ${d.vehicle.plate}`) + row("עלות תיקון", "8,200 ₪ לפני מע״מ") + row("ירידת ערך", "2,500 ₪") + row("שכר טרחת שמאי", "900 ₪ לפני מע״מ") + row("שמאי", "שמאות הדגמה")),
+  repairInvoice: doc("חשבונית תיקון", "#be123c", row("מוסך", "מוסך הדגמה") + row("לקוח/ה", name) + row("מספר רכב", d.vehicle.plate) + row("תיקון הרכב", "8,200 ₪") + row("מע״מ 18%", "1,476 ₪") + row("סה״כ", "9,676 ₪")),
+  paymentNotice: doc("הודעת תשלום", "#15803d", row("חברת הביטוח", d.thirdParty.insurerLabel) + row("לכבוד", name) + row("בגין", "נזקי רכוש — אירוע מיום 15/11/2026") + row("סכום ששולם", "13,238 ₪")),
 };
 
 const browser = await chromium.launch();

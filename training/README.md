@@ -9,6 +9,7 @@ Design and rationale: [`docs/superpowers/specs/2026-11-18-training-videos-design
 | Video | Scene file | Shows |
 |---|---|---|
 | `01-accident-notice` | `videos/01-accident-notice.ts` | open a claim → send the link → the client's side (phone) → the filled accident notice |
+| `02-third-party` | `videos/02-third-party.ts` | a third-party claim: the client reports the other driver at fault → the office picks the track ("דוח פרטי") → papers and the amounts read from the appraiser's report → demand letter → sending to the other side's insurer → status and payment |
 | `00-smoke` | `videos/00-smoke.ts` | 7-second check that login, recording and rendering work |
 | promo (ten files) | `promo/` | a short video for prospective customers — see [Promo video](#promo-video) |
 
@@ -56,6 +57,24 @@ Design and rationale: [`docs/superpowers/specs/2026-11-18-training-videos-design
 A run starts by deleting the previous `out/<id>.mp4`. If any step fails, the run exits
 non-zero, writes `out/failed-<step>.png`, and there is no mp4.
 
+## Sending from the app (video 02)
+
+Video 02 shows the office sending the claim to the insurer from inside the app. No mail may
+leave the machine for that, so the app is pointed at a local stand-in for the mail provider:
+
+```bash
+npm run mail-sink     # in training/: listens on 127.0.0.1:47187, keeps only a count
+```
+
+and the app is started with four variables set **in the shell, not in `web/.env.local`**:
+`EMAIL_PROVIDER_API_KEY=local-mail-sink`, `EMAIL_WEBHOOK_SECRET=local-mail-sink`,
+`EMAIL_INBOUND_DOMAIN=tikim.example.com` and `RESEND_BASE_URL=http://127.0.0.1:47187`.
+
+The scene refuses to start its send chapter when the sink is not running, types a demo
+recipient over the insurer's real address, and fails if the message did not arrive at the
+sink. Off camera it gives the demo business a system address (`inbound_alias`) and a copy
+mailbox, in the dev database, on the demo agent only.
+
 ## What is real and what is not
 
 Every screen in a video is the real app. Two things are stubbed, and only these:
@@ -63,6 +82,9 @@ Every screen in a video is the real app. Two things are stubbed, and only these:
 - the vehicle-registry lookup (`/api/vehicle/*`) returns a fixed fictional car, so a made-up
   plate neither hits data.gov.il nor comes back as someone's real vehicle;
 - the WhatsApp link is highlighted but never followed.
+
+In video 02 one more: the mail the app sends goes to a local sink instead of the mail
+provider (see above), to a demo recipient.
 
 The filled PDF is the real file from `/api/claims/[id]/form/[insurer]`, rendered with pdf.js
 because headless Chromium has no PDF viewer.
