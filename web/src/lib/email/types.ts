@@ -3,7 +3,8 @@
 // Who a stored message is from: the business's own claims mailbox, an insurer
 // (sender domain in the directory), or anyone else.
 export type EmailKind = "business" | "insurer" | "other";
-export type MatchMethod = "subject_id" | "thread" | "manual";
+// How a message got onto its claim. "auto_ack" is the one guess among them: see matchAck().
+export type MatchMethod = "subject_id" | "thread" | "auto_ack" | "manual";
 
 export type InboundAttachment = {
   filename: string;

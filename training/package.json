@@ -16,7 +16,8 @@
     "promo:render": "tsx promo/render.ts",
     "promo:preview": "tsx promo/preview.ts",
     "promo:footage": "tsx promo/footage.ts",
-    "promo:edit": "tsx promo/edit.ts"
+    "promo:edit": "tsx promo/edit.ts",
+    "promo:voice": "tsx promo/voice.ts"
   },
   "devDependencies": {
     "@fontsource/frank-ruhl-libre": "^5.3.0",

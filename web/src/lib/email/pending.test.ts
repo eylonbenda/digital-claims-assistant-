@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { emailTargets, isPendingEmail, prefillNote } from "./pending";
+import { emailTargets, canUnassign, isPendingEmail, prefillNote } from "./pending";
 
 const inbound = { direction: "inbound" as const, handled_at: null };
 const sentClaim = { handlingEffective: "sent" as const, closed: false };
@@ -57,5 +57,17 @@ describe("prefillNote", () => {
 
   test("no body → empty", () => {
     expect(prefillNote(null)).toBe("");
+  });
+});
+
+describe("canUnassign", () => {
+  test("lets an inbound email go back to the inbox while no status was set from it", () => {
+    expect(canUnassign({ direction: "inbound", handled_as: null })).toBe(true);
+    expect(canUnassign({ direction: "inbound", handled_as: "none" })).toBe(true);
+  });
+
+  test("keeps an email the status was set from, and anything we sent", () => {
+    expect(canUnassign({ direction: "inbound", handled_as: "in_review" })).toBe(false);
+    expect(canUnassign({ direction: "outbound", handled_as: null })).toBe(false);
   });
 });

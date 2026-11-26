@@ -3,7 +3,8 @@
 // Spec: docs/superpowers/specs/2026-11-23-appraiser-amounts-design.md
 import { DAMAGE_KEYS, DEFAULT_VAT, type Damages } from "./damages";
 
-/** payload: { document_id, doc_type, verified, repair?, diminished_value?, assessor_fee? } */
+/** payload: { document_id, doc_type, verified, repair?, diminished_value?, assessor_fee?,
+ *  assessor_fee_verified? } — the last one only on a report that also states the fee. */
 export const EV_EXTRACTED = "appraiser_amounts_extracted";
 /** payload: { document_id, outcome: "applied" | "dismissed" } */
 export const EV_RESOLVED = "appraiser_amounts_resolved";
@@ -12,9 +13,10 @@ export const APPRAISER_REPORT = "appraiser_report";
 export const ASSESSOR_FEE_INVOICE = "assessor_fee_invoice";
 
 // Which damages lines each document type may suggest. A figure under any other
-// key in an event is ignored.
+// key in an event is ignored. The report carries the fee too when the appraiser
+// sent the report and the fee invoice as one file.
 export const SOURCE_KEYS = {
-  [APPRAISER_REPORT]: ["repair", "diminished_value"],
+  [APPRAISER_REPORT]: ["repair", "diminished_value", "assessor_fee"],
   [ASSESSOR_FEE_INVOICE]: ["assessor_fee"],
 } as const;
 export type SourceDocType = keyof typeof SOURCE_KEYS;
@@ -80,7 +82,10 @@ export function pendingSuggestion(
       taken.add(key);
       const current = positive(damages?.[key]?.amount);
       if (current === suggested) continue;
-      lines.push({ key, suggested, current, unverified: CHECKED_KEYS.has(key) && p.verified !== true });
+      // A line with a check of its own (`<key>_verified`) answers for itself;
+      // otherwise the document's `verified` covers it.
+      const verified = p[`${key}_verified`] ?? p.verified;
+      lines.push({ key, suggested, current, unverified: CHECKED_KEYS.has(key) && verified !== true });
       contributed = true;
     }
     if (contributed) documentIds.push(documentId);

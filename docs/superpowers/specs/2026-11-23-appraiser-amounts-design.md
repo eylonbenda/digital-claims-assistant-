@@ -74,3 +74,17 @@ from the fee invoice (`assessor_fee_invoice`), read by a second call of the same
 
 ## Left to the builder
 Prompt wording, timeout, exact Hebrew copy, card layout.
+
+## Addition, 2026-11-25: report and fee invoice in one file
+The owner reported that appraisers sometimes send the report and their fee invoice as a
+single PDF. Such a file is filed as `appraiser_report`, so the fee was never read.
+- The report call now also asks for the fee (before VAT, including VAT; `0` when the
+  file does not state it) — one call, not two. The extraction event of a report carries
+  `assessor_fee` and its own check, `assessor_fee_verified`; `verified` stays the repair
+  check.
+- A report may therefore suggest the assessor-fee line. A separate fee invoice still
+  does; when both state the fee the newer reading wins, as for any line.
+- Auto-detect: a file that contains the damage assessment is `appraiser_report`,
+  whatever is attached and in either order (fee invoice first used to file as `other`).
+- Not covered: the combined file is one document of one type, so the checklist's
+  `assessor_fee_invoice` item stays open until the invoice is filed on its own.

@@ -151,7 +151,10 @@ claim_emails    (id, agent_id → agents, claim_id → claims (nullable),
                  -- email sent to insurers and what comes back (migration 013, email
                  --   relay phase 1). direction: outbound | inbound · kind: business |
                  --   insurer | other · claim_id null = not yet filed on a claim ·
-                 --   match_method: subject_id | thread | manual · provider_id is the
+                 --   match_method: subject_id | thread | auto_ack | manual (migration 016:
+                 --   auto_ack — an insurer's automatic acknowledgement reply, filed by
+                 --   timing on the claim just sent to its address, see matchAck() in
+                 --   web/src/lib/email/match.ts) · provider_id is the
                  --   provider's id — the idempotency key for a repeat webhook delivery ·
                  --   delivery_failed is set by a provider bounce/failed webhook event on
                  --   the matching outbound row, which also opens a manual task
